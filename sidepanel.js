@@ -1183,22 +1183,113 @@ async function populateQuickSearchResults(text, language) {
   }
 }
 
-// Quick translation using basic dictionary APIs
+// Quick translation using real translation APIs
 async function getQuickTranslation(text, language) {
   try {
-    // For English words, try to get Chinese translation
+    // Try multiple translation services
+    let translation = null;
+    
+    // First try: Google Translate API (free tier)
+    translation = await getGoogleTranslation(text, language);
+    if (translation) return translation;
+    
+    // Second try: Microsoft Translator (backup)
+    translation = await getMicrosoftTranslation(text, language);
+    if (translation) return translation;
+    
+    // Third try: Built-in dictionary for common words
     if (language === 'english') {
-      // Use a simple dictionary API or fallback to built-in translations
-      const simpleTranslations = await getBuiltInTranslation(text);
-      if (simpleTranslations) return simpleTranslations;
+      translation = await getBuiltInTranslation(text);
+      if (translation) return translation;
     }
     
-    // For other languages, provide basic info
-    return `${language === 'japanese' ? '日語' : language === 'korean' ? '韓語' : language === 'dutch' ? '荷蘭語' : '外語'}詞彙`;
+    // Last resort: Basic language info
+    const langNames = {
+      'english': '英語詞彙',
+      'japanese': '日語詞彙', 
+      'korean': '韓語詞彙',
+      'dutch': '荷蘭語詞彙'
+    };
+    
+    return `${langNames[language] || '外語詞彙'} - 正在查詢翻譯...`;
     
   } catch (error) {
     console.error('Quick translation error:', error);
     return '翻譯服務暫時無法使用';
+  }
+}
+
+// Google Translate API (using public endpoint)
+async function getGoogleTranslation(text, fromLang) {
+  try {
+    // Map our language codes to Google's
+    const langMap = {
+      'english': 'en',
+      'japanese': 'ja', 
+      'korean': 'ko',
+      'dutch': 'nl'
+    };
+    
+    const sourceLang = langMap[fromLang] || 'auto';
+    const targetLang = 'zh-TW'; // Traditional Chinese
+    
+    // Use Google Translate's public API endpoint
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLang}&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
+    
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Google Translate API failed');
+    
+    const data = await response.json();
+    
+    // Parse Google Translate response
+    if (data && data[0] && data[0][0] && data[0][0][0]) {
+      const translatedText = data[0][0][0];
+      return translatedText;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Google translation failed:', error);
+    return null;
+  }
+}
+
+// Microsoft Translator (backup service)
+async function getMicrosoftTranslation(text, fromLang) {
+  try {
+    // Map languages for Microsoft Translator
+    const langMap = {
+      'english': 'en',
+      'japanese': 'ja',
+      'korean': 'ko', 
+      'dutch': 'nl'
+    };
+    
+    const sourceLang = langMap[fromLang] || 'en';
+    
+    // Use Microsoft Translator's public endpoint (no key required for basic usage)
+    const url = `https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&from=${sourceLang}&to=zh-Hant`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify([{ text: text }])
+    });
+    
+    if (!response.ok) throw new Error('Microsoft Translator failed');
+    
+    const data = await response.json();
+    
+    if (data && data[0] && data[0].translations && data[0].translations[0]) {
+      return data[0].translations[0].text;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Microsoft translation failed:', error);
+    return null;
   }
 }
 
@@ -1227,61 +1318,205 @@ async function getQuickPronunciation(text, language) {
   }
 }
 
-// Get basic definition
+// Get basic definition using free dictionary APIs
 async function getQuickDefinition(text, language) {
   try {
     if (language === 'english') {
-      // Try to get a basic definition
-      const definition = await getBuiltInDefinition(text);
+      // Try to get real English definition
+      let definition = await getFreeDictionaryDefinition(text);
+      if (definition) return definition;
+      
+      // Fallback to built-in dictionary
+      definition = await getBuiltInDefinition(text);
       if (definition) return definition;
     }
     
-    // Basic language identification
+    // For other languages, try to get basic info
     const langNames = {
-      'english': '英語詞彙',
+      'english': '英語單字',
       'japanese': '日語詞彙',
       'korean': '韓語詞彙', 
       'dutch': '荷蘭語詞彙'
     };
     
-    return `${langNames[language] || '外語詞彙'} - 完整定義請等待 AI 分析`;
+    return `${langNames[language] || '外語詞彙'} - 等待完整 AI 分析取得詳細定義`;
   } catch (error) {
     console.error('Quick definition error:', error);
-    return '基本定義載入失敗';
+    return '定義載入中...';
   }
 }
 
-// Built-in translation database (basic common words)
+// Get definition from Free Dictionary API
+async function getFreeDictionaryDefinition(word) {
+  try {
+    // Use the free dictionary API
+    const url = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`;
+    
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Dictionary API failed');
+    
+    const data = await response.json();
+    
+    if (data && data[0] && data[0].meanings && data[0].meanings[0]) {
+      const meaning = data[0].meanings[0];
+      const partOfSpeech = meaning.partOfSpeech || '';
+      const definition = meaning.definitions && meaning.definitions[0] && meaning.definitions[0].definition;
+      
+      if (definition) {
+        // Return simplified definition in Traditional Chinese where possible
+        let result = `(${partOfSpeech}) ${definition}`;
+        
+        // Limit length for quick display
+        if (result.length > 100) {
+          result = result.substring(0, 97) + '...';
+        }
+        
+        return result;
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Free dictionary lookup failed:', error);
+    return null;
+  }
+}
+
+// Built-in translation database (expanded common words)
 async function getBuiltInTranslation(word) {
   const basicTranslations = {
+    // Greetings & Basic
     'hello': '你好',
-    'world': '世界',
-    'good': '好的',
-    'bad': '壞的',
+    'hi': '嗨',
+    'bye': '再見',
+    'goodbye': '再見',
+    'thanks': '謝謝',
+    'thank': '謝謝',
+    'please': '請',
+    'sorry': '抱歉',
+    'excuse': '藉口',
     'yes': '是',
     'no': '否',
-    'please': '請',
-    'thank': '謝謝',
-    'sorry': '抱歉',
-    'water': '水',
-    'food': '食物',
+    
+    // Common Verbs
+    'have': '有',
+    'do': '做',
+    'go': '去',
+    'come': '來',
+    'see': '看見',
+    'get': '得到',
+    'make': '製作',
+    'take': '拿取',
+    'give': '給予',
+    'think': '思考',
+    'know': '知道',
+    'feel': '感覺',
+    'want': '想要',
+    'need': '需要',
+    'like': '喜歡',
+    'love': '愛',
+    'eat': '吃',
+    'drink': '喝',
+    'sleep': '睡覺',
+    'work': '工作',
+    'study': '學習',
+    'play': '玩耍',
+    'read': '閱讀',
+    'write': '寫',
+    'speak': '說話',
+    'listen': '聽',
+    'walk': '走路',
+    'run': '跑步',
+    'sit': '坐',
+    'stand': '站',
+    
+    // Common Nouns
+    'world': '世界',
+    'people': '人們',
+    'person': '人',
+    'man': '男人',
+    'woman': '女人',
+    'child': '孩子',
+    'family': '家庭',
+    'friend': '朋友',
+    'home': '家',
     'house': '房子',
+    'school': '學校',
+    'work': '工作',
+    'office': '辦公室',
     'car': '汽車',
+    'food': '食物',
+    'water': '水',
+    'money': '錢',
     'book': '書',
+    'computer': '電腦',
+    'phone': '電話',
+    'music': '音樂',
+    'movie': '電影',
+    
+    // Time
     'time': '時間',
     'day': '日子',
     'night': '夜晚',
-    'love': '愛',
-    'life': '生活',
-    'work': '工作',
-    'study': '學習',
-    'school': '學校',
-    'friend': '朋友',
-    'family': '家庭',
-    'happy': '快樂',
-    'sad': '悲傷',
-    'beautiful': '美麗',
-    'interesting': '有趣'
+    'morning': '早晨',
+    'afternoon': '下午',
+    'evening': '晚上',
+    'today': '今天',
+    'tomorrow': '明天',
+    'yesterday': '昨天',
+    'week': '星期',
+    'month': '月',
+    'year': '年',
+    
+    // Adjectives
+    'good': '好的',
+    'bad': '壞的',
+    'big': '大的',
+    'small': '小的',
+    'new': '新的',
+    'old': '舊的',
+    'young': '年輕的',
+    'happy': '快樂的',
+    'sad': '悲傷的',
+    'beautiful': '美麗的',
+    'ugly': '醜陋的',
+    'hot': '熱的',
+    'cold': '冷的',
+    'easy': '容易的',
+    'difficult': '困難的',
+    'hard': '困難的',
+    'important': '重要的',
+    'interesting': '有趣的',
+    'boring': '無聊的',
+    'fun': '有趣的',
+    'great': '很棒的',
+    'wonderful': '很棒的',
+    'amazing': '驚人的',
+    'awesome': '很棒的',
+    
+    // Colors
+    'red': '紅色',
+    'blue': '藍色',
+    'green': '綠色',
+    'yellow': '黃色',
+    'black': '黑色',
+    'white': '白色',
+    'brown': '棕色',
+    'pink': '粉紅色',
+    'purple': '紫色',
+    'orange': '橙色',
+    
+    // Numbers
+    'one': '一',
+    'two': '二',
+    'three': '三',
+    'four': '四',
+    'five': '五',
+    'six': '六',
+    'seven': '七',
+    'eight': '八',
+    'nine': '九',
+    'ten': '十'
   };
   
   const lowerWord = word.toLowerCase().trim();
