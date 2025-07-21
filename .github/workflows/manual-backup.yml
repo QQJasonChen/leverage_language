@@ -1,0 +1,138 @@
+name: Manual Backup
+
+on:
+  workflow_dispatch:
+    inputs:
+      backup_type:
+        description: 'Type of backup to create'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+          - full
+          - code-only
+          - config-only
+      include_tests:
+        description: 'Include test files in backup'
+        required: false
+        default: true
+        type: boolean
+      compression:
+        description: 'Create compressed backup'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  manual-backup:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup backup directory
+      run: |
+        mkdir -p backup
+        echo "Backup started at: $(date)" > backup/backup-info.txt
+        echo "Backup type: ${{ github.event.inputs.backup_type }}" >> backup/backup-info.txt
+        echo "Include tests: ${{ github.event.inputs.include_tests }}" >> backup/backup-info.txt
+        echo "Commit: ${{ github.sha }}" >> backup/backup-info.txt
+
+    - name: Create full backup
+      if: github.event.inputs.backup_type == 'full'
+      run: |
+        echo "Creating full backup..."
+        
+        # Copy all essential files
+        cp -r . backup/youglish-extension/
+        
+        # Remove git directory from backup
+        rm -rf backup/youglish-extension/.git
+        
+        # Optionally remove test files
+        if [ "${{ github.event.inputs.include_tests }}" == "false" ]; then
+          find backup/youglish-extension/ -name "test-*.html" -delete
+          echo "Test files excluded from backup"
+        fi
+
+    - name: Create code-only backup
+      if: github.event.inputs.backup_type == 'code-only'
+      run: |
+        echo "Creating code-only backup..."
+        mkdir -p backup/youglish-extension
+        
+        # Copy only essential code files
+        cp manifest.json backup/youglish-extension/ 2>/dev/null || true
+        cp background.js backup/youglish-extension/ 2>/dev/null || true
+        cp content.js backup/youglish-extension/ 2>/dev/null || true
+        cp sidepanel.* backup/youglish-extension/ 2>/dev/null || true
+        cp options.* backup/youglish-extension/ 2>/dev/null || true
+        cp -r lib/ backup/youglish-extension/ 2>/dev/null || true
+        cp -r _locales/ backup/youglish-extension/ 2>/dev/null || true
+        cp -r icons/ backup/youglish-extension/ 2>/dev/null || true
+
+    - name: Create config-only backup
+      if: github.event.inputs.backup_type == 'config-only'
+      run: |
+        echo "Creating config-only backup..."
+        mkdir -p backup/youglish-extension
+        
+        # Copy only configuration files
+        cp manifest.json backup/youglish-extension/ 2>/dev/null || true
+        cp package.json backup/youglish-extension/ 2>/dev/null || true
+        cp .gitignore backup/youglish-extension/ 2>/dev/null || true
+        cp README.md backup/youglish-extension/ 2>/dev/null || true
+        cp -r _locales/ backup/youglish-extension/ 2>/dev/null || true
+
+    - name: Generate backup manifest
+      run: |
+        echo "Generating backup manifest..."
+        
+        {
+          echo "# YouGlish Extension Backup Manifest"
+          echo "**Generated:** $(date)"
+          echo "**Type:** ${{ github.event.inputs.backup_type }}"
+          echo "**Commit:** ${{ github.sha }}"
+          echo ""
+          echo "## Files Included"
+        } > backup/MANIFEST.md
+        
+        find backup/youglish-extension -type f | sort >> backup/MANIFEST.md
+        
+        echo "" >> backup/MANIFEST.md
+        echo "## Size Information" >> backup/MANIFEST.md
+        du -sh backup/youglish-extension >> backup/MANIFEST.md
+
+    - name: Create compressed backup
+      if: github.event.inputs.compression == 'true'
+      run: |
+        echo "Creating compressed backup..."
+        cd backup
+        tar -czf youglish-extension-backup-$(date +%Y%m%d-%H%M%S).tar.gz youglish-extension/
+        zip -r youglish-extension-backup-$(date +%Y%m%d-%H%M%S).zip youglish-extension/
+        echo "Compressed backups created"
+
+    - name: Upload backup artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: youglish-backup-${{ github.event.inputs.backup_type }}-${{ github.run_number }}
+        path: backup/
+        retention-days: 30
+
+    - name: Summary
+      run: |
+        echo "## Backup Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- **Type:** ${{ github.event.inputs.backup_type }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Tests Included:** ${{ github.event.inputs.include_tests }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Compressed:** ${{ github.event.inputs.compression }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Timestamp:** $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "- **Total Files:** $(find backup/youglish-extension -type f | wc -l)" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f backup/youglish-extension-backup-*.tar.gz ]; then
+          echo "- **Archive Created:** Yes" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- **Archive Created:** No" >> $GITHUB_STEP_SUMMARY
+        fi
