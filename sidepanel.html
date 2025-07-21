@@ -1477,6 +1477,101 @@
             color: #999;
             font-style: italic;
         }
+
+        /* Quick Search Results Styles */
+        .quick-search-results {
+            background: linear-gradient(135deg, #f0f8ff 0%, #e8f4f8 100%);
+            border: 1px solid #b3d9e6;
+            border-radius: 8px;
+            margin: 12px 0;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .quick-search-header {
+            background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+            color: white;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .quick-search-icon {
+            font-size: 16px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .ai-loading-indicator {
+            margin-left: auto;
+            font-size: 12px;
+            opacity: 0.9;
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 0.9; }
+            51%, 100% { opacity: 0.5; }
+        }
+
+        .quick-search-content {
+            padding: 16px;
+        }
+
+        .quick-translation,
+        .quick-pronunciation, 
+        .quick-definition {
+            margin-bottom: 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .translation-label,
+        .pronunciation-label,
+        .definition-label {
+            font-weight: 600;
+            color: #1976d2;
+            min-width: 80px;
+            font-size: 13px;
+        }
+
+        .translation-result,
+        .pronunciation-result,
+        .definition-result {
+            flex: 1;
+            font-size: 13px;
+            line-height: 1.4;
+            color: #333;
+            background: rgba(255,255,255,0.7);
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .quick-search-note {
+            background: rgba(25,118,210,0.1);
+            border: 1px solid rgba(25,118,210,0.2);
+            border-radius: 4px;
+            padding: 8px 12px;
+            margin-top: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #1976d2;
+        }
+
+        .note-icon {
+            font-size: 14px;
+        }
         
         .ai-loading {
             text-align: center;
@@ -2097,6 +2192,37 @@
                                 <li data-i18n="ai_feature_culture">🌍 Cultural context and usage scenarios</li>
                             </ul>
                             <p class="ai-note" data-i18n="ai_config_note">Configure AI API key in settings</p>
+                        </div>
+
+                        <!-- Quick Search Results - Shows immediately while AI loads -->
+                        <div id="quickSearchResults" class="quick-search-results" style="display: none;">
+                            <div class="quick-search-header">
+                                <span class="quick-search-icon">⚡</span>
+                                <span class="quick-search-title" data-i18n="quick_search_title">即時查詢結果</span>
+                                <span class="ai-loading-indicator">🤖 AI 分析中...</span>
+                            </div>
+                            
+                            <div class="quick-search-content">
+                                <div class="quick-translation">
+                                    <div class="translation-label" data-i18n="quick_translation">快速翻譯：</div>
+                                    <div id="quickTranslation" class="translation-result">載入中...</div>
+                                </div>
+                                
+                                <div class="quick-pronunciation">
+                                    <div class="pronunciation-label" data-i18n="quick_pronunciation">發音：</div>
+                                    <div id="quickPronunciation" class="pronunciation-result">載入中...</div>
+                                </div>
+                                
+                                <div class="quick-definition">
+                                    <div class="definition-label" data-i18n="quick_definition">簡要定義：</div>
+                                    <div id="quickDefinition" class="definition-result">載入中...</div>
+                                </div>
+                                
+                                <div class="quick-search-note">
+                                    <span class="note-icon">💡</span>
+                                    <span data-i18n="quick_search_note">完整 AI 分析即將完成，請稍候...</span>
+                                </div>
+                            </div>
                         </div>
                         
                         <div id="aiAnalysisLoading" class="ai-loading" style="display: none;">

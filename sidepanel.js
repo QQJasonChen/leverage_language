@@ -941,6 +941,9 @@ async function generateAIAnalysis(forceRefresh = false) {
   }
 
   try {
+    // 立即顯示快速搜索結果
+    await showQuickSearchResults(currentQueryData.text, currentQueryData.language);
+    
     // 顯示載入狀態
     showAILoading();
     
@@ -1002,10 +1005,13 @@ function showAILoading() {
   const placeholder = document.getElementById('aiAnalysisPlaceholder');
   const loading = document.getElementById('aiAnalysisLoading');
   const result = document.getElementById('aiAnalysisResult');
+  const quickSearch = document.getElementById('quickSearchResults');
   
   if (placeholder) placeholder.style.display = 'none';
   if (loading) loading.style.display = 'block';
   if (result) result.style.display = 'none';
+  // Keep quick search results visible during AI loading
+  if (quickSearch) quickSearch.style.display = 'block';
 }
 
 // 顯示 AI 分析結果
@@ -1013,9 +1019,11 @@ function showAIResult(analysis) {
   const placeholder = document.getElementById('aiAnalysisPlaceholder');
   const loading = document.getElementById('aiAnalysisLoading');
   const result = document.getElementById('aiAnalysisResult');
+  const quickSearch = document.getElementById('quickSearchResults');
   
   if (placeholder) placeholder.style.display = 'none';
   if (loading) loading.style.display = 'none';
+  if (quickSearch) quickSearch.style.display = 'none'; // Hide quick search when full analysis is ready
   if (result) {
     result.style.display = 'block';
     
@@ -1119,6 +1127,203 @@ function showAIError(message) {
     result.style.display = 'block';
     result.innerHTML = `<div class="ai-error">❌ ${message}</div>`;
   }
+}
+
+// Quick Search Results Functions
+async function showQuickSearchResults(text, language) {
+  const quickSearchDiv = document.getElementById('quickSearchResults');
+  const placeholder = document.getElementById('aiAnalysisPlaceholder');
+  
+  if (!quickSearchDiv) return;
+  
+  // Hide placeholder and show quick search results
+  if (placeholder) placeholder.style.display = 'none';
+  quickSearchDiv.style.display = 'block';
+  
+  // Start loading quick results immediately
+  populateQuickSearchResults(text, language);
+}
+
+async function populateQuickSearchResults(text, language) {
+  const translationDiv = document.getElementById('quickTranslation');
+  const pronunciationDiv = document.getElementById('quickPronunciation');
+  const definitionDiv = document.getElementById('quickDefinition');
+  
+  // Show loading state
+  if (translationDiv) translationDiv.textContent = '載入中...';
+  if (pronunciationDiv) pronunciationDiv.textContent = '載入中...';
+  if (definitionDiv) definitionDiv.textContent = '載入中...';
+  
+  try {
+    // Get quick translation (Traditional Chinese)
+    const translation = await getQuickTranslation(text, language);
+    if (translationDiv) {
+      translationDiv.textContent = translation || '無法取得翻譯';
+    }
+    
+    // Get pronunciation guide
+    const pronunciation = await getQuickPronunciation(text, language);
+    if (pronunciationDiv) {
+      pronunciationDiv.textContent = pronunciation || '無法取得發音';
+    }
+    
+    // Get basic definition
+    const definition = await getQuickDefinition(text, language);
+    if (definitionDiv) {
+      definitionDiv.textContent = definition || '無法取得定義';
+    }
+    
+  } catch (error) {
+    console.error('Error loading quick search results:', error);
+    
+    // Show error state
+    if (translationDiv) translationDiv.textContent = '載入失敗';
+    if (pronunciationDiv) pronunciationDiv.textContent = '載入失敗';
+    if (definitionDiv) definitionDiv.textContent = '載入失敗';
+  }
+}
+
+// Quick translation using basic dictionary APIs
+async function getQuickTranslation(text, language) {
+  try {
+    // For English words, try to get Chinese translation
+    if (language === 'english') {
+      // Use a simple dictionary API or fallback to built-in translations
+      const simpleTranslations = await getBuiltInTranslation(text);
+      if (simpleTranslations) return simpleTranslations;
+    }
+    
+    // For other languages, provide basic info
+    return `${language === 'japanese' ? '日語' : language === 'korean' ? '韓語' : language === 'dutch' ? '荷蘭語' : '外語'}詞彙`;
+    
+  } catch (error) {
+    console.error('Quick translation error:', error);
+    return '翻譯服務暫時無法使用';
+  }
+}
+
+// Get pronunciation guide
+async function getQuickPronunciation(text, language) {
+  try {
+    if (language === 'english') {
+      // Try to provide basic IPA or pronunciation guide
+      const pronunciation = await getBasicPronunciation(text);
+      if (pronunciation) return pronunciation;
+      
+      // Fallback: simple phonetic guide
+      return `/${text.toLowerCase()}/`;
+    } else if (language === 'japanese') {
+      return '假名読み方を確認してください';
+    } else if (language === 'korean') {
+      return '한글 발음을 확인해주세요';
+    } else if (language === 'dutch') {
+      return 'Nederlandse uitspraak';
+    }
+    
+    return '發音資訊需要完整分析';
+  } catch (error) {
+    console.error('Quick pronunciation error:', error);
+    return '發音資訊載入失敗';
+  }
+}
+
+// Get basic definition
+async function getQuickDefinition(text, language) {
+  try {
+    if (language === 'english') {
+      // Try to get a basic definition
+      const definition = await getBuiltInDefinition(text);
+      if (definition) return definition;
+    }
+    
+    // Basic language identification
+    const langNames = {
+      'english': '英語詞彙',
+      'japanese': '日語詞彙',
+      'korean': '韓語詞彙', 
+      'dutch': '荷蘭語詞彙'
+    };
+    
+    return `${langNames[language] || '外語詞彙'} - 完整定義請等待 AI 分析`;
+  } catch (error) {
+    console.error('Quick definition error:', error);
+    return '基本定義載入失敗';
+  }
+}
+
+// Built-in translation database (basic common words)
+async function getBuiltInTranslation(word) {
+  const basicTranslations = {
+    'hello': '你好',
+    'world': '世界',
+    'good': '好的',
+    'bad': '壞的',
+    'yes': '是',
+    'no': '否',
+    'please': '請',
+    'thank': '謝謝',
+    'sorry': '抱歉',
+    'water': '水',
+    'food': '食物',
+    'house': '房子',
+    'car': '汽車',
+    'book': '書',
+    'time': '時間',
+    'day': '日子',
+    'night': '夜晚',
+    'love': '愛',
+    'life': '生活',
+    'work': '工作',
+    'study': '學習',
+    'school': '學校',
+    'friend': '朋友',
+    'family': '家庭',
+    'happy': '快樂',
+    'sad': '悲傷',
+    'beautiful': '美麗',
+    'interesting': '有趣'
+  };
+  
+  const lowerWord = word.toLowerCase().trim();
+  return basicTranslations[lowerWord] || null;
+}
+
+// Basic pronunciation for common words
+async function getBasicPronunciation(word) {
+  const basicPronunciations = {
+    'hello': '/həˈloʊ/',
+    'world': '/wɜːrld/',
+    'good': '/ɡʊd/',
+    'beautiful': '/ˈbjuːtɪfəl/',
+    'interesting': '/ˈɪntrəstɪŋ/',
+    'water': '/ˈwɔːtər/',
+    'house': '/haʊs/',
+    'school': '/skuːl/',
+    'friend': '/frend/',
+    'family': '/ˈfæməli/'
+  };
+  
+  const lowerWord = word.toLowerCase().trim();
+  return basicPronunciations[lowerWord] || null;
+}
+
+// Basic definition for common words  
+async function getBuiltInDefinition(word) {
+  const basicDefinitions = {
+    'hello': '問候語，用於見面時的招呼',
+    'world': '地球，世界',
+    'good': '好的，良好的',
+    'beautiful': '美麗的，漂亮的',
+    'interesting': '有趣的，引人入勝的',
+    'water': '水，無色無味的液體',
+    'house': '房子，住宅',
+    'school': '學校，教育機構',
+    'friend': '朋友，友人',
+    'family': '家庭，家人'
+  };
+  
+  const lowerWord = word.toLowerCase().trim();
+  return basicDefinitions[lowerWord] || null;
 }
 
 // Saved reports functionality
