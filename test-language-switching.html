@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Language Switching Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .test-container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #1a73e8;
+            margin-bottom: 20px;
+        }
+        
+        .language-selector {
+            margin-bottom: 20px;
+        }
+        
+        .language-selector select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+        }
+        
+        .test-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            background: #f9f9f9;
+        }
+        
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        .test-text {
+            padding: 10px;
+            border-left: 4px solid #1a73e8;
+            background: white;
+            margin: 10px 0;
+        }
+        
+        .current-language {
+            font-weight: bold;
+            color: #1a73e8;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1 data-i18n="extensionName">YouGlish Quick Search</h1>
+        
+        <div class="language-selector">
+            <label for="testLanguageSelect">Select Interface Language:</label>
+            <select id="testLanguageSelect">
+                <option value="auto" data-i18n="ui_language_auto">Auto</option>
+                <option value="en" data-i18n="ui_language_english">English</option>
+                <option value="zh_TW" data-i18n="ui_language_chinese">中文</option>
+                <option value="ja" data-i18n="ui_language_japanese">日本語</option>
+                <option value="ko" data-i18n="ui_language_korean">한국어</option>
+                <option value="nl" data-i18n="ui_language_dutch">Nederlands</option>
+            </select>
+        </div>
+        
+        <div class="test-section">
+            <h3>Current Language: <span id="currentLang" class="current-language"></span></h3>
+        </div>
+        
+        <div class="test-section">
+            <h3>Welcome Section Test</h3>
+            <div class="test-text">
+                <h4 data-i18n="welcome_title">🎯 YouGlish Quick Search</h4>
+                <p data-i18n="welcome_description">Select text on any webpage, then:</p>
+                <p data-i18n="welcome_step1">• Right-click and select "Search on YouGlish"</p>
+                <p data-i18n="welcome_languages">Supports English, Japanese, Korean, Dutch</p>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>UI Elements Test</h3>
+            <div class="test-text">
+                <button data-i18n="search_button">Search</button>
+                <button data-i18n="settings_button">Settings</button>
+                <button data-i18n="save_settings">Save Settings</button>
+            </div>
+            <div class="test-text">
+                <input type="text" data-i18n-placeholder="manual_search_placeholder" placeholder="Enter text to search..." />
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>AI Features Test</h3>
+            <div class="test-text">
+                <h5 data-i18n="ai_analysis_title">🤖 AI Language Analysis</h5>
+                <button data-i18n="generate_analysis">✨ Generate Analysis</button>
+                <button data-i18n="generate_audio">🎵 Generate Audio</button>
+                <p data-i18n="ai_config_note">Configure AI API key in settings</p>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>History Section Test</h3>
+            <div class="test-text">
+                <h5 data-i18n="history_view">📚 History</h5>
+                <p data-i18n="history_empty_title">📝 No search history yet</p>
+                <button data-i18n="clear_history">Clear History</button>
+                <input type="text" data-i18n-placeholder="search_history" placeholder="Search history..." />
+                <div style="margin-top: 10px;">
+                    <span data-i18n="query_statistics">📊 Query Statistics</span><br>
+                    <span data-i18n="total_queries">Total queries:</span> 15<br>
+                    <span data-i18n="language_distribution">Language distribution:</span> 
+                    <span data-i18n="language_english">English</span>: 5 <span data-i18n="times_plural">times</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Time Format Test</h3>
+            <div class="test-text">
+                <p><span data-i18n="time_today">Today</span> 14:30</p>
+                <p><span data-i18n="time_yesterday">Yesterday</span> 09:15</p>
+                <p>3 <span data-i18n="time_days_ago">days ago</span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include the i18n helper -->
+    <script src="lib/i18n-helper.js"></script>
+    <script>
+        // Test script to handle language switching
+        async function updateCurrentLanguageDisplay() {
+            try {
+                const currentLang = await window.getCurrentUILanguage();
+                const langDisplay = document.getElementById('currentLang');
+                if (langDisplay) {
+                    langDisplay.textContent = currentLang;
+                }
+            } catch (error) {
+                console.error('Error getting current language:', error);
+            }
+        }
+        
+        async function initializeTest() {
+            // Wait for i18n to be initialized
+            await new Promise(resolve => {
+                if (window.getCurrentUILanguage) {
+                    resolve();
+                } else {
+                    setTimeout(resolve, 100);
+                }
+            });
+            
+            // Update current language display
+            updateCurrentLanguageDisplay();
+            
+            // Set up language selector
+            const languageSelect = document.getElementById('testLanguageSelect');
+            if (languageSelect) {
+                // Load current setting from storage if available
+                if (typeof chrome !== 'undefined' && chrome.storage) {
+                    chrome.storage.sync.get(['uiLanguage'], (result) => {
+                        languageSelect.value = result.uiLanguage || 'auto';
+                    });
+                }
+                
+                languageSelect.addEventListener('change', async function() {
+                    const selectedLanguage = this.value;
+                    console.log('Test: Language changed to:', selectedLanguage);
+                    
+                    // Save to storage if available
+                    if (typeof chrome !== 'undefined' && chrome.storage) {
+                        chrome.storage.sync.set({ uiLanguage: selectedLanguage });
+                    }
+                    
+                    // Manually set the language for testing
+                    if (selectedLanguage !== 'auto') {
+                        // Override the getCurrentUILanguage function temporarily
+                        window.getCurrentUILanguage = async () => selectedLanguage;
+                    } else {
+                        // Restore original function
+                        location.reload();
+                        return;
+                    }
+                    
+                    // Refresh the UI
+                    if (window.refreshUILanguage) {
+                        await window.refreshUILanguage();
+                        updateCurrentLanguageDisplay();
+                    }
+                });
+            }
+        }
+        
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', initializeTest);
+        
+        // Add some logging to see what's happening
+        window.addEventListener('load', () => {
+            console.log('Test page loaded');
+            console.log('Available languages in helper:', Object.keys(window.languageMessages || {}));
+        });
+    </script>
+</body>
+</html>

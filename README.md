@@ -1,4 +1,6 @@
-# YouGlish Quick Search Chrome Extension
+# Leverage Language - YouGlish Chrome Extension
+
+Enhance language learning experience by leveraging different websites and AI-powered analysis.
 
 ## 功能說明
 

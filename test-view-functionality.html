@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test View Saved Reports Functionality</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .test-container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #1a73e8;
+            margin-bottom: 20px;
+        }
+        
+        .demo-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            background: #f9f9f9;
+        }
+        
+        .demo-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .primary-btn {
+            background: #1a73e8;
+            color: white;
+        }
+        
+        .secondary-btn {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .success-btn {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .demo-saved-reports {
+            display: grid;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .saved-report-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px;
+            transition: all 0.2s ease;
+        }
+        
+        .saved-report-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-color: #1a73e8;
+        }
+        
+        .saved-report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .saved-report-text {
+            font-weight: 600;
+            color: #1a73e8;
+            font-size: 14px;
+        }
+        
+        .saved-report-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .saved-report-btn {
+            background: #f0f0f0;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .saved-report-btn:hover {
+            background: #e0e0e0;
+        }
+        
+        .saved-report-btn.view {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .saved-report-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .saved-report-language {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+        
+        .saved-report-preview {
+            background: #f9f9f9;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #555;
+        }
+        
+        .search-simulation {
+            background: #e8f5e8;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+        }
+        
+        .search-result-panel {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .search-info {
+            background: #f0f8ff;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        
+        .ai-analysis-section {
+            background: #fafafa;
+            border: 1px solid #eee;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        
+        .test-output {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Test View Saved Reports Functionality</h1>
+        
+        <div class="demo-section">
+            <h3>Demo: Saved Reports List</h3>
+            <p>This simulates how saved reports appear in the extension:</p>
+            
+            <div class="demo-saved-reports">
+                <!-- Sample saved reports -->
+                <div class="saved-report-item" data-report-id="demo1">
+                    <div class="saved-report-header">
+                        <div class="saved-report-text">hello world</div>
+                        <div class="saved-report-actions">
+                            <button class="saved-report-btn view" onclick="simulateViewReport('hello world', 'english')">查看</button>
+                            <button class="saved-report-btn">⭐</button>
+                            <button class="saved-report-btn">刪除</button>
+                        </div>
+                    </div>
+                    <div class="saved-report-meta">
+                        <span class="saved-report-language">English</span>
+                        <span class="saved-report-time">Today</span>
+                    </div>
+                    <div class="saved-report-preview">
+                        📢 Pronunciation: /həˈloʊ wɜːrld/
+                        📖 Common greeting used worldwide...
+                    </div>
+                </div>
+                
+                <div class="saved-report-item" data-report-id="demo2">
+                    <div class="saved-report-header">
+                        <div class="saved-report-text">thank you</div>
+                        <div class="saved-report-actions">
+                            <button class="saved-report-btn view" onclick="simulateViewReport('thank you', 'english')">查看</button>
+                            <button class="saved-report-btn">⭐</button>
+                            <button class="saved-report-btn">刪除</button>
+                        </div>
+                    </div>
+                    <div class="saved-report-meta">
+                        <span class="saved-report-language">English</span>
+                        <span class="saved-report-time">Yesterday</span>
+                    </div>
+                    <div class="saved-report-preview">
+                        📢 Pronunciation: /θæŋk juː/
+                        📖 Expression of gratitude...
+                    </div>
+                </div>
+                
+                <div class="saved-report-item" data-report-id="demo3">
+                    <div class="saved-report-header">
+                        <div class="saved-report-text">こんにちは</div>
+                        <div class="saved-report-actions">
+                            <button class="saved-report-btn view" onclick="simulateViewReport('こんにちは', 'japanese')">查看</button>
+                            <button class="saved-report-btn">⭐</button>
+                            <button class="saved-report-btn">刪除</button>
+                        </div>
+                    </div>
+                    <div class="saved-report-meta">
+                        <span class="saved-report-language">Japanese</span>
+                        <span class="saved-report-time">2 days ago</span>
+                    </div>
+                    <div class="saved-report-preview">
+                        📢 Pronunciation: [koɴɲiʧi̥wa]
+                        📖 Standard Japanese greeting...
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="demo-section">
+            <h3>Simulated Search Result Display</h3>
+            <p>When you click "查看" above, this shows what should happen:</p>
+            
+            <div class="search-simulation">
+                <strong>Expected Behavior:</strong>
+                <ol>
+                    <li>Switch to the main search view</li>
+                    <li>Show search information panel with the vocabulary</li>
+                    <li>Switch to AI Analysis tab</li>
+                    <li>Display the saved AI analysis</li>
+                    <li>Show notification that report was loaded</li>
+                </ol>
+            </div>
+            
+            <div id="simulatedSearchResult" class="search-result-panel">
+                <div class="search-info">
+                    <h4>📺 YouGlish Search Results</h4>
+                    <div><strong>Search Term:</strong> <span id="simSearchTerm"></span></div>
+                    <div><strong>Language:</strong> <span id="simLanguage"></span></div>
+                    <div><strong>URL:</strong> <a href="#" id="simUrl" target="_blank">Click to open</a></div>
+                </div>
+                
+                <div class="ai-analysis-section">
+                    <h4>🤖 AI Language Analysis</h4>
+                    <div id="simAIContent">
+                        <!-- AI analysis content will be shown here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="demo-section">
+            <h3>Test Storage Functions</h3>
+            <button id="testSaveReport" class="primary-btn">Save Test Report</button>
+            <button id="testViewReport" class="success-btn">Test View Report</button>
+            <button id="testClearAll" class="secondary-btn">Clear All</button>
+            <div id="testOutput" class="test-output"></div>
+        </div>
+    </div>
+
+    <!-- Include the required scripts -->
+    <script src="lib/storage-manager.js"></script>
+    <script src="lib/i18n-helper.js"></script>
+    <script>
+        function log(message) {
+            const output = document.getElementById('testOutput');
+            output.textContent += new Date().toLocaleTimeString() + ': ' + message + '\n';
+        }
+        
+        function simulateViewReport(searchText, language) {
+            // Show what should happen when viewing a saved report
+            const resultPanel = document.getElementById('simulatedSearchResult');
+            const searchTerm = document.getElementById('simSearchTerm');
+            const languageSpan = document.getElementById('simLanguage');
+            const url = document.getElementById('simUrl');
+            const aiContent = document.getElementById('simAIContent');
+            
+            // Update display
+            searchTerm.textContent = searchText;
+            languageSpan.textContent = language;
+            url.href = `https://youglish.com/pronounce/${encodeURIComponent(searchText)}/${language}`;
+            
+            // Simulate AI analysis content
+            const analysisContent = {
+                'hello world': `
+                    <h5>📢 Pronunciation Guide</h5>
+                    <p><strong>IPA:</strong> /həˈloʊ wɜːrld/</p>
+                    <p><strong>Phonetic:</strong> huh-LOW wurld</p>
+                    
+                    <h5>📖 Vocabulary Explanation</h5>
+                    <p><strong>Hello:</strong> A common greeting used in English-speaking countries</p>
+                    <p><strong>World:</strong> The planet Earth; all people and societies</p>
+                    
+                    <h5>📝 Usage Examples</h5>
+                    <p>• "Hello, world!" - Traditional first program output</p>
+                    <p>• Used as a friendly greeting to everyone</p>
+                `,
+                'thank you': `
+                    <h5>📢 Pronunciation Guide</h5>
+                    <p><strong>IPA:</strong> /θæŋk juː/</p>
+                    <p><strong>Phonetic:</strong> THANK yoo</p>
+                    
+                    <h5>📖 Vocabulary Explanation</h5>
+                    <p><strong>Thank:</strong> Express gratitude or appreciation</p>
+                    <p><strong>You:</strong> Second person pronoun</p>
+                    
+                    <h5>📝 Cultural Context</h5>
+                    <p>• Essential polite expression in English</p>
+                    <p>• Shows appreciation and good manners</p>
+                `,
+                'こんにちは': `
+                    <h5>📢 Pronunciation Guide</h5>
+                    <p><strong>Romanji:</strong> konnichiwa</p>
+                    <p><strong>IPA:</strong> [koɴɲiʧi̥wa]</p>
+                    
+                    <h5>📖 Vocabulary Explanation</h5>
+                    <p><strong>Meaning:</strong> "Good afternoon" or general daytime greeting</p>
+                    <p><strong>Kanji:</strong> 今日は (today + topic particle)</p>
+                    
+                    <h5>📝 Cultural Context</h5>
+                    <p>• Most common Japanese greeting</p>
+                    <p>• Used from late morning to late afternoon</p>
+                `
+            };
+            
+            aiContent.innerHTML = analysisContent[searchText] || '<p>AI analysis content for: ' + searchText + '</p>';
+            
+            // Show the result panel
+            resultPanel.style.display = 'block';
+            
+            // Show notification
+            showNotification(`📖 已載入報告: ${searchText}`, '#2196F3');
+            
+            log(`Simulated viewing report: ${searchText} (${language})`);
+        }
+        
+        function showNotification(text, color = '#4CAF50') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 10px;
+                right: 10px;
+                background: ${color};
+                color: white;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-size: 12px;
+                z-index: 1000;
+                opacity: 0;
+                transition: opacity 0.3s;
+            `;
+            notification.textContent = text;
+            
+            document.body.appendChild(notification);
+            
+            // Show animation
+            setTimeout(() => notification.style.opacity = '1', 10);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => document.body.removeChild(notification), 300);
+            }, 3000);
+        }
+        
+        // Test functions
+        document.getElementById('testSaveReport').onclick = async () => {
+            try {
+                if (typeof window.storageManager !== 'undefined') {
+                    const report = await window.storageManager.saveAIReport(
+                        'test viewing',
+                        'english',
+                        'This is a test report for viewing functionality verification.',
+                        null
+                    );
+                    log('Test report saved: ' + report.id);
+                    showNotification('✅ Test report saved');
+                } else {
+                    log('Storage manager not available');
+                }
+            } catch (error) {
+                log('Error: ' + error.message);
+            }
+        };
+        
+        document.getElementById('testViewReport').onclick = async () => {
+            try {
+                if (typeof window.storageManager !== 'undefined') {
+                    const reports = await window.storageManager.getAIReports();
+                    if (reports.length > 0) {
+                        const report = reports[0];
+                        log('Found report to view: ' + report.searchText);
+                        // Simulate the view function
+                        simulateViewReport(report.searchText, report.language);
+                    } else {
+                        log('No reports found to view');
+                    }
+                } else {
+                    log('Storage manager not available');
+                }
+            } catch (error) {
+                log('Error: ' + error.message);
+            }
+        };
+        
+        document.getElementById('testClearAll').onclick = async () => {
+            try {
+                if (typeof window.storageManager !== 'undefined') {
+                    if (confirm('Clear all test data?')) {
+                        await window.storageManager.clearAllData();
+                        log('All test data cleared');
+                        showNotification('🗑️ Data cleared', '#f44336');
+                    }
+                } else {
+                    log('Storage manager not available');
+                }
+            } catch (error) {
+                log('Error: ' + error.message);
+            }
+        };
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            log('View functionality test page loaded');
+            setTimeout(() => {
+                if (typeof window.storageManager !== 'undefined') {
+                    log('Storage manager ready');
+                } else {
+                    log('Waiting for storage manager...');
+                }
+            }, 500);
+        });
+    </script>
+</body>
+</html>
