@@ -867,6 +867,26 @@
             font-size: 14px;
         }
 
+        .flashcard-bulk-btn {
+            background: #9C27B0;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+        .flashcard-bulk-btn:hover {
+            background: #7B1FA2;
+        }
+
+        .flashcard-bulk-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
         .export-btn:hover {
             background: #45a049;
         }
@@ -1572,6 +1592,385 @@
         .note-icon {
             font-size: 14px;
         }
+
+        /* Flashcards Styles */
+        .flashcards-view {
+            padding: 20px;
+            max-height: 100vh;
+            overflow-y: auto;
+        }
+
+        .flashcards-header {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .flashcards-header h3 {
+            margin: 0 0 10px 0;
+            color: #1976d2;
+            font-size: 20px;
+        }
+
+        .flashcards-stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            padding: 8px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #1976d2;
+        }
+
+        .flashcards-controls {
+            margin-bottom: 25px;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .flashcard-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .flashcard-btn.primary {
+            background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+            color: white;
+            box-shadow: 0 2px 4px rgba(25, 118, 210, 0.3);
+        }
+
+        .flashcard-btn.primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(25, 118, 210, 0.4);
+        }
+
+        .flashcard-btn.secondary {
+            background: #f5f5f5;
+            color: #666;
+            border: 1px solid #ddd;
+        }
+
+        .flashcard-btn.secondary:hover {
+            background: #e8e8e8;
+            transform: translateY(-1px);
+        }
+
+        .btn-icon {
+            font-size: 16px;
+        }
+
+        .study-options {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .study-mode-selector,
+        .difficulty-filter {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .study-options label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .study-options select {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        /* Study Interface */
+        .study-interface {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .study-progress {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-right: 15px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4caf50 0%, #45a049 100%);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .card-counter {
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+        }
+
+        .flashcard-container {
+            display: flex;
+            justify-content: center;
+            margin: 30px 0;
+        }
+
+        .flashcard {
+            width: 320px;
+            height: 200px;
+            perspective: 1000px;
+            cursor: pointer;
+        }
+
+        .card-front,
+        .card-back {
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            transition: transform 0.6s;
+            backface-visibility: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            position: absolute;
+        }
+
+        .card-front {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .card-back {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            transform: rotateY(180deg);
+        }
+
+        .flashcard.flipped .card-front {
+            transform: rotateY(180deg);
+        }
+
+        .flashcard.flipped .card-back {
+            transform: rotateY(0deg);
+        }
+
+        .card-content {
+            padding: 20px;
+            width: 100%;
+        }
+
+        .card-text {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            word-break: break-word;
+        }
+
+        .card-definition {
+            font-size: 14px;
+            margin-top: 10px;
+            opacity: 0.9;
+            line-height: 1.4;
+        }
+
+        .card-pronunciation {
+            font-size: 16px;
+            margin-top: 8px;
+            font-style: italic;
+            opacity: 0.8;
+        }
+
+        .audio-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .audio-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.1);
+        }
+
+        .study-controls {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .study-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .study-btn.primary {
+            background: #1976d2;
+            color: white;
+        }
+
+        .study-btn.primary:hover {
+            background: #1565c0;
+            transform: translateY(-1px);
+        }
+
+        .answer-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .answer-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            min-width: 70px;
+        }
+
+        .answer-btn.again {
+            background: #f44336;
+            color: white;
+        }
+
+        .answer-btn.hard {
+            background: #ff9800;
+            color: white;
+        }
+
+        .answer-btn.good {
+            background: #4caf50;
+            color: white;
+        }
+
+        .answer-btn.easy {
+            background: #2196f3;
+            color: white;
+        }
+
+        .answer-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .btn-label {
+            font-size: 13px;
+            margin-bottom: 2px;
+        }
+
+        .btn-time {
+            font-size: 10px;
+            opacity: 0.8;
+        }
+
+        .study-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .nav-btn.primary {
+            background: #1976d2;
+            color: white;
+        }
+
+        .nav-btn.secondary {
+            background: #f5f5f5;
+            color: #666;
+            border: 1px solid #ddd;
+        }
+
+        .nav-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        /* Empty State */
+        .flashcards-empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .flashcards-empty h3 {
+            margin: 0 0 8px 0;
+            font-size: 18px;
+            color: #333;
+        }
+
+        .flashcards-empty p {
+            margin: 0 0 20px 0;
+            font-size: 14px;
+        }
         
         .ai-loading {
             text-align: center;
@@ -2134,6 +2533,7 @@
                     <button id="showVideoBtn" class="view-button" data-i18n="video_view">🎥 影片</button>
                     <button id="showHistoryBtn" class="view-button" data-i18n="history_view">📚 歷史</button>
                     <button id="showSavedReportsBtn" class="view-button" data-i18n="saved_reports_view">💾 已保存</button>
+                    <button id="showFlashcardsBtn" class="view-button" data-i18n="flashcards_view">🃏 記憶卡</button>
                     <button id="openNewTabBtn" class="view-button" data-i18n="new_tab">🔗 新分頁</button>
                 </div>
             </div>
@@ -2401,6 +2801,7 @@
                             <span data-i18n="favorites_only">⭐ Favorites Only</span>
                         </label>
                         <button id="cleanupDuplicatesBtn" class="cleanup-btn">🗂️ Clean Duplicates</button>
+                        <button id="createAllFlashcardsBtn" class="flashcard-bulk-btn">🃏 Create All Flashcards</button>
                     </div>
                 </div>
                 
@@ -2417,6 +2818,134 @@
                     <p data-i18n="saved_reports_empty_desc">Generate AI analysis to automatically save reports!</p>
                 </div>
             </div>
+            
+            <!-- 記憶卡視圖 -->
+            <div id="flashcardsView" class="flashcards-view" style="display: none;">
+                <div class="flashcards-header">
+                    <h3>🃏 記憶卡系統</h3>
+                    <div class="flashcards-stats">
+                        <span id="totalCards" class="stat-item">總卡片: 0</span>
+                        <span id="studyProgress" class="stat-item">學習進度: 0%</span>
+                        <span id="todayReviews" class="stat-item">今日複習: 0</span>
+                    </div>
+                </div>
+                
+                <!-- 記憶卡控制面板 -->
+                <div class="flashcards-controls">
+                    <div class="control-row">
+                        <button id="createFlashcardBtn" class="flashcard-btn primary">
+                            <span class="btn-icon">➕</span>
+                            <span data-i18n="create_flashcard">建立記憶卡</span>
+                        </button>
+                        <button id="studyModeBtn" class="flashcard-btn primary">
+                            <span class="btn-icon">🎯</span>
+                            <span data-i18n="start_study">開始學習</span>
+                        </button>
+                        <button id="fullScreenStudyBtn" class="flashcard-btn secondary">
+                            <span class="btn-icon">🖥️</span>
+                            <span data-i18n="fullscreen_study">全屏學習</span>
+                        </button>
+                    </div>
+                    
+                    <div class="study-options">
+                        <div class="study-mode-selector">
+                            <label data-i18n="study_mode">學習模式:</label>
+                            <select id="studyModeSelect">
+                                <option value="word-to-translation" data-i18n="word_to_translation">單字 → 翻譯</option>
+                                <option value="translation-to-word" data-i18n="translation_to_word">翻譯 → 單字</option>
+                                <option value="audio-to-meaning" data-i18n="audio_to_meaning">發音 → 含義</option>
+                                <option value="mixed" data-i18n="mixed_mode">混合模式</option>
+                            </select>
+                        </div>
+                        
+                        <div class="difficulty-filter">
+                            <label data-i18n="difficulty">難度篩選:</label>
+                            <select id="difficultyFilter">
+                                <option value="all" data-i18n="all_difficulties">所有難度</option>
+                                <option value="new" data-i18n="new_cards">新卡片</option>
+                                <option value="learning" data-i18n="learning_cards">學習中</option>
+                                <option value="review" data-i18n="review_cards">複習卡片</option>
+                                <option value="difficult" data-i18n="difficult_cards">困難卡片</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 記憶卡列表 -->
+                <div class="flashcards-list" id="flashcardsList">
+                    <!-- 動態生成的記憶卡 -->
+                </div>
+                
+                <!-- 學習模式界面 -->
+                <div id="studyInterface" class="study-interface" style="display: none;">
+                    <div class="study-card">
+                        <div class="study-progress">
+                            <div class="progress-bar">
+                                <div id="progressFill" class="progress-fill"></div>
+                            </div>
+                            <span id="cardCounter" class="card-counter">1 / 10</span>
+                        </div>
+                        
+                        <div class="flashcard-container">
+                            <div id="flashcard" class="flashcard">
+                                <div class="card-front">
+                                    <div class="card-content">
+                                        <div id="frontText" class="card-text">Loading...</div>
+                                        <button id="audioPlayBtn" class="audio-btn" style="display: none;">🔊</button>
+                                    </div>
+                                </div>
+                                <div class="card-back" style="display: none;">
+                                    <div class="card-content">
+                                        <div id="backText" class="card-text">Loading...</div>
+                                        <div id="cardDefinition" class="card-definition"></div>
+                                        <div id="cardPronunciation" class="card-pronunciation"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="study-controls">
+                            <button id="flipCardBtn" class="study-btn primary">
+                                <span data-i18n="flip_card">翻轉卡片</span>
+                            </button>
+                        </div>
+                        
+                        <div id="answerButtons" class="answer-buttons" style="display: none;">
+                            <button id="againBtn" class="answer-btn again" data-difficulty="0">
+                                <span class="btn-label" data-i18n="again">再次學習</span>
+                                <span class="btn-time">< 1分鐘</span>
+                            </button>
+                            <button id="hardBtn" class="answer-btn hard" data-difficulty="1">
+                                <span class="btn-label" data-i18n="hard">困難</span>
+                                <span class="btn-time">< 6分鐘</span>
+                            </button>
+                            <button id="goodBtn" class="answer-btn good" data-difficulty="2">
+                                <span class="btn-label" data-i18n="good">良好</span>
+                                <span class="btn-time">< 10分鐘</span>
+                            </button>
+                            <button id="easyBtn" class="answer-btn easy" data-difficulty="3">
+                                <span class="btn-label" data-i18n="easy">簡單</span>
+                                <span class="btn-time">4天</span>
+                            </button>
+                        </div>
+                        
+                        <div class="study-navigation">
+                            <button id="exitStudyBtn" class="nav-btn secondary" data-i18n="exit_study">退出學習</button>
+                            <button id="nextCardBtn" class="nav-btn primary" data-i18n="next_card">下一張卡片</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 空狀態 -->
+                <div class="flashcards-empty" id="flashcardsEmpty">
+                    <div class="empty-icon">🃏</div>
+                    <h3 data-i18n="no_flashcards">還沒有記憶卡</h3>
+                    <p data-i18n="create_first_flashcard">建立您的第一張記憶卡開始學習！</p>
+                    <button id="createFirstCardBtn" class="flashcard-btn primary">
+                        <span data-i18n="create_first_card">建立第一張卡片</span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
     
@@ -2426,6 +2955,7 @@
     <script src="lib/history-manager.js"></script>
     <script src="lib/lang-detect.js"></script>
     <script src="lib/export-templates.js"></script>
+    <script src="lib/flashcard-manager.js"></script>
     <script src="sidepanel.js"></script>
 </body>
 </html>

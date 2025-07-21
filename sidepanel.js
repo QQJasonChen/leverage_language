@@ -90,6 +90,7 @@ function showSearchResult(queryData) {
   const videoView = document.getElementById('videoView');
   const historyView = document.getElementById('historyView');
   const savedReportsView = document.getElementById('savedReportsView');
+  const flashcardsView = document.getElementById('flashcardsView');
   const showAnalysisBtn = document.getElementById('showAnalysisBtn');
   
   if (analysisView) {
@@ -103,6 +104,7 @@ function showSearchResult(queryData) {
   if (videoView) videoView.style.display = 'none';
   if (historyView) historyView.style.display = 'none';
   if (savedReportsView) savedReportsView.style.display = 'none';
+  if (flashcardsView) flashcardsView.style.display = 'none';
   
   // 設定分析按鈕為活動狀態
   document.querySelectorAll('.view-button').forEach(btn => btn.classList.remove('active'));
@@ -149,10 +151,14 @@ function initializeViewControls() {
   const showAnalysisBtn = document.getElementById('showAnalysisBtn');
   const showVideoBtn = document.getElementById('showVideoBtn');
   const showHistoryBtn = document.getElementById('showHistoryBtn');
+  const showSavedReportsBtn = document.getElementById('showSavedReportsBtn');
+  const showFlashcardsBtn = document.getElementById('showFlashcardsBtn');
   const openNewTabBtn = document.getElementById('openNewTabBtn');
   const analysisView = document.getElementById('analysisView');
   const videoView = document.getElementById('videoView');
   const historyView = document.getElementById('historyView');
+  const savedReportsView = document.getElementById('savedReportsView');
+  const flashcardsView = document.getElementById('flashcardsView');
   
   // 分析視圖按鈕
   if (showAnalysisBtn) {
@@ -161,12 +167,12 @@ function initializeViewControls() {
       document.querySelectorAll('.view-button').forEach(btn => btn.classList.remove('active'));
       showAnalysisBtn.classList.add('active');
       
-      // Hide all views
+      // Show analysis view, hide all others
       if (analysisView) analysisView.style.display = 'block';
       if (videoView) videoView.style.display = 'none';
       if (historyView) historyView.style.display = 'none';
-      const savedReportsView = document.getElementById('savedReportsView');
       if (savedReportsView) savedReportsView.style.display = 'none';
+      if (flashcardsView) flashcardsView.style.display = 'none';
       
       console.log('Switched to analysis view');
     };
@@ -179,12 +185,12 @@ function initializeViewControls() {
       document.querySelectorAll('.view-button').forEach(btn => btn.classList.remove('active'));
       showVideoBtn.classList.add('active');
       
-      // Hide all views
+      // Show video view, hide all others
       if (analysisView) analysisView.style.display = 'none';
       if (videoView) videoView.style.display = 'block';
       if (historyView) historyView.style.display = 'none';
-      const savedReportsView = document.getElementById('savedReportsView');
       if (savedReportsView) savedReportsView.style.display = 'none';
+      if (flashcardsView) flashcardsView.style.display = 'none';
       
       console.log('Switched to video view');
     };
@@ -197,15 +203,53 @@ function initializeViewControls() {
       document.querySelectorAll('.view-button').forEach(btn => btn.classList.remove('active'));
       showHistoryBtn.classList.add('active');
       
-      // Hide all views
+      // Show history view, hide all others
       if (analysisView) analysisView.style.display = 'none';
       if (videoView) videoView.style.display = 'none';
       if (historyView) historyView.style.display = 'block';
-      const savedReportsView = document.getElementById('savedReportsView');
       if (savedReportsView) savedReportsView.style.display = 'none';
+      if (flashcardsView) flashcardsView.style.display = 'none';
       
       loadHistoryView();
       console.log('Switched to history view');
+    };
+  }
+  
+  // 已保存報告視圖按鈕
+  if (showSavedReportsBtn) {
+    showSavedReportsBtn.onclick = () => {
+      // Remove active from all view buttons
+      document.querySelectorAll('.view-button').forEach(btn => btn.classList.remove('active'));
+      showSavedReportsBtn.classList.add('active');
+      
+      // Show saved reports view, hide all others
+      if (analysisView) analysisView.style.display = 'none';
+      if (videoView) videoView.style.display = 'none';
+      if (historyView) historyView.style.display = 'none';
+      if (savedReportsView) savedReportsView.style.display = 'block';
+      if (flashcardsView) flashcardsView.style.display = 'none';
+      
+      loadSavedReports();
+      console.log('Switched to saved reports view');
+    };
+  }
+  
+  // 記憶卡視圖按鈕
+  if (showFlashcardsBtn) {
+    showFlashcardsBtn.onclick = () => {
+      // Remove active from all view buttons
+      document.querySelectorAll('.view-button').forEach(btn => btn.classList.remove('active'));
+      showFlashcardsBtn.classList.add('active');
+      
+      // Show flashcards view, hide all others
+      if (analysisView) analysisView.style.display = 'none';
+      if (videoView) videoView.style.display = 'none';
+      if (historyView) historyView.style.display = 'none';
+      if (savedReportsView) savedReportsView.style.display = 'none';
+      if (flashcardsView) flashcardsView.style.display = 'block';
+      
+      loadFlashcardsView();
+      console.log('Switched to flashcards view');
     };
   }
   
@@ -1729,6 +1773,9 @@ async function loadSavedReports() {
                 </div>
               </div>
               <div class="report-actions">
+                <button class="report-action-btn create-flashcard-btn" data-id="${report.id}" title="建立記憶卡">
+                  🃏
+                </button>
                 <button class="report-action-btn favorite-btn ${report.favorite ? 'active' : ''}" data-id="${report.id}" title="${report.favorite ? '取消最愛' : '加入最愛'}">
                   ${report.favorite ? '⭐' : '☆'}
                 </button>
@@ -1799,6 +1846,24 @@ async function loadSavedReports() {
               }
             } catch (error) {
               console.error('Failed to toggle favorite:', error);
+            }
+          });
+        }
+        
+        // Create flashcard button
+        const createFlashcardBtn = item.querySelector('.create-flashcard-btn');
+        if (createFlashcardBtn) {
+          createFlashcardBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try {
+              const report = reports.find(r => r.id === reportId);
+              if (report) {
+                await createFlashcardFromReport(report);
+                showMessage(`已為「${report.searchText}」建立記憶卡！`, 'success');
+              }
+            } catch (error) {
+              console.error('Failed to create flashcard from report:', error);
+              showMessage('建立記憶卡失敗', 'error');
             }
           });
         }
@@ -2743,6 +2808,14 @@ document.addEventListener('DOMContentLoaded', () => {
       await cleanupDuplicateReports();
     });
   }
+
+  // Bulk flashcard creation
+  const createAllFlashcardsBtn = document.getElementById('createAllFlashcardsBtn');
+  if (createAllFlashcardsBtn) {
+    createAllFlashcardsBtn.addEventListener('click', async () => {
+      await createAllFlashcardsFromReports();
+    });
+  }
   
   // Export dropdown functionality
   if (exportReportsBtn) {
@@ -3518,4 +3591,965 @@ function performManualSearch() {
       alert('搜尋失敗，請稍後再試');
     }
   });
+}
+
+// ================================
+// FLASHCARDS FUNCTIONALITY
+// ================================
+
+// Initialize flashcard manager
+let flashcardManager = null;
+let currentStudySession = null;
+
+// Initialize flashcard system
+window.addEventListener('load', async () => {
+  if (typeof FlashcardManager !== 'undefined') {
+    flashcardManager = new FlashcardManager();
+    await flashcardManager.initialize();
+    console.log('🃏 Flashcard manager initialized');
+  }
+});
+
+// Load flashcards view
+async function loadFlashcardsView() {
+  if (!flashcardManager) {
+    console.error('Flashcard manager not initialized');
+    return;
+  }
+
+  const flashcardsView = document.getElementById('flashcardsView');
+  const flashcardsList = document.getElementById('flashcardsList');
+  const flashcardsEmpty = document.getElementById('flashcardsEmpty');
+  
+  if (!flashcardsView || !flashcardsList || !flashcardsEmpty) {
+    console.error('Flashcard view elements not found');
+    return;
+  }
+
+  // Update statistics
+  await updateFlashcardStats();
+
+  // Load flashcards
+  const flashcards = flashcardManager.flashcards;
+  
+  if (flashcards.length === 0) {
+    // Show empty state
+    flashcardsList.style.display = 'none';
+    flashcardsEmpty.style.display = 'block';
+    
+    // Add event listener for create first card button
+    const createFirstCardBtn = document.getElementById('createFirstCardBtn');
+    if (createFirstCardBtn) {
+      createFirstCardBtn.onclick = () => showCreateFlashcardDialog();
+    }
+  } else {
+    // Show flashcards list
+    flashcardsEmpty.style.display = 'none';
+    flashcardsList.style.display = 'block';
+    displayFlashcardsList(flashcards);
+  }
+
+  // Initialize event listeners
+  initializeFlashcardEventListeners();
+}
+
+// Update flashcard statistics display
+async function updateFlashcardStats() {
+  if (!flashcardManager) return;
+
+  const stats = flashcardManager.getStats();
+  
+  const totalCards = document.getElementById('totalCards');
+  const studyProgress = document.getElementById('studyProgress');
+  const todayReviews = document.getElementById('todayReviews');
+  
+  if (totalCards) totalCards.textContent = `總卡片: ${stats.totalCards}`;
+  if (studyProgress) studyProgress.textContent = `學習進度: ${stats.studyProgress}%`;
+  if (todayReviews) todayReviews.textContent = `今日複習: ${stats.todayReviews}`;
+}
+
+// Display flashcards list
+function displayFlashcardsList(flashcards) {
+  const flashcardsList = document.getElementById('flashcardsList');
+  if (!flashcardsList) return;
+
+  flashcardsList.innerHTML = flashcards.map(card => {
+    const nextReviewDate = new Date(card.nextReview);
+    const isOverdue = nextReviewDate.getTime() < Date.now();
+    const difficultyLabels = ['新卡片', '學習中', '複習', '熟練'];
+    const difficultyColors = ['#2196f3', '#ff9800', '#4caf50', '#9c27b0'];
+    
+    return `
+      <div class="flashcard-item" data-id="${card.id}">
+        <div class="flashcard-header">
+          <div class="card-front-text">${card.front}</div>
+          <div class="card-difficulty" style="background: ${difficultyColors[card.difficulty]}">
+            ${difficultyLabels[card.difficulty]}
+          </div>
+        </div>
+        <div class="card-back-preview">${card.back}</div>
+        ${card.pronunciation ? `<div class="card-pronunciation-preview">${card.pronunciation}</div>` : ''}
+        <div class="card-meta">
+          <span class="card-language">${card.language}</span>
+          <span class="card-reviews">${card.reviews} 次複習</span>
+          <span class="next-review ${isOverdue ? 'overdue' : ''}">
+            ${isOverdue ? '需要複習' : `下次: ${nextReviewDate.toLocaleDateString()}`}
+          </span>
+        </div>
+        <div class="card-actions">
+          <button class="card-action-btn study-card" data-id="${card.id}" title="學習這張卡片">
+            🎯 學習
+          </button>
+          <button class="card-action-btn edit-card" data-id="${card.id}" title="編輯卡片">
+            ✏️ 編輯
+          </button>
+          <button class="card-action-btn delete-card" data-id="${card.id}" title="刪除卡片">
+            🗑️ 刪除
+          </button>
+        </div>
+        ${card.tags && card.tags.length > 0 ? 
+          `<div class="card-tags">${card.tags.map(tag => `<span class="tag-chip">#${tag}</span>`).join('')}</div>` : ''
+        }
+      </div>
+    `;
+  }).join('');
+
+  // Add event listeners to card action buttons
+  addFlashcardItemEventListeners();
+}
+
+// Initialize flashcard event listeners
+function initializeFlashcardEventListeners() {
+  // Create flashcard button
+  const createFlashcardBtn = document.getElementById('createFlashcardBtn');
+  if (createFlashcardBtn) {
+    createFlashcardBtn.onclick = () => showCreateFlashcardDialog();
+  }
+
+  // Study mode button
+  const studyModeBtn = document.getElementById('studyModeBtn');
+  if (studyModeBtn) {
+    studyModeBtn.onclick = () => startStudyMode();
+  }
+
+  // Full screen study button
+  const fullScreenStudyBtn = document.getElementById('fullScreenStudyBtn');
+  if (fullScreenStudyBtn) {
+    fullScreenStudyBtn.onclick = () => startFullScreenStudy();
+  }
+
+  // Study controls in study interface
+  initializeStudyInterfaceListeners();
+}
+
+// Add event listeners to flashcard items
+function addFlashcardItemEventListeners() {
+  // Study card buttons
+  document.querySelectorAll('.study-card').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const cardId = btn.getAttribute('data-id');
+      studySingleCard(cardId);
+    };
+  });
+
+  // Edit card buttons
+  document.querySelectorAll('.edit-card').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const cardId = btn.getAttribute('data-id');
+      editFlashcard(cardId);
+    };
+  });
+
+  // Delete card buttons
+  document.querySelectorAll('.delete-card').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const cardId = btn.getAttribute('data-id');
+      deleteFlashcard(cardId);
+    };
+  });
+}
+
+// Initialize study interface listeners
+function initializeStudyInterfaceListeners() {
+  // Flip card button
+  const flipCardBtn = document.getElementById('flipCardBtn');
+  if (flipCardBtn) {
+    flipCardBtn.onclick = () => flipCurrentCard();
+  }
+
+  // Answer buttons
+  ['againBtn', 'hardBtn', 'goodBtn', 'easyBtn'].forEach((btnId, quality) => {
+    const btn = document.getElementById(btnId);
+    if (btn) {
+      btn.onclick = () => processStudyAnswer(quality);
+    }
+  });
+
+  // Navigation buttons
+  const exitStudyBtn = document.getElementById('exitStudyBtn');
+  if (exitStudyBtn) {
+    exitStudyBtn.onclick = () => exitStudyMode();
+  }
+
+  // Audio play button
+  const audioPlayBtn = document.getElementById('audioPlayBtn');
+  if (audioPlayBtn) {
+    audioPlayBtn.onclick = () => playCardAudio();
+  }
+}
+
+// Show create flashcard dialog
+function showCreateFlashcardDialog() {
+  // Create a simple dialog interface
+  const dialog = document.createElement('div');
+  dialog.className = 'flashcard-dialog-overlay';
+  dialog.innerHTML = `
+    <div class="flashcard-dialog">
+      <div class="dialog-header">
+        <h3>✨ 建立新記憶卡</h3>
+        <button class="close-dialog">✕</button>
+      </div>
+      <div class="dialog-content">
+        <div class="form-group">
+          <label>單字或問題 *</label>
+          <input type="text" id="flashcard-front" placeholder="輸入要記憶的單字或問題" required>
+        </div>
+        <div class="form-group">
+          <label>翻譯或答案 *</label>
+          <input type="text" id="flashcard-back" placeholder="輸入翻譯或答案" required>
+        </div>
+        <div class="form-group">
+          <label>發音 (可選)</label>
+          <input type="text" id="flashcard-pronunciation" placeholder="例：/həˈloʊ/ 或注音">
+        </div>
+        <div class="form-group">
+          <label>定義說明 (可選)</label>
+          <textarea id="flashcard-definition" placeholder="輸入詳細定義或說明"></textarea>
+        </div>
+        <div class="form-group">
+          <label>語言</label>
+          <select id="flashcard-language">
+            <option value="english">English</option>
+            <option value="japanese">Japanese</option>
+            <option value="korean">Korean</option>
+            <option value="dutch">Dutch</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>標籤 (用逗號分隔)</label>
+          <input type="text" id="flashcard-tags" placeholder="例：vocabulary, important, manual">
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button class="cancel-btn">取消</button>
+        <button class="create-btn">建立記憶卡</button>
+      </div>
+    </div>
+  `;
+
+  // Add styles
+  if (!document.getElementById('flashcard-dialog-styles')) {
+    const styles = document.createElement('style');
+    styles.id = 'flashcard-dialog-styles';
+    styles.textContent = `
+      .flashcard-dialog-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+      }
+      .flashcard-dialog {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        max-width: 400px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+      .dialog-header {
+        background: #1a73e8;
+        color: white;
+        padding: 16px;
+        border-radius: 12px 12px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .dialog-header h3 {
+        margin: 0;
+        font-size: 16px;
+      }
+      .close-dialog {
+        background: none;
+        border: none;
+        color: white;
+        cursor: pointer;
+        font-size: 18px;
+        padding: 4px;
+      }
+      .dialog-content {
+        padding: 20px;
+      }
+      .form-group {
+        margin-bottom: 16px;
+      }
+      .form-group label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 500;
+        color: #333;
+        font-size: 14px;
+      }
+      .form-group input, .form-group textarea, .form-group select {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+        box-sizing: border-box;
+      }
+      .form-group textarea {
+        height: 60px;
+        resize: vertical;
+      }
+      .dialog-actions {
+        padding: 16px 20px 20px;
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+      }
+      .dialog-actions button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      .cancel-btn {
+        background: #f5f5f5;
+        color: #666;
+      }
+      .create-btn {
+        background: #1a73e8;
+        color: white;
+      }
+      .create-btn:hover {
+        background: #1557b0;
+      }
+    `;
+    document.head.appendChild(styles);
+  }
+
+  document.body.appendChild(dialog);
+
+  // Event listeners
+  const closeDialog = () => {
+    dialog.remove();
+  };
+
+  dialog.querySelector('.close-dialog').onclick = closeDialog;
+  dialog.querySelector('.cancel-btn').onclick = closeDialog;
+  
+  dialog.onclick = (e) => {
+    if (e.target === dialog) closeDialog();
+  };
+
+  dialog.querySelector('.create-btn').onclick = async () => {
+    const front = dialog.querySelector('#flashcard-front').value.trim();
+    const back = dialog.querySelector('#flashcard-back').value.trim();
+    
+    if (!front || !back) {
+      alert('請輸入必填項目：單字和翻譯');
+      return;
+    }
+
+    const pronunciation = dialog.querySelector('#flashcard-pronunciation').value.trim();
+    const definition = dialog.querySelector('#flashcard-definition').value.trim();
+    const language = dialog.querySelector('#flashcard-language').value;
+    const tagsInput = dialog.querySelector('#flashcard-tags').value.trim();
+    const tags = tagsInput ? tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag) : ['manual'];
+
+    await createFlashcard({
+      front: front,
+      back: back,
+      pronunciation: pronunciation,
+      definition: definition,
+      language: language,
+      tags: tags
+    });
+
+    closeDialog();
+  };
+
+  // Focus on first input
+  setTimeout(() => {
+    dialog.querySelector('#flashcard-front').focus();
+  }, 100);
+}
+
+// Create flashcard
+async function createFlashcard(data) {
+  if (!flashcardManager) return;
+
+  try {
+    const card = await flashcardManager.createFlashcard(data);
+    console.log('📇 Created new flashcard:', card);
+    
+    // Refresh the flashcards view
+    await loadFlashcardsView();
+    
+    // Show success message
+    showMessage('記憶卡建立成功！', 'success');
+  } catch (error) {
+    console.error('Failed to create flashcard:', error);
+    showMessage('建立記憶卡失敗', 'error');
+  }
+}
+
+// Create flashcard from current word
+async function createFlashcardFromCurrentWord() {
+  if (!currentQueryData.text) {
+    showMessage('沒有當前查詢的單字', 'warning');
+    return;
+  }
+
+  // Get translation from quick search if available
+  const translation = document.getElementById('quickTranslation')?.textContent || 
+                     await getQuickTranslation(currentQueryData.text, currentQueryData.language);
+  
+  const pronunciation = document.getElementById('quickPronunciation')?.textContent || '';
+  const definition = document.getElementById('quickDefinition')?.textContent || '';
+
+  const flashcardData = {
+    front: currentQueryData.text,
+    back: translation,
+    pronunciation: pronunciation,
+    definition: definition,
+    language: currentQueryData.language,
+    tags: ['current-word']
+  };
+
+  await createFlashcard(flashcardData);
+}
+
+// Create flashcard from saved report
+async function createFlashcardFromReport(report) {
+  if (!flashcardManager || !report) return;
+
+  try {
+    // Extract information from the report
+    const analysisText = typeof report.analysisData === 'string' 
+      ? report.analysisData 
+      : (report.analysisData && report.analysisData.content 
+          ? report.analysisData.content 
+          : '');
+
+    // Try to extract translation, pronunciation, and definition
+    let translation = '';
+    let pronunciation = '';
+    let definition = '';
+
+    if (analysisText) {
+      // Extract Chinese translation
+      const chineseMatch = analysisText.match(/中文[：:\s]*([^\n]+)/i) ||
+                          analysisText.match(/翻譯[：:\s]*([^\n]+)/i) ||
+                          analysisText.match(/Translation[：:\s]*([^\n]+)/i);
+      if (chineseMatch) {
+        translation = chineseMatch[1].trim();
+      }
+
+      // Extract pronunciation (IPA or phonetic)
+      const pronunciationMatch = analysisText.match(/\[([^\]]+)\]/) ||
+                                analysisText.match(/\/([^\/]+)\//) ||
+                                analysisText.match(/發音[：:\s]*([^\n]+)/i) ||
+                                analysisText.match(/Pronunciation[：:\s]*([^\n]+)/i);
+      if (pronunciationMatch) {
+        pronunciation = pronunciationMatch[1].trim();
+      }
+
+      // Extract definition
+      const definitionMatch = analysisText.match(/定義[：:\s]*([^\n]+)/i) ||
+                             analysisText.match(/Definition[：:\s]*([^\n]+)/i) ||
+                             analysisText.match(/含義[：:\s]*([^\n]+)/i) ||
+                             analysisText.match(/Meaning[：:\s]*([^\n]+)/i);
+      if (definitionMatch) {
+        definition = definitionMatch[1].trim();
+      }
+
+      // If no specific translation found, use first line as translation
+      if (!translation) {
+        const lines = analysisText.split('\n').filter(line => line.trim());
+        if (lines.length > 0) {
+          translation = lines[0].trim();
+        }
+      }
+    }
+
+    // Fallback to basic information if extraction failed
+    if (!translation) {
+      translation = `${report.language} word: ${report.searchText}`;
+    }
+
+    const flashcardData = {
+      front: report.searchText,
+      back: translation,
+      pronunciation: pronunciation,
+      definition: definition,
+      language: report.language,
+      tags: [...(report.tags || []), 'from-report']
+    };
+
+    const card = await flashcardManager.createFlashcard(flashcardData);
+    console.log('📇 Created flashcard from report:', card);
+    
+    return card;
+  } catch (error) {
+    console.error('Failed to create flashcard from report:', error);
+    throw error;
+  }
+}
+
+// Create flashcards from all saved reports
+async function createAllFlashcardsFromReports() {
+  if (!flashcardManager) {
+    showMessage('記憶卡管理器未就緒', 'error');
+    return;
+  }
+
+  try {
+    // Get all reports based on current filters
+    const filteredReports = await getCurrentlyFilteredReports();
+    
+    if (filteredReports.length === 0) {
+      showMessage('沒有可用的報告來建立記憶卡', 'warning');
+      return;
+    }
+
+    const confirmMessage = `確定要為 ${filteredReports.length} 個報告建立記憶卡嗎？`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    // Disable the button and show progress
+    const createAllBtn = document.getElementById('createAllFlashcardsBtn');
+    if (createAllBtn) {
+      createAllBtn.disabled = true;
+      createAllBtn.textContent = '🔄 建立中...';
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+
+    // Create flashcards for each report
+    for (let i = 0; i < filteredReports.length; i++) {
+      const report = filteredReports[i];
+      
+      try {
+        // Check if flashcard already exists for this word
+        const existingCards = flashcardManager.searchFlashcards(report.searchText);
+        const duplicateCard = existingCards.find(card => 
+          card.front.toLowerCase() === report.searchText.toLowerCase() && 
+          card.language === report.language
+        );
+
+        if (duplicateCard) {
+          console.log(`Skipping duplicate flashcard for: ${report.searchText}`);
+          continue;
+        }
+
+        await createFlashcardFromReport(report);
+        successCount++;
+
+        // Show progress
+        if (createAllBtn) {
+          createAllBtn.textContent = `🔄 建立中 ${i + 1}/${filteredReports.length}`;
+        }
+
+        // Small delay to prevent overwhelming the system
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } catch (error) {
+        console.error(`Failed to create flashcard for ${report.searchText}:`, error);
+        failCount++;
+      }
+    }
+
+    // Show completion message
+    let message = '';
+    if (successCount > 0 && failCount === 0) {
+      message = `✅ 成功建立 ${successCount} 張記憶卡！`;
+    } else if (successCount > 0 && failCount > 0) {
+      message = `⚠️ 建立了 ${successCount} 張記憶卡，${failCount} 張失敗`;
+    } else if (successCount === 0 && failCount > 0) {
+      message = `❌ 建立失敗，共 ${failCount} 張`;
+    } else {
+      message = '沒有建立新的記憶卡（可能已存在）';
+    }
+
+    showMessage(message, successCount > 0 ? 'success' : 'warning');
+
+    // Refresh flashcards view if it's currently active
+    const flashcardsView = document.getElementById('flashcardsView');
+    if (flashcardsView && flashcardsView.style.display !== 'none') {
+      await loadFlashcardsView();
+    }
+
+  } catch (error) {
+    console.error('Failed to create bulk flashcards:', error);
+    showMessage('批量建立記憶卡失敗', 'error');
+  } finally {
+    // Re-enable the button
+    const createAllBtn = document.getElementById('createAllFlashcardsBtn');
+    if (createAllBtn) {
+      createAllBtn.disabled = false;
+      createAllBtn.textContent = '🃏 Create All Flashcards';
+    }
+  }
+}
+
+// Start study mode
+function startStudyMode() {
+  if (!flashcardManager) return;
+
+  const studyMode = document.getElementById('studyModeSelect')?.value || 'word-to-translation';
+  const difficulty = document.getElementById('difficultyFilter')?.value || 'all';
+
+  const session = flashcardManager.startStudySession({
+    mode: studyMode,
+    difficulty: difficulty,
+    maxCards: 20
+  });
+
+  if (!session || session.cards.length === 0) {
+    showMessage('沒有需要複習的卡片', 'info');
+    return;
+  }
+
+  currentStudySession = session;
+  showStudyInterface();
+  loadCurrentCard();
+}
+
+// Show study interface
+function showStudyInterface() {
+  const flashcardsList = document.getElementById('flashcardsList');
+  const flashcardsEmpty = document.getElementById('flashcardsEmpty');
+  const studyInterface = document.getElementById('studyInterface');
+
+  if (flashcardsList) flashcardsList.style.display = 'none';
+  if (flashcardsEmpty) flashcardsEmpty.style.display = 'none';
+  if (studyInterface) studyInterface.style.display = 'block';
+}
+
+// Load current card in study session
+function loadCurrentCard() {
+  if (!currentStudySession) return;
+
+  const card = flashcardManager.getCurrentCard();
+  if (!card) {
+    // Study session completed
+    completeStudySession();
+    return;
+  }
+
+  const progress = flashcardManager.getStudyProgress();
+  updateStudyProgress(progress);
+
+  // Reset card state
+  const flashcard = document.getElementById('flashcard');
+  const frontText = document.getElementById('frontText');
+  const backText = document.getElementById('backText');
+  const cardDefinition = document.getElementById('cardDefinition');
+  const cardPronunciation = document.getElementById('cardPronunciation');
+  const flipCardBtn = document.getElementById('flipCardBtn');
+  const answerButtons = document.getElementById('answerButtons');
+  const audioPlayBtn = document.getElementById('audioPlayBtn');
+
+  if (flashcard) flashcard.classList.remove('flipped');
+  if (frontText) frontText.textContent = card.front;
+  if (backText) backText.textContent = card.back;
+  if (cardDefinition) cardDefinition.textContent = card.definition;
+  if (cardPronunciation) cardPronunciation.textContent = card.pronunciation;
+  if (flipCardBtn) {
+    flipCardBtn.style.display = 'block';
+    flipCardBtn.textContent = '翻轉卡片';
+  }
+  if (answerButtons) answerButtons.style.display = 'none';
+
+  // Show audio button if available
+  if (audioPlayBtn) {
+    audioPlayBtn.style.display = card.audioUrl ? 'block' : 'none';
+  }
+
+  // Show card front/back based on study mode
+  const studyMode = currentStudySession.mode;
+  const cardFront = document.querySelector('.card-front');
+  const cardBack = document.querySelector('.card-back');
+  
+  if (cardFront) cardFront.style.display = 'flex';
+  if (cardBack) cardBack.style.display = 'none';
+}
+
+// Update study progress
+function updateStudyProgress(progress) {
+  const progressFill = document.getElementById('progressFill');
+  const cardCounter = document.getElementById('cardCounter');
+
+  if (progressFill) {
+    progressFill.style.width = `${progress.percentage}%`;
+  }
+
+  if (cardCounter) {
+    cardCounter.textContent = `${progress.current} / ${progress.total}`;
+  }
+}
+
+// Flip current card
+function flipCurrentCard() {
+  const flashcard = document.getElementById('flashcard');
+  const flipCardBtn = document.getElementById('flipCardBtn');
+  const answerButtons = document.getElementById('answerButtons');
+
+  if (flashcard && !flashcard.classList.contains('flipped')) {
+    flashcard.classList.add('flipped');
+    
+    if (flipCardBtn) flipCardBtn.style.display = 'none';
+    if (answerButtons) answerButtons.style.display = 'flex';
+
+    // Update answer button timings based on card difficulty
+    updateAnswerButtonTimings();
+  }
+}
+
+// Update answer button timings
+function updateAnswerButtonTimings() {
+  const card = flashcardManager.getCurrentCard();
+  if (!card) return;
+
+  // Calculate next intervals for each answer quality
+  const intervals = [
+    '< 1分鐘',  // Again
+    '< 6分鐘',  // Hard  
+    `${Math.max(1, Math.round(card.interval * 0.6))} 天`, // Good
+    `${Math.max(4, Math.round(card.interval * card.easeFactor))} 天`  // Easy
+  ];
+
+  ['againBtn', 'hardBtn', 'goodBtn', 'easyBtn'].forEach((btnId, index) => {
+    const btn = document.getElementById(btnId);
+    const timeSpan = btn?.querySelector('.btn-time');
+    if (timeSpan) {
+      timeSpan.textContent = intervals[index];
+    }
+  });
+}
+
+// Process study answer
+async function processStudyAnswer(quality) {
+  if (!flashcardManager || !currentStudySession) return;
+
+  const success = await flashcardManager.processAnswer(quality);
+  
+  if (success) {
+    // Move to next card after a short delay
+    setTimeout(() => {
+      loadCurrentCard();
+    }, 800);
+
+    // Show feedback
+    const feedbackMessages = ['再試一次！', '有點困難', '做得好！', '太簡單了！'];
+    showMessage(feedbackMessages[quality], quality >= 2 ? 'success' : 'warning');
+
+    // Update stats
+    await updateFlashcardStats();
+  }
+}
+
+// Complete study session
+function completeStudySession() {
+  if (!flashcardManager) return;
+
+  const results = flashcardManager.endStudySession();
+  const studyInterface = document.getElementById('studyInterface');
+  
+  if (studyInterface) studyInterface.style.display = 'none';
+  
+  // Show results
+  const cardsStudied = results.cardsStudied;
+  const accuracy = results.accuracy;
+  const duration = Math.round(results.duration / 1000 / 60); // minutes
+
+  showMessage(
+    `學習完成！複習了 ${cardsStudied} 張卡片，準確率 ${accuracy}%，用時 ${duration} 分鐘`,
+    'success'
+  );
+
+  // Return to flashcards list
+  loadFlashcardsView();
+}
+
+// Exit study mode
+function exitStudyMode() {
+  if (currentStudySession) {
+    const confirmed = confirm('確定要退出學習模式嗎？進度將不會保存。');
+    if (!confirmed) return;
+  }
+
+  currentStudySession = null;
+  
+  const studyInterface = document.getElementById('studyInterface');
+  if (studyInterface) studyInterface.style.display = 'none';
+  
+  loadFlashcardsView();
+}
+
+// Study single card
+function studySingleCard(cardId) {
+  if (!flashcardManager) return;
+
+  // Find the card
+  const card = flashcardManager.flashcards.find(c => c.id === cardId);
+  if (!card) return;
+
+  // Create a single-card study session
+  currentStudySession = {
+    cards: [card],
+    currentIndex: 0,
+    mode: 'word-to-translation',
+    startTime: new Date().getTime(),
+    answers: []
+  };
+
+  flashcardManager.currentStudySession = currentStudySession;
+  
+  showStudyInterface();
+  loadCurrentCard();
+}
+
+// Edit flashcard
+function editFlashcard(cardId) {
+  if (!flashcardManager) return;
+
+  const card = flashcardManager.flashcards.find(c => c.id === cardId);
+  if (!card) return;
+
+  const front = prompt('編輯單字/問題:', card.front);
+  if (front === null) return;
+
+  const back = prompt('編輯翻譯/答案:', card.back);
+  if (back === null) return;
+
+  const pronunciation = prompt('編輯發音:', card.pronunciation);
+  if (pronunciation === null) return;
+
+  const definition = prompt('編輯定義:', card.definition);
+  if (definition === null) return;
+
+  // Update card
+  flashcardManager.updateFlashcard(cardId, {
+    front: front,
+    back: back,
+    pronunciation: pronunciation || '',
+    definition: definition || ''
+  });
+
+  // Refresh view
+  loadFlashcardsView();
+  showMessage('卡片更新成功！', 'success');
+}
+
+// Delete flashcard
+async function deleteFlashcard(cardId) {
+  if (!flashcardManager) return;
+
+  const confirmed = confirm('確定要刪除這張記憶卡嗎？');
+  if (!confirmed) return;
+
+  try {
+    await flashcardManager.deleteFlashcard(cardId);
+    await loadFlashcardsView();
+    showMessage('記憶卡已刪除', 'success');
+  } catch (error) {
+    console.error('Failed to delete flashcard:', error);
+    showMessage('刪除失敗', 'error');
+  }
+}
+
+// Start full screen study
+function startFullScreenStudy() {
+  // This would create a new tab/window with full flashcard interface
+  // For now, just start regular study mode
+  startStudyMode();
+  showMessage('全屏學習功能開發中，使用普通學習模式', 'info');
+}
+
+// Play card audio
+function playCardAudio() {
+  const card = flashcardManager.getCurrentCard();
+  if (!card || !card.audioUrl) return;
+
+  const audio = new Audio(card.audioUrl);
+  audio.play().catch(error => {
+    console.error('Failed to play audio:', error);
+    showMessage('播放音頻失敗', 'error');
+  });
+}
+
+// Show message (utility function)
+function showMessage(message, type = 'info') {
+  // Create a simple toast notification
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message;
+  toast.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 6px;
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 10000;
+    max-width: 300px;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+  `;
+
+  // Set background color based on type
+  const colors = {
+    'info': '#2196f3',
+    'success': '#4caf50',
+    'warning': '#ff9800',
+    'error': '#f44336'
+  };
+  toast.style.backgroundColor = colors[type] || colors.info;
+
+  document.body.appendChild(toast);
+
+  // Animate in
+  setTimeout(() => {
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateX(0)';
+  }, 100);
+
+  // Remove after 3 seconds
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(100%)';
+    setTimeout(() => {
+      if (toast.parentNode) {
+        toast.parentNode.removeChild(toast);
+      }
+    }, 300);
+  }, 3000);
 }
