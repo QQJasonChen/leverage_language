@@ -428,10 +428,10 @@ function getSiteConfigs(language) {
         category: 'pronunciation'
       },
       {
-        name: 'PlayPhrase.me',
+        name: 'Immersion Kit',
         icon: '🎌',
-        description: '日語影片片段發音',
-        longDescription: '從日語電影和動畫中提取真實的發音片段',
+        description: '日語動漫例句',
+        longDescription: '從日語動漫、電影中提取真實的日語例句和發音',
         category: 'pronunciation'
       },
       {
@@ -567,13 +567,59 @@ function getSiteConfigs(language) {
 function generateUrlForSite(siteName, text, language) {
   const encodedText = encodeURIComponent(text);
   
+  // Handle language-specific URLs
+  if (siteName === 'PlayPhrase.me') {
+    // Default English PlayPhrase.me
+    return `https://www.playphrase.me/#/search?q=${encodedText}`;
+  }
+  
+  if (siteName === 'Immersion Kit') {
+    // Japanese sentence examples from anime/movies
+    return `https://www.immersionkit.com/dictionary?keyword=${encodedText}`;
+  }
+  
+  if (siteName === 'Reverso Context') {
+    // Language-specific Reverso Context
+    const reverseLangMap = {
+      'english': 'english-chinese',
+      'japanese': 'japanese-chinese', 
+      'korean': 'korean-chinese',
+      'dutch': 'dutch-chinese'
+    };
+    const reverseLang = reverseLangMap[language] || 'english-chinese';
+    return `https://context.reverso.net/translation/${reverseLang}/${encodedText}`;
+  }
+  
+  if (siteName === 'Papago') {
+    // Language-specific Papago
+    const papagoLangMap = {
+      'english': '?sk=en&tk=zh-TW',
+      'japanese': '?sk=ja&tk=zh-TW',
+      'korean': '?sk=ko&tk=zh-TW',
+      'dutch': '?sk=nl&tk=zh-TW'
+    };
+    const papagoLang = papagoLangMap[language] || '?sk=en&tk=zh-TW';
+    return `https://papago.naver.com/${papagoLang}&st=${encodedText}`;
+  }
+  
+  if (siteName === 'Google 搜尋') {
+    // Language-specific Google search
+    const searchTerms = {
+      'english': `${encodedText}+pronunciation`,
+      'japanese': `${encodedText}+発音+読み方`,
+      'korean': `${encodedText}+발음`,
+      'dutch': `${encodedText}+uitspraak`
+    };
+    const searchTerm = searchTerms[language] || `${encodedText}+pronunciation`;
+    return `https://www.google.com/search?q=${searchTerm}`;
+  }
+  
+  // Default URL mapping
   const urlMaps = {
     'YouGlish': `https://youglish.com/pronounce/${encodedText}/${language}`,
-    'PlayPhrase.me': `https://www.playphrase.me/#/search?q=${encodedText}`,
     'Forvo': `https://forvo.com/word/${encodedText}/`,
     'Cambridge Dictionary': `https://dictionary.cambridge.org/dictionary/english/${encodedText}`,
     'Thesaurus.com': `https://www.thesaurus.com/browse/${encodedText}`,
-    'Reverso Context': `https://context.reverso.net/translation/english-chinese/${encodedText}`,
     'Urban Dictionary': `https://www.urbandictionary.com/define.php?term=${encodedText}`,
     'Ludwig': `https://ludwig.guru/s/${encodedText}`,
     'Jisho.org': `https://jisho.org/search/${encodedText}`,
@@ -581,9 +627,7 @@ function generateUrlForSite(siteName, text, language) {
     'HiNative': `https://hinative.com/questions?search=${encodedText}`,
     'Van Dale': `https://www.vandale.nl/gratis-woordenboek/nederlands/betekenis/${encodedText}`,
     'Linguee': `https://www.linguee.com/english-dutch/search?source=dutch&query=${encodedText}`,
-    'Naver Dictionary': `https://en.dict.naver.com/#/search?query=${encodedText}`,
-    'Papago': `https://papago.naver.com/?sk=en&tk=ko&st=${encodedText}`,
-    'Google 搜尋': `https://www.google.com/search?q=${encodedText}+pronunciation`
+    'Naver Dictionary': `https://en.dict.naver.com/#/search?query=${encodedText}`
   };
   
   return urlMaps[siteName] || `https://youglish.com/pronounce/${encodedText}/${language}`;
