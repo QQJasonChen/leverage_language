@@ -1,0 +1,284 @@
+{
+  "extensionName": {
+    "message": "YouGlish 빠른 검색",
+    "description": "Extension name"
+  },
+  "extensionDescription": {
+    "message": "포괄적인 언어 학습 확장 프로그램: 발음, 사전, 문맥 예제, 번역, 커뮤니티 Q&A 원스톱 서비스",
+    "description": "Extension description"
+  },
+  "searchOnYouglish": {
+    "message": "YouGlish에서 \"%s\" 검색",
+    "description": "Context menu item text"
+  },
+
+  "header_title": {
+    "message": "YouGlish 빠른 검색",
+    "description": "Header title"
+  },
+
+  "welcome_title": {
+    "message": "🎯 YouGlish 빠른 검색",
+    "description": "Welcome section title"
+  },
+  "welcome_description": {
+    "message": "웹페이지의 텍스트를 선택한 후:",
+    "description": "Welcome description"
+  },
+  "welcome_step1": {
+    "message": "• 우클릭하여 \"YouGlish에서 검색\" 선택",
+    "description": "Welcome step 1"
+  },
+  "welcome_step2": {
+    "message": "• 또는 키보드 단축키 사용",
+    "description": "Welcome step 2"
+  },
+  "welcome_step3": {
+    "message": "• 또는 확장 프로그램 아이콘을 클릭하여 패널 열기",
+    "description": "Welcome step 3"
+  },
+  "welcome_languages": {
+    "message": "영어, 일본어, 한국어, 네덜란드어 지원",
+    "description": "Supported languages"
+  },
+  "welcome_shortcut_note": {
+    "message": "단축키는 chrome://extensions/shortcuts에서 사용자 정의할 수 있습니다",
+    "description": "Shortcut customization note"
+  },
+
+  "manual_search_placeholder": {
+    "message": "검색할 텍스트 입력...",
+    "description": "Manual search input placeholder"
+  },
+  "search_button": {
+    "message": "검색",
+    "description": "Search button text"
+  },
+
+  "analysis_view": {
+    "message": "📊 분석",
+    "description": "Analysis view button"
+  },
+  "video_view": {
+    "message": "🎥 동영상",
+    "description": "Video view button"
+  },
+  "history_view": {
+    "message": "📚 기록",
+    "description": "History view button"
+  },
+  "new_tab": {
+    "message": "🔗 새 탭",
+    "description": "New tab button"
+  },
+
+  "search_results_title": {
+    "message": "📺 YouGlish 검색 결과",
+    "description": "Search results title"
+  },
+  "search_again": {
+    "message": "🔍 다른 내용 검색",
+    "description": "Search again button"
+  },
+
+  "search_term_label": {
+    "message": "검색어:",
+    "description": "Search term label"
+  },
+  "language_label": {
+    "message": "언어:",
+    "description": "Language label"
+  },
+  "url_label": {
+    "message": "URL:",
+    "description": "URL label"
+  },
+  "click_to_open": {
+    "message": "클릭하여 열기",
+    "description": "Click to open link text"
+  },
+
+  "language_english": {
+    "message": "영어",
+    "description": "English language name"
+  },
+  "language_japanese": {
+    "message": "일본어",
+    "description": "Japanese language name"
+  },
+  "language_korean": {
+    "message": "한국어",
+    "description": "Korean language name"
+  },
+  "language_dutch": {
+    "message": "네덜란드어",
+    "description": "Dutch language name"
+  },
+
+  "save_settings": {
+    "message": "설정 저장",
+    "description": "Save settings button"
+  },
+  "settings_button": {
+    "message": "설정",
+    "description": "Settings button"
+  },
+  "saving": {
+    "message": "저장 중...",
+    "description": "Saving status"
+  },
+  "settings_saved": {
+    "message": "설정이 저장되었습니다",
+    "description": "Settings saved message"
+  },
+
+  "smart_detection": {
+    "message": "자동 감지",
+    "description": "Smart detection option"
+  },
+
+  "history_empty_title": {
+    "message": "📝 검색 기록이 없습니다",
+    "description": "History empty title"
+  },
+  "history_empty_desc": {
+    "message": "단어나 구문을 검색하여 학습 기록을 만들어보세요!",
+    "description": "History empty description"
+  },
+  "clear_history": {
+    "message": "기록 지우기",
+    "description": "Clear history button"
+  },
+  "search_history": {
+    "message": "기록 검색...",
+    "description": "Search history placeholder"
+  },
+  "all_languages": {
+    "message": "모든 언어",
+    "description": "All languages option"
+  },
+
+  "ai_analysis_title": {
+    "message": "🤖 AI 언어 분석",
+    "description": "AI analysis title"
+  },
+  "generate_analysis": {
+    "message": "✨ 분석 생성",
+    "description": "Generate analysis button"
+  },
+  "regenerate_analysis": {
+    "message": "🔄 다시 생성",
+    "description": "Regenerate analysis button"
+  },
+  "ai_analysis_placeholder": {
+    "message": "'분석 생성'을 클릭하면 AI가 다음을 제공합니다:",
+    "description": "AI analysis placeholder"
+  },
+  "ai_feature_pronunciation": {
+    "message": "📢 발음 가이드 및 IPA",
+    "description": "AI pronunciation feature"
+  },
+  "ai_feature_explanation": {
+    "message": "📖 어휘 설명 및 사용법",
+    "description": "AI explanation feature"
+  },
+  "ai_feature_grammar": {
+    "message": "📝 문법 분석 및 문장 구조",
+    "description": "AI grammar feature"
+  },
+  "ai_feature_culture": {
+    "message": "🌍 문화적 맥락 및 사용 시나리오",
+    "description": "AI culture feature"
+  },
+  "ai_config_note": {
+    "message": "설정에서 AI API 키를 구성하세요",
+    "description": "AI config note"
+  },
+  "ai_analyzing": {
+    "message": "AI가 분석 중입니다. 잠시만 기다려주세요...",
+    "description": "AI analyzing message"
+  },
+
+  "ai_audio_title": {
+    "message": "🔊 AI 음성 발음",
+    "description": "AI audio title"
+  },
+  "generate_audio": {
+    "message": "🎵 음성 생성",
+    "description": "Generate audio button"
+  },
+  "regenerate_audio": {
+    "message": "🔄 다시 생성",
+    "description": "Regenerate audio button"
+  },
+  "test_audio": {
+    "message": "🧪 테스트",
+    "description": "Test audio button"
+  },
+  "audio_placeholder": {
+    "message": "'음성 생성'을 클릭하여 AI 음성 발음을 받으세요",
+    "description": "Audio placeholder message"
+  },
+  "audio_tech_note": {
+    "message": "OpenAI TTS 기술을 사용하여 자연스러운 음성 생성",
+    "description": "Audio technology note"
+  },
+  "generating_audio": {
+    "message": "음성을 생성하고 있습니다. 잠시만 기다려주세요...",
+    "description": "Generating audio message"
+  },
+  "play_audio": {
+    "message": "▶️ 재생",
+    "description": "Play audio button"
+  },
+  "download_audio": {
+    "message": "💾 다운로드",
+    "description": "Download audio button"
+  },
+  "repeat_audio": {
+    "message": "🔄 반복",
+    "description": "Repeat audio button"
+  },
+  "repeat_on": {
+    "message": "🔁 반복 중",
+    "description": "Repeat on status"
+  },
+
+  "ui_language_auto": {
+    "message": "자동",
+    "description": "Auto language option"
+  },
+  "ui_language_english": {
+    "message": "English",
+    "description": "English language option"
+  },
+  "ui_language_chinese": {
+    "message": "中文",
+    "description": "Chinese language option"
+  },
+  "ui_language_japanese": {
+    "message": "日本語",
+    "description": "Japanese language option"
+  },
+  "ui_language_korean": {
+    "message": "한국어",
+    "description": "Korean language option"
+  },
+  "language_switch_tooltip": {
+    "message": "인터페이스 언어 변경",
+    "description": "Language switch tooltip"
+  },
+  
+  "audio_not_supported": {
+    "message": "브라우저가 오디오 재생을 지원하지 않습니다",
+    "description": "Audio not supported message"
+  },
+  "pronunciation_sites_description": {
+    "message": "가장 적합한 발음 웹사이트를 선택하세요:",
+    "description": "Pronunciation sites description"
+  },
+  "site_descriptions_title": {
+    "message": "📖 웹사이트 설명",
+    "description": "Site descriptions title"
+  }
+}

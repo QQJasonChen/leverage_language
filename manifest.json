@@ -1,0 +1,62 @@
+{
+  "manifest_version": 3,
+  "name": "__MSG_extensionName__",
+  "version": "2.4",
+  "description": "__MSG_extensionDescription__",
+  "default_locale": "en",
+  
+  "permissions": [
+    "activeTab",
+    "contextMenus",
+    "storage",
+    "sidePanel",
+    "commands",
+    "tabs",
+    "declarativeNetRequest"
+  ],
+  
+  "host_permissions": [
+    "https://youglish.com/*",
+    "https://generativelanguage.googleapis.com/*",
+    "https://api.openai.com/*"
+  ],
+  
+  "background": {
+    "service_worker": "background.js"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  
+  "commands": {
+    "search-youglish": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y",
+        "mac": "Command+Shift+Y"
+      },
+      "description": "__MSG_search_shortcut__"
+    }
+  },
+  
+  
+  "action": {
+    "default_title": "__MSG_extensionName__"
+  },
+  
+  "options_page": "options.html",
+  
+  "web_accessible_resources": [
+    {
+      "resources": ["proxy.html", "language-selector.html", "language-selector.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

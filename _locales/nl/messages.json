@@ -1,0 +1,288 @@
+{
+  "extensionName": {
+    "message": "YouGlish Snel Zoeken",
+    "description": "Extension name"
+  },
+  "extensionDescription": {
+    "message": "Uitgebreide taallearning extensie: uitspraak, woordenboek, contextuele voorbeelden, vertaling en community Q&A in één",
+    "description": "Extension description"
+  },
+  "searchOnYouglish": {
+    "message": "Zoek \"%s\" op YouGlish",
+    "description": "Context menu item text"
+  },
+
+  "header_title": {
+    "message": "YouGlish Snel Zoeken",
+    "description": "Header title"
+  },
+
+  "welcome_title": {
+    "message": "🎯 YouGlish Snel Zoeken",
+    "description": "Welcome section title"
+  },
+  "welcome_description": {
+    "message": "Selecteer tekst op een webpagina en:",
+    "description": "Welcome description"
+  },
+  "welcome_step1": {
+    "message": "• Klik rechts en selecteer \"Zoeken op YouGlish\"",
+    "description": "Welcome step 1"
+  },
+  "welcome_step2": {
+    "message": "• Of gebruik de sneltoets",
+    "description": "Welcome step 2"
+  },
+  "welcome_step3": {
+    "message": "• Of klik op het extensie-icoon om dit paneel te openen",
+    "description": "Welcome step 3"
+  },
+  "welcome_languages": {
+    "message": "Ondersteunt Engels, Japans, Koreaans, Nederlands",
+    "description": "Supported languages"
+  },
+  "welcome_shortcut_note": {
+    "message": "Sneltoetsen kunnen worden aangepast bij chrome://extensions/shortcuts",
+    "description": "Shortcut customization note"
+  },
+
+  "manual_search_placeholder": {
+    "message": "Voer tekst in om te zoeken...",
+    "description": "Manual search input placeholder"
+  },
+  "search_button": {
+    "message": "Zoeken",
+    "description": "Search button text"
+  },
+
+  "analysis_view": {
+    "message": "📊 Analyse",
+    "description": "Analysis view button"
+  },
+  "video_view": {
+    "message": "🎥 Video",
+    "description": "Video view button"
+  },
+  "history_view": {
+    "message": "📚 Geschiedenis",
+    "description": "History view button"
+  },
+  "new_tab": {
+    "message": "🔗 Nieuw Tabblad",
+    "description": "New tab button"
+  },
+
+  "search_results_title": {
+    "message": "📺 YouGlish Zoekresultaten",
+    "description": "Search results title"
+  },
+  "search_again": {
+    "message": "🔍 Andere Inhoud Zoeken",
+    "description": "Search again button"
+  },
+
+  "search_term_label": {
+    "message": "Zoekterm:",
+    "description": "Search term label"
+  },
+  "language_label": {
+    "message": "Taal:",
+    "description": "Language label"
+  },
+  "url_label": {
+    "message": "URL:",
+    "description": "URL label"
+  },
+  "click_to_open": {
+    "message": "Klik om te openen",
+    "description": "Click to open link text"
+  },
+
+  "language_english": {
+    "message": "Engels",
+    "description": "English language name"
+  },
+  "language_japanese": {
+    "message": "Japans",
+    "description": "Japanese language name"
+  },
+  "language_korean": {
+    "message": "Koreaans",
+    "description": "Korean language name"
+  },
+  "language_dutch": {
+    "message": "Nederlands",
+    "description": "Dutch language name"
+  },
+
+  "save_settings": {
+    "message": "Instellingen Opslaan",
+    "description": "Save settings button"
+  },
+  "settings_button": {
+    "message": "Instellingen",
+    "description": "Settings button"
+  },
+  "saving": {
+    "message": "Opslaan...",
+    "description": "Saving status"
+  },
+  "settings_saved": {
+    "message": "Instellingen Opgeslagen",
+    "description": "Settings saved message"
+  },
+
+  "smart_detection": {
+    "message": "Automatisch detecteren",
+    "description": "Smart detection option"
+  },
+
+  "history_empty_title": {
+    "message": "📝 Nog geen zoekgeschiedenis",
+    "description": "History empty title"
+  },
+  "history_empty_desc": {
+    "message": "Begin met zoeken naar woorden of zinnen om je leerhistorie op te bouwen!",
+    "description": "History empty description"
+  },
+  "clear_history": {
+    "message": "Geschiedenis Wissen",
+    "description": "Clear history button"
+  },
+  "search_history": {
+    "message": "Zoek geschiedenis...",
+    "description": "Search history placeholder"
+  },
+  "all_languages": {
+    "message": "Alle Talen",
+    "description": "All languages option"
+  },
+
+  "ai_analysis_title": {
+    "message": "🤖 AI Taalanalyse",
+    "description": "AI analysis title"
+  },
+  "generate_analysis": {
+    "message": "✨ Analyse Genereren",
+    "description": "Generate analysis button"
+  },
+  "regenerate_analysis": {
+    "message": "🔄 Opnieuw Genereren",
+    "description": "Regenerate analysis button"
+  },
+  "ai_analysis_placeholder": {
+    "message": "Klik 'Analyse Genereren' en AI zal het volgende bieden:",
+    "description": "AI analysis placeholder"
+  },
+  "ai_feature_pronunciation": {
+    "message": "📢 Uitspraakgeleiding en IPA",
+    "description": "AI pronunciation feature"
+  },
+  "ai_feature_explanation": {
+    "message": "📖 Woordenschat uitleg en gebruik",
+    "description": "AI explanation feature"
+  },
+  "ai_feature_grammar": {
+    "message": "📝 Grammatica-analyse en zinsstructuur",
+    "description": "AI grammar feature"
+  },
+  "ai_feature_culture": {
+    "message": "🌍 Culturele context en gebruiksscenario's",
+    "description": "AI culture feature"
+  },
+  "ai_config_note": {
+    "message": "Configureer AI API-sleutel in instellingen",
+    "description": "AI config note"
+  },
+  "ai_analyzing": {
+    "message": "AI analyseert, even geduld...",
+    "description": "AI analyzing message"
+  },
+
+  "ai_audio_title": {
+    "message": "🔊 AI Spraakuitspraak",
+    "description": "AI audio title"
+  },
+  "generate_audio": {
+    "message": "🎵 Audio Genereren",
+    "description": "Generate audio button"
+  },
+  "regenerate_audio": {
+    "message": "🔄 Opnieuw Genereren",
+    "description": "Regenerate audio button"
+  },
+  "test_audio": {
+    "message": "🧪 Test",
+    "description": "Test audio button"
+  },
+  "audio_placeholder": {
+    "message": "Klik 'Audio Genereren' voor AI spraakuitspraak",
+    "description": "Audio placeholder message"
+  },
+  "audio_tech_note": {
+    "message": "Gebruikt OpenAI TTS technologie voor natuurlijke spraak",
+    "description": "Audio technology note"
+  },
+  "generating_audio": {
+    "message": "Audio genereren, even geduld...",
+    "description": "Generating audio message"
+  },
+  "play_audio": {
+    "message": "▶️ Afspelen",
+    "description": "Play audio button"
+  },
+  "download_audio": {
+    "message": "💾 Downloaden",
+    "description": "Download audio button"
+  },
+  "repeat_audio": {
+    "message": "🔄 Herhalen",
+    "description": "Repeat audio button"
+  },
+  "repeat_on": {
+    "message": "🔁 Herhalend",
+    "description": "Repeat on status"
+  },
+
+  "ui_language_auto": {
+    "message": "Automatisch",
+    "description": "Auto language option"
+  },
+  "ui_language_english": {
+    "message": "English",
+    "description": "English language option"
+  },
+  "ui_language_chinese": {
+    "message": "中文",
+    "description": "Chinese language option"
+  },
+  "ui_language_japanese": {
+    "message": "日本語",
+    "description": "Japanese language option"
+  },
+  "ui_language_korean": {
+    "message": "한국어",
+    "description": "Korean language option"
+  },
+  "ui_language_dutch": {
+    "message": "Nederlands",
+    "description": "Dutch language option"
+  },
+  "language_switch_tooltip": {
+    "message": "Schakel interfacetaal",
+    "description": "Language switch tooltip"
+  },
+  
+  "audio_not_supported": {
+    "message": "Uw browser ondersteunt geen audio-afspelen",
+    "description": "Audio not supported message"
+  },
+  "pronunciation_sites_description": {
+    "message": "Kies de meest geschikte uitspraakwebsite:",
+    "description": "Pronunciation sites description"
+  },
+  "site_descriptions_title": {
+    "message": "📖 Website Beschrijvingen",
+    "description": "Site descriptions title"
+  }
+}
