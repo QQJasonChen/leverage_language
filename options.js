@@ -35,7 +35,7 @@ function loadSettings() {
   ], (result) => {
     document.getElementById('uiLanguage').value = result.uiLanguage || 'auto';
     document.getElementById('defaultLanguage').value = result.defaultLanguage || 'auto';
-    document.getElementById('openMethod').value = result.openMethod || 'sidepanel';
+    document.getElementById('openMethod').value = result.openMethod || 'analysis-only';
     document.getElementById('preferredLanguage').value = result.preferredLanguage || 'none';
     document.getElementById('uncertaintyHandling').value = result.uncertaintyHandling || 'ask';
     

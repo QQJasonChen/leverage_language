@@ -62,7 +62,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 // 主要搜尋函數
-async function searchYouGlish(text, tabId, source = 'selection') {
+async function searchYouGlish(text, tabId, source = 'selection', forcedOpenMethod = null) {
   if (!text || text.trim().length === 0) {
     return;
   }
@@ -73,7 +73,8 @@ async function searchYouGlish(text, tabId, source = 'selection') {
   const result = await chrome.storage.sync.get(['defaultLanguage', 'preferredLanguage', 'openMethod', 'autoAnalysis', 'uncertaintyHandling']);
   const defaultLang = result.defaultLanguage || 'auto';
   const preferredLang = result.preferredLanguage || 'none';
-  const openMethod = result.openMethod || 'analysis-only';
+  // Allow forced openMethod (for manual searches) to override user setting
+  const openMethod = forcedOpenMethod || result.openMethod || 'analysis-only';
   const autoAnalysis = result.autoAnalysis !== 'false'; // Default to true unless explicitly disabled
   const uncertaintyHandling = result.uncertaintyHandling || 'ask';
   
@@ -357,7 +358,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // 獲取當前活動標籤頁
     chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
       if (tabs[0]) {
-        searchYouGlish(request.text, tabs[0].id, 'manual');
+        // Force analysis-only for manual searches to avoid intrusive tabs
+        searchYouGlish(request.text, tabs[0].id, 'manual', 'analysis-only');
         sendResponse({ success: true });
       } else {
         sendResponse({ success: false, error: 'No active tab found' });
