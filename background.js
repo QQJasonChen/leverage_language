@@ -73,7 +73,7 @@ async function searchYouGlish(text, tabId, source = 'selection') {
   const result = await chrome.storage.sync.get(['defaultLanguage', 'preferredLanguage', 'openMethod', 'autoAnalysis', 'uncertaintyHandling']);
   const defaultLang = result.defaultLanguage || 'auto';
   const preferredLang = result.preferredLanguage || 'none';
-  const openMethod = result.openMethod || 'sidepanel';
+  const openMethod = result.openMethod || 'analysis-only';
   const autoAnalysis = result.autoAnalysis !== 'false'; // Default to true unless explicitly disabled
   const uncertaintyHandling = result.uncertaintyHandling || 'ask';
   
@@ -426,7 +426,7 @@ async function executeSearchWithLanguage(text, tabId, language) {
   
   // 獲取用戶設定的開啟方式
   const result = await chrome.storage.sync.get(['openMethod']);
-  const openMethod = result.openMethod || 'sidepanel';
+  const openMethod = result.openMethod || 'analysis-only';
   
   // 建立不同語言的 URL
   const urls = generateLanguageUrls(cleanText, language);

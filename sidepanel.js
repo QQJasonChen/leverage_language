@@ -3157,14 +3157,15 @@ document.addEventListener('DOMContentLoaded', () => {
         text: result.currentQuery.text,
         language: result.currentQuery.language,
         primaryUrl: result.currentQuery.url || result.currentQuery.primaryUrl,
-        secondaryUrl: '',
-        tertiaryUrl: '',
-        allUrls: { 'YouGlish': result.currentQuery.url || result.currentQuery.primaryUrl },
-        autoAnalysis: true // Enable auto analysis for loaded queries
+        secondaryUrl: result.currentQuery.secondaryUrl || '',
+        tertiaryUrl: result.currentQuery.tertiaryUrl || '',
+        allUrls: result.currentQuery.allUrls || { 'YouGlish': result.currentQuery.url || result.currentQuery.primaryUrl },
+        autoAnalysis: result.currentQuery.autoAnalysis !== false, // Respect the setting from background.js
+        analysisOnly: result.currentQuery.analysisOnly // Pass through analysisOnly flag
       };
       
       showSearchResult(queryData);
-      console.log('Loaded current query:', queryData);
+      log('Loaded current query:', queryData);
     } else {
       // Ensure welcome screen is visible
       console.log('No current query found, showing welcome screen');
