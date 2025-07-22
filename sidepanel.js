@@ -6,6 +6,25 @@ const languageNames = {
   'dutch': '荷蘭文'
 };
 
+// Initialize security and performance utils
+let securityUtils, performanceUtils, errorHandler;
+
+// Safe logging wrapper
+const log = (...args) => {
+  if (typeof PerformanceUtils !== 'undefined') {
+    PerformanceUtils.log(...args);
+  }
+};
+
+// Safe error handling wrapper
+const handleError = async (error, context = {}) => {
+  if (typeof window !== 'undefined' && window.globalErrorHandler) {
+    return await window.globalErrorHandler.handleError(error, context);
+  }
+  console.error('Error:', error);
+  return { success: false, error: error.message };
+};
+
 // 監聽來自背景腳本的訊息
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'updateSidePanel') {
@@ -18,19 +37,50 @@ let currentQueryData = {};
 let currentAIAnalysis = null;
 let lastProcessedQuery = null;
 
-// Initialize storage manager
+// Initialize storage manager and analytics
 let storageManager = null;
+let learningAnalytics = null;
+let studySessionGenerator = null;
 
 // Initialize services when scripts load
-window.addEventListener('load', () => {
-  if (typeof StorageManager !== 'undefined') {
-    storageManager = new StorageManager();
+window.addEventListener('load', async () => {
+  try {
+    if (typeof StorageManager !== 'undefined') {
+      storageManager = new StorageManager();
+    }
+    
+    // Initialize learning analytics
+    if (typeof LearningAnalytics !== 'undefined') {
+      learningAnalytics = new LearningAnalytics();
+      const initialized = await learningAnalytics.initialize();
+      log('Learning Analytics initialized:', initialized);
+    }
+    
+    // Initialize study session generator
+    if (learningAnalytics && typeof StudySessionGenerator !== 'undefined') {
+      studySessionGenerator = new StudySessionGenerator(learningAnalytics, window.flashcardManager);
+      log('Study Session Generator initialized');
+    }
+    
+    log('All services initialized successfully');
+  } catch (error) {
+    await handleError(error, { operation: 'service_initialization' });
   }
 });
 
 // 顯示搜尋結果
 function showSearchResult(queryData) {
-  console.log('showSearchResult called with:', queryData);
+  log('showSearchResult called with:', queryData);
+  
+  // Track vocabulary interaction
+  if (learningAnalytics && queryData.text && queryData.language) {
+    learningAnalytics.recordVocabularyInteraction(
+      queryData.text, 
+      queryData.language, 
+      'lookup', 
+      { webpage: window.location.href }
+    );
+  }
   
   const welcome = document.getElementById('welcome');
   const searchInfo = document.getElementById('searchInfo');
@@ -40,7 +90,7 @@ function showSearchResult(queryData) {
   const languageBadge = document.getElementById('languageBadge');
   const openInNewTabBtn = document.getElementById('openInNewTabBtn');
   
-  console.log('Elements found:', {
+  log('Elements found:', {
     welcome: !!welcome,
     searchInfo: !!searchInfo,
     searchResult: !!searchResult,
@@ -110,7 +160,7 @@ function showSearchResult(queryData) {
   document.querySelectorAll('.view-button').forEach(btn => btn.classList.remove('active'));
   if (showAnalysisBtn) showAnalysisBtn.classList.add('active');
   
-  console.log('Analysis view set as default active view');
+  log('Analysis view set as default active view');
   
   // 載入多個發音網站選項
   loadPronunciationSites(queryData);
@@ -119,26 +169,26 @@ function showSearchResult(queryData) {
   if (isNewQuery && queryData.autoAnalysis) {
     setTimeout(() => {
       try {
-        console.log('Auto-analysis requested for:', queryData.text);
+        log('Auto-analysis requested for:', queryData.text);
         if (typeof generateAIAnalysis === 'function' && typeof aiService !== 'undefined' && aiService) {
           // Auto-generate AI analysis
-          generateAIAnalysis().catch(err => console.log('Auto-analysis failed quietly:', err));
+          generateAIAnalysis().catch(err => log('Auto-analysis failed quietly:', err));
           
           // Auto-generate audio after a short delay (so it doesn't interfere with AI analysis)
           setTimeout(() => {
             if (aiService && aiService.isAudioAvailable()) {
-              console.log('🔊 Auto-generating audio for new search...');
-              generateAudioPronunciation().catch(err => console.log('Auto-audio failed quietly:', err));
+              log('🔊 Auto-generating audio for new search...');
+              generateAudioPronunciation().catch(err => log('Auto-audio failed quietly:', err));
             } else {
-              console.log('Auto-audio skipped: audio not available');
+              log('Auto-audio skipped: audio not available');
             }
           }, 3000); // 3 second delay to let AI analysis finish first
           
         } else {
-          console.log('Auto-generation skipped: AI service not available');
+          log('Auto-generation skipped: AI service not available');
         }
       } catch (error) {
-        console.log('Auto-analysis error (non-blocking):', error);
+        log('Auto-analysis error (non-blocking):', error);
       }
     }, 2000); // Longer delay to ensure everything is loaded
   }
@@ -174,7 +224,7 @@ function initializeViewControls() {
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'none';
       
-      console.log('Switched to analysis view');
+      log('Switched to analysis view');
     };
   }
   
@@ -192,7 +242,7 @@ function initializeViewControls() {
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'none';
       
-      console.log('Switched to video view');
+      log('Switched to video view');
     };
   }
   
@@ -271,8 +321,17 @@ function loadPronunciationSites(queryData) {
   const siteDescriptions = document.getElementById('siteDescriptions');
   
   // 清空現有內容
-  if (pronunciationOptions) pronunciationOptions.innerHTML = '';
-  if (siteDescriptions) siteDescriptions.innerHTML = '';
+  // Clear content safely
+  if (pronunciationOptions) {
+    while (pronunciationOptions.firstChild) {
+      pronunciationOptions.removeChild(pronunciationOptions.firstChild);
+    }
+  }
+  if (siteDescriptions) {
+    while (siteDescriptions.firstChild) {
+      siteDescriptions.removeChild(siteDescriptions.firstChild);
+    }
+  }
   
   // 根據語言定義網站選項
   const siteConfigs = getSiteConfigs(queryData.language);
@@ -314,10 +373,19 @@ function loadPronunciationSites(queryData) {
     // 創建分類標題
     const categoryHeader = document.createElement('div');
     categoryHeader.className = 'category-header';
-    categoryHeader.innerHTML = `
-      <h4>${category.name}</h4>
-      <span class="category-count">${category.sites.length} 個網站</span>
-    `;
+    // Use SecurityUtils for safe DOM manipulation
+    if (window.SecurityFixes) {
+      window.SecurityFixes.safeClearElement(categoryHeader);
+      const h4 = window.SecurityFixes.safeCreateElement('h4', category.name);
+      const span = window.SecurityFixes.safeCreateElement('span', `${category.sites.length} 個網站`, 'category-count');
+      categoryHeader.appendChild(h4);
+      categoryHeader.appendChild(span);
+    } else {
+      categoryHeader.innerHTML = `
+        <h4>${category.name}</h4>
+        <span class="category-count">${category.sites.length} 個網站</span>
+      `;
+    }
     if (pronunciationOptions) pronunciationOptions.appendChild(categoryHeader);
     
     // 生成該分類的網站選項
@@ -339,19 +407,45 @@ function loadPronunciationSites(queryData) {
         badgeClass = 'tertiary';
       }
       
-      option.innerHTML = `
-        <div class="option-info">
-          <span class="option-icon">${site.icon}</span>
-          <div class="option-details">
-            <h5>${site.name}</h5>
-            <p>${site.description}</p>
+      // Use SecurityUtils for safe DOM manipulation
+      if (window.SecurityFixes) {
+        window.SecurityFixes.safeClearElement(option);
+        
+        const infoDiv = window.SecurityFixes.safeCreateElement('div', '', 'option-info');
+        const iconSpan = window.SecurityFixes.safeCreateElement('span', site.icon, 'option-icon');
+        const detailsDiv = window.SecurityFixes.safeCreateElement('div', '', 'option-details');
+        const nameH5 = window.SecurityFixes.safeCreateElement('h5', site.name);
+        const descP = window.SecurityFixes.safeCreateElement('p', site.description);
+        
+        detailsDiv.appendChild(nameH5);
+        detailsDiv.appendChild(descP);
+        infoDiv.appendChild(iconSpan);
+        infoDiv.appendChild(detailsDiv);
+        
+        const actionDiv = window.SecurityFixes.safeCreateElement('div', '');
+        const badgeSpan = window.SecurityFixes.safeCreateElement('span', badgeText, `option-badge ${badgeClass}`);
+        const button = window.SecurityFixes.safeCreateElement('button', '開啟', 'option-button');
+        button.setAttribute('data-url', site.url);
+        
+        actionDiv.appendChild(badgeSpan);
+        actionDiv.appendChild(button);
+        option.appendChild(infoDiv);
+        option.appendChild(actionDiv);
+      } else {
+        option.innerHTML = `
+          <div class="option-info">
+            <span class="option-icon">${site.icon}</span>
+            <div class="option-details">
+              <h5>${site.name}</h5>
+              <p>${site.description}</p>
+            </div>
           </div>
-        </div>
-        <div>
-          <span class="option-badge ${badgeClass}">${badgeText}</span>
-          <button class="option-button" data-url="${site.url}">開啟</button>
-        </div>
-      `;
+          <div>
+            <span class="option-badge ${badgeClass}">${badgeText}</span>
+            <button class="option-button" data-url="${site.url}">開啟</button>
+          </div>
+        `;
+      }
       
       if (pronunciationOptions) {
         pronunciationOptions.appendChild(option);
@@ -374,7 +468,16 @@ function loadPronunciationSites(queryData) {
   if (siteDescriptions) {
     siteConfigs.forEach(config => {
       const li = document.createElement('li');
-      li.innerHTML = `<strong>${config.name}</strong>: ${config.longDescription || config.description}`;
+      // Use SecurityUtils for safe text content
+      if (window.SecurityFixes) {
+        window.SecurityFixes.safeClearElement(li);
+        const strong = window.SecurityFixes.safeCreateElement('strong', config.name);
+        const description = document.createTextNode(`: ${config.longDescription || config.description}`);
+        li.appendChild(strong);
+        li.appendChild(description);
+      } else {
+        li.innerHTML = `<strong>${config.name}</strong>: ${config.longDescription || config.description}`;
+      }
       siteDescriptions.appendChild(li);
     });
   }
@@ -754,7 +857,7 @@ async function loadHistoryView() {
     return;
   }
   
-  console.log('Loading history view...');
+  log('Loading history view...');
   
   try {
     // Use chrome.runtime.sendMessage to get history from background script's HistoryManager
@@ -764,13 +867,25 @@ async function loadHistoryView() {
     
     if (response && response.success) {
       const history = response.history || [];
-      console.log('Loaded history from HistoryManager:', history.length, 'items');
+      log('Loaded history from HistoryManager:', history.length, 'items');
       
       if (history.length === 0) {
         // Show empty state
-        if (historyContainer) historyContainer.innerHTML = '';
+        if (historyContainer) {
+          if (window.SecurityFixes) {
+            window.SecurityFixes.safeClearElement(historyContainer);
+          } else {
+            historyContainer.innerHTML = '';
+          }
+        }
         if (historyEmpty) historyEmpty.style.display = 'block';
-        if (historyStats) historyStats.innerHTML = '<p>📊 沒有搜尋記錄</p>';
+        if (historyStats) {
+          if (window.SecurityFixes) {
+            window.SecurityFixes.safeUpdateStats(historyStats, '📊 沒有搜尋記錄');
+          } else {
+            historyStats.innerHTML = '<p>📊 沒有搜尋記錄</p>';
+          }
+        }
         return;
       }
       
@@ -786,7 +901,11 @@ async function loadHistoryView() {
         });
         
         const statsText = `📊 總共 ${history.length} 個搜尋詞，${totalQueries} 次查詢 | 語言分布: ${Object.entries(languageStats).map(([lang, count]) => `${languageNames[lang] || lang}: ${count}`).join(', ')}`;
-        historyStats.innerHTML = `<p>${statsText}</p>`;
+        if (window.SecurityFixes) {
+          window.SecurityFixes.safeUpdateStats(historyStats, statsText);
+        } else {
+          historyStats.innerHTML = `<p>${statsText}</p>`;
+        }
       }
       
       // Display history items using the new format
@@ -864,7 +983,7 @@ function loadHistoryViewFallback() {
     // 按時間排序 (already should be sorted, but just in case)
     queries.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     
-    console.log('Found queries:', queries.length);
+    log('Found queries:', queries.length);
     displayHistoryItems(queries);
   });
 }
@@ -875,10 +994,25 @@ function displayHistoryItems(queries) {
   if (!historyContainer) return;
   
   // 清空容器
-  historyContainer.innerHTML = '';
+  if (window.SecurityFixes) {
+    window.SecurityFixes.safeClearElement(historyContainer);
+  } else {
+    historyContainer.innerHTML = '';
+  }
   
   if (queries.length === 0) {
-    historyContainer.innerHTML = '<div class="history-empty"><p>📝 沒有搜尋歷史</p><p style="color: #666; font-size: 12px;">開始搜尋單字或短語來建立學習記錄！</p></div>';
+    if (window.SecurityFixes) {
+      const emptyDiv = window.SecurityFixes.safeCreateElement('div', '', 'history-empty');
+      const p1 = window.SecurityFixes.safeCreateElement('p', '📝 沒有搜尋歷史');
+      const p2 = window.SecurityFixes.safeCreateElement('p', '開始搜尋單字或短語來建立學習記錄！');
+      p2.style.color = '#666';
+      p2.style.fontSize = '12px';
+      emptyDiv.appendChild(p1);
+      emptyDiv.appendChild(p2);
+      historyContainer.appendChild(emptyDiv);
+    } else {
+      historyContainer.innerHTML = '<div class="history-empty"><p>📝 沒有搜尋歷史</p><p style="color: #666; font-size: 12px;">開始搜尋單字或短語來建立學習記錄！</p></div>';
+    }
     return;
   }
   
@@ -895,23 +1029,36 @@ function displayHistoryItems(queries) {
     const detectionMethod = query.detectionMethod || 'auto';
     const websitesUsed = query.websitesUsed || [];
     
-    // Create more detailed history item with HistoryManager data
-    item.innerHTML = `
-      <div class="history-item-header">
-        <div class="history-text">${query.text || 'Unknown'}</div>
-        <div class="history-actions">
-          <button class="history-action-btn replay" data-text="${query.text}" data-language="${query.language}" data-id="${query.id || ''}">重播</button>
-          ${query.id ? `<button class="history-action-btn delete" data-id="${query.id}">刪除</button>` : ''}
+    // Create history item using SecurityUtils
+    if (window.SecurityFixes) {
+      window.SecurityFixes.safeCreateHistoryItem(item, {
+        text: query.text || 'Unknown',
+        language: languageNames[query.language] || query.language || 'Unknown',
+        timestamp: query.timestamp,
+        queryCount: queryCount,
+        detectionMethod: detectionMethod,
+        websitesUsed: websitesUsed,
+        id: query.id
+      });
+    } else {
+      // Fallback to innerHTML (unsafe)
+      item.innerHTML = `
+        <div class="history-item-header">
+          <div class="history-text">${query.text || 'Unknown'}</div>
+          <div class="history-actions">
+            <button class="history-action-btn replay" data-text="${query.text}" data-language="${query.language}" data-id="${query.id || ''}">重播</button>
+            ${query.id ? `<button class="history-action-btn delete" data-id="${query.id}">刪除</button>` : ''}
+          </div>
         </div>
-      </div>
-      <div class="history-meta">
-        <span class="history-language">${languageNames[query.language] || query.language || 'Unknown'}</span>
-        <span class="history-date">${dateStr}</span>
-        ${queryCount > 1 ? `<span class="history-count">${queryCount}次查詢</span>` : ''}
-        <span class="history-method">${detectionMethod === 'auto' ? '自動' : detectionMethod === 'manual' ? '手動' : detectionMethod}</span>
-        ${websitesUsed.length > 0 ? `<span class="history-websites">${websitesUsed.join(', ')}</span>` : ''}
-      </div>
-    `;
+        <div class="history-meta">
+          <span class="history-language">${languageNames[query.language] || query.language || 'Unknown'}</span>
+          <span class="history-date">${dateStr}</span>
+          ${queryCount > 1 ? `<span class="history-count">${queryCount}次查詢</span>` : ''}
+          <span class="history-method">${detectionMethod === 'auto' ? '自動' : detectionMethod === 'manual' ? '手動' : detectionMethod}</span>
+          ${websitesUsed.length > 0 ? `<span class="history-websites">${websitesUsed.join(', ')}</span>` : ''}
+        </div>
+      `;
+    }
     
     historyContainer.appendChild(item);
     
@@ -1062,15 +1209,28 @@ async function generateAIAnalysis(forceRefresh = false) {
         );
         console.log('AI analysis report saved automatically');
       } catch (error) {
-        console.log('Failed to save AI report:', error);
+        const result = await handleError(error, { operation: 'save_ai_report', context: 'auto_save' });
+        log('Failed to save AI report:', result.success ? 'recovered' : error.message);
       }
     } else if (!autoSaveEnabled) {
       console.log('Auto-save is disabled, not saving AI report');
     }
     
   } catch (error) {
-    console.error('AI 分析失敗:', error);
-    showAIError(`分析失敗: ${error.message}`);
+    const result = await handleError(error, { 
+      operation: 'ai_analysis',
+      context: 'generate_analysis',
+      retry: () => generateAIAnalysis(forceRefresh),
+      cacheKey: `ai_analysis_${currentQueryData.text}_${currentQueryData.language}`
+    });
+    
+    if (result.success && result.data) {
+      // Use cached or recovered data
+      showAIAnalysis(result.data);
+    } else {
+      log('AI 分析失敗:', error.message);
+      showAIError(`分析失敗: ${error.message}`);
+    }
   }
 }
 
@@ -1144,12 +1304,17 @@ function showAIResult(analysis) {
       displayContent = formatAIAnalysis(rawContent);
     }
     
-    result.innerHTML = displayContent;
-    console.log('AI analysis displayed:', typeof analysis, analysis);
+    // Use SecurityUtils for safe content display
+    if (window.SecurityFixes && typeof displayContent === 'string') {
+      window.SecurityFixes.safeSetHTML(result, displayContent);
+    } else {
+      result.innerHTML = displayContent;
+    }
+    log('AI analysis displayed:', typeof analysis, analysis);
     
     // Also show the audio section when analysis is displayed
     const audioSection = document.getElementById('aiAudioSection');
-    console.log('Checking audio section visibility:', {
+    log('Checking audio section visibility:', {
       audioSection: !!audioSection,
       aiService: !!aiService,
       isInitialized: aiService?.isInitialized,
@@ -1170,15 +1335,35 @@ function showAIResult(analysis) {
         const audioContent = document.getElementById('audioContent');
         if (audioContent) {
           if (!aiService) {
-            audioContent.innerHTML = '<div class="audio-error">AI 服務載入中...</div>';
+            if (window.SecurityFixes) {
+              window.SecurityFixes.safeUpdateAudioContent(audioContent, 'AI 服務載入中...', true);
+            } else {
+              audioContent.innerHTML = '<div class="audio-error">AI 服務載入中...</div>';
+            }
           } else if (!aiService.isInitialized) {
-            audioContent.innerHTML = '<div class="audio-error">AI 服務初始化中...</div>';
+            if (window.SecurityFixes) {
+              window.SecurityFixes.safeUpdateAudioContent(audioContent, 'AI 服務初始化中...', true);
+            } else {
+              audioContent.innerHTML = '<div class="audio-error">AI 服務初始化中...</div>';
+            }
           } else if (!aiService.isAvailable()) {
-            audioContent.innerHTML = '<div class="audio-error">請先在設定頁面配置 API 金鑰</div>';
+            if (window.SecurityFixes) {
+              window.SecurityFixes.safeUpdateAudioContent(audioContent, '請先在設定頁面配置 API 金鑰', true);
+            } else {
+              audioContent.innerHTML = '<div class="audio-error">請先在設定頁面配置 API 金鑰</div>';
+            }
           } else if (aiService.settings?.provider !== 'openai') {
-            audioContent.innerHTML = '<div class="audio-error">語音功能需要 OpenAI API</div>';
+            if (window.SecurityFixes) {
+              window.SecurityFixes.safeUpdateAudioContent(audioContent, '語音功能需要 OpenAI API', true);
+            } else {
+              audioContent.innerHTML = '<div class="audio-error">語音功能需要 OpenAI API</div>';
+            }
           } else {
-            audioContent.innerHTML = '<div class="audio-error">語音功能未啟用</div>';
+            if (window.SecurityFixes) {
+              window.SecurityFixes.safeUpdateAudioContent(audioContent, '語音功能未啟用', true);
+            } else {
+              audioContent.innerHTML = '<div class="audio-error">語音功能未啟用</div>';
+            }
           }
         }
       }
@@ -1213,7 +1398,13 @@ function showAIError(message) {
   if (loading) loading.style.display = 'none';
   if (result) {
     result.style.display = 'block';
-    result.innerHTML = `<div class="ai-error">❌ ${message}</div>`;
+    if (window.SecurityFixes) {
+      window.SecurityFixes.safeClearElement(result);
+      const errorDiv = window.SecurityFixes.safeCreateElement('div', `❌ ${message}`, 'ai-error');
+      result.appendChild(errorDiv);
+    } else {
+      result.innerHTML = `<div class="ai-error">❌ ${message}</div>`;
+    }
   }
 }
 
@@ -1840,9 +2031,27 @@ async function loadSavedReports() {
               const favoriteBadge = item.querySelector('.favorite-badge');
               const reportBadges = item.querySelector('.report-badges');
               if (newFavoriteState && !favoriteBadge) {
-                reportBadges.insertAdjacentHTML('beforeend', '<span class="favorite-badge">⭐ 最愛</span>');
+                if (window.SecurityFixes) {
+                  const badge = window.SecurityFixes.safeCreateElement('span', '⭐ 最愛', 'favorite-badge');
+                  reportBadges.appendChild(badge);
+                } else {
+                  reportBadges.insertAdjacentHTML('beforeend', '<span class="favorite-badge">⭐ 最愛</span>');
+                }
               } else if (!newFavoriteState && favoriteBadge) {
                 favoriteBadge.remove();
+              }
+              
+              // Track analytics
+              if (learningAnalytics) {
+                const report = reports.find(r => r.id === reportId);
+                if (report) {
+                  learningAnalytics.recordVocabularyInteraction(
+                    report.searchText,
+                    report.language,
+                    newFavoriteState ? 'favorite_added' : 'favorite_removed',
+                    { from: 'saved_reports' }
+                  );
+                }
               }
             } catch (error) {
               console.error('Failed to toggle favorite:', error);
@@ -1860,6 +2069,16 @@ async function loadSavedReports() {
               if (report) {
                 await createFlashcardFromReport(report);
                 showMessage(`已為「${report.searchText}」建立記憶卡！`, 'success');
+                
+                // Track analytics
+                if (learningAnalytics) {
+                  learningAnalytics.recordVocabularyInteraction(
+                    report.searchText,
+                    report.language,
+                    'flashcard_creation',
+                    { from: 'saved_reports' }
+                  );
+                }
               }
             } catch (error) {
               console.error('Failed to create flashcard from report:', error);
@@ -1878,11 +2097,28 @@ async function loadSavedReports() {
               try {
                 const success = await deleteSavedReport(reportId);
                 if (success) {
+                  // Track analytics before removing
+                  if (learningAnalytics) {
+                    const report = reports.find(r => r.id === reportId);
+                    if (report) {
+                      learningAnalytics.recordVocabularyInteraction(
+                        report.searchText,
+                        report.language,
+                        'report_deleted',
+                        { from: 'saved_reports' }
+                      );
+                    }
+                  }
+                  
                   item.remove();
                   // Update stats
                   const remaining = reportsList.children.length;
                   if (reportsStats) {
-                    reportsStats.innerHTML = `<p>📊 總共 ${remaining} 份報告</p>`;
+                    if (window.SecurityFixes) {
+                      window.SecurityFixes.safeUpdateStats(reportsStats, `📊 總共 ${remaining} 份報告`);
+                    } else {
+                      reportsStats.innerHTML = `<p>📊 總共 ${remaining} 份報告</p>`;
+                    }
                   }
                   if (remaining === 0) {
                     loadSavedReports(); // Reload to show empty state
@@ -2557,16 +2793,20 @@ function showAudioResult(audioData) {
     const regenerateBtn = document.getElementById('regenerateAudioBtn');
     if (regenerateBtn) regenerateBtn.style.display = 'inline-block';
     
-    console.log('✅ Audio UI created with direct controls');
+    log('✅ Audio UI created with direct controls');
     
   } else {
     if (!audioContent) {
-      console.error('❌ audioContent element not found');
+      log('❌ audioContent element not found');
       return;
     }
     if (!audioData || !audioData.audioUrl) {
-      console.error('❌ Invalid audio data:', audioData);
-      audioContent.innerHTML = '<div class="audio-error">❌ 無效的音頻數據</div>';
+      log('❌ Invalid audio data:', audioData);
+      if (window.SecurityFixes) {
+        window.SecurityFixes.safeUpdateAudioContent(audioContent, '無效的音頻數據', true);
+      } else {
+        audioContent.innerHTML = '<div class="audio-error">❌ 無效的音頻數據</div>';
+      }
     }
   }
 }
@@ -2574,7 +2814,11 @@ function showAudioResult(audioData) {
 function showAudioError(message) {
   const audioContent = document.getElementById('audioContent');
   if (audioContent) {
-    audioContent.innerHTML = `<div class="audio-error">❌ ${message}</div>`;
+    if (window.SecurityFixes) {
+      window.SecurityFixes.safeUpdateAudioContent(audioContent, message, true);
+    } else {
+      audioContent.innerHTML = `<div class="audio-error">❌ ${message}</div>`;
+    }
   }
 }
 

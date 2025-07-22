@@ -2554,6 +2554,7 @@
                     <button id="showHistoryBtn" class="view-button" data-i18n="history_view">📚 歷史</button>
                     <button id="showSavedReportsBtn" class="view-button" data-i18n="saved_reports_view">💾 已保存</button>
                     <button id="showFlashcardsBtn" class="view-button" data-i18n="flashcards_view">🃏 記憶卡</button>
+                    <button id="showAnalyticsBtn" class="view-button">📊 學習統計</button>
                     <button id="openNewTabBtn" class="view-button" data-i18n="new_tab">🔗 新分頁</button>
                 </div>
             </div>
@@ -2968,6 +2969,39 @@
                     </button>
                 </div>
             </div>
+            
+            <!-- 學習統計視圖 -->
+            <div id="analyticsView" class="analytics-view" style="display: none;">
+                <div class="analytics-header">
+                    <h3>📊 學習統計</h3>
+                    <button id="refreshAnalyticsBtn" class="refresh-btn">🔄 重新整理</button>
+                </div>
+                
+                <div class="analytics-overview">
+                    <div class="metric-card">
+                        <span class="metric-value" id="totalVocab">0</span>
+                        <span class="metric-label">總詞彙</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-value" id="currentStreak">0</span>
+                        <span class="metric-label">連續天數</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-value" id="retentionRate">0%</span>
+                        <span class="metric-label">保持率</span>
+                    </div>
+                </div>
+                
+                <div class="analytics-recommendations">
+                    <h4>🎯 個人化建議</h4>
+                    <div id="recommendationsList"></div>
+                </div>
+                
+                <div class="analytics-actions">
+                    <button id="generateStudyBtn" class="primary-btn">📚 智能學習計劃</button>
+                </div>
+            </div>
+            
         </div>
     </div>
     
@@ -2978,6 +3012,12 @@
     <script src="lib/lang-detect.js"></script>
     <script src="lib/export-templates.js"></script>
     <script src="lib/flashcard-manager.js"></script>
+    <script src="lib/security-utils.js"></script>
+    <script src="lib/performance-utils.js"></script>
+    <script src="lib/error-handler.js"></script>
+    <script src="security-fixes.js"></script>
+    <script src="lib/learning-analytics.js"></script>
+    <script src="lib/study-session-generator.js"></script>
     <script src="lib/notion-integration.js"></script>
     <script src="sidepanel.js"></script>
 </body>
