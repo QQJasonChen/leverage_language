@@ -1794,13 +1794,15 @@
         }
 
         .card-front {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: #ffffff !important;
+            color: #333333 !important;
+            border: 2px solid #e0e0e0 !important;
         }
 
         .card-back {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
+            background: #ffffff !important;
+            color: #333333 !important;
+            border: 2px solid #e0e0e0 !important;
             transform: rotateY(180deg);
         }
 
@@ -1818,24 +1820,26 @@
         }
 
         .card-text {
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 10px;
-            word-break: break-word;
+            font-size: 24px !important;
+            font-weight: bold !important;
+            margin-bottom: 10px !important;
+            word-break: break-word !important;
+            color: #333333 !important;
         }
 
         .card-definition {
-            font-size: 14px;
-            margin-top: 10px;
-            opacity: 0.9;
-            line-height: 1.4;
+            font-size: 14px !important;
+            margin-top: 10px !important;
+            line-height: 1.4 !important;
+            color: #555555 !important;
         }
 
         .card-pronunciation {
-            font-size: 16px;
-            margin-top: 8px;
-            font-style: italic;
-            opacity: 0.8;
+            font-size: 16px !important;
+            margin-top: 8px !important;
+            font-style: italic !important;
+            color: #666666 !important;
+            font-family: 'Courier New', monospace !important;
         }
 
         .audio-btn {
@@ -1990,6 +1994,702 @@
         .flashcards-empty p {
             margin: 0 0 20px 0;
             font-size: 14px;
+        }
+
+        /* Flashcard List View Styles */
+        .flashcards-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+        }
+
+        .flashcard-item {
+            background: #ffffff !important;
+            border: 2px solid #e8e8e8 !important;
+            border-radius: 16px !important;
+            padding: 20px !important;
+            margin-bottom: 16px !important;
+            transition: all 0.3s ease !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+            cursor: pointer !important;
+            position: relative !important;
+            overflow: hidden !important;
+            color: #333333 !important;
+        }
+
+        .flashcard-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+            border-color: #1976d2;
+        }
+
+        .flashcard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .card-front-text {
+            font-size: 22px !important;
+            font-weight: 700 !important;
+            color: #1565c0 !important;
+            margin-bottom: 12px !important;
+            line-height: 1.4 !important;
+            word-break: break-word !important;
+        }
+
+        .card-back-text {
+            font-size: 16px !important;
+            color: #424242 !important;
+            margin-bottom: 12px !important;
+            line-height: 1.5 !important;
+            font-weight: 500 !important;
+        }
+        
+        .card-pronunciation {
+            font-size: 14px !important;
+            color: #757575 !important;
+            margin-bottom: 8px !important;
+            font-style: italic !important;
+            font-family: 'Courier New', monospace !important;
+        }
+        
+        .card-definition {
+            font-size: 14px !important;
+            color: #616161 !important;
+            line-height: 1.4 !important;
+            margin-bottom: 12px !important;
+        }
+
+        .card-difficulty {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            position: absolute;
+            top: 12px;
+            right: 12px;
+        }
+
+        .card-difficulty.new {
+            background: #e8f5e8;
+            color: #2e7d2e;
+        }
+
+        .card-difficulty.learning {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .card-difficulty.review {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .card-difficulty.mature {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .card-meta {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 8px !important;
+            align-items: center !important;
+            margin-top: 12px !important;
+            font-size: 12px !important;
+            color: #666666 !important;
+        }
+
+        .card-language {
+            background: #1976d2;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .card-reviews {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .card-next-review {
+            font-size: 11px;
+            opacity: 0.8;
+        }
+
+        .flashcard-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 12px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .flashcard-item:hover .flashcard-actions {
+            opacity: 1;
+        }
+
+        .card-action-btn {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .card-action-btn:hover {
+            background: #e0e0e0;
+            transform: translateY(-1px);
+        }
+
+        .card-action-btn.study {
+            background: #1976d2;
+            color: white;
+            border-color: #1976d2;
+        }
+
+        .card-action-btn.study:hover {
+            background: #1565c0;
+        }
+
+        .card-action-btn.edit {
+            background: #4caf50;
+            color: white;
+            border-color: #4caf50;
+        }
+
+        .card-action-btn.edit:hover {
+            background: #45a049;
+        }
+
+        .card-action-btn.delete {
+            background: #f44336;
+            color: white;
+            border-color: #f44336;
+        }
+
+        .card-action-btn.delete:hover {
+            background: #d32f2f;
+        }
+
+        .flashcard-progress-indicator {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #f0f0f0;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+            border-radius: 0 0 12px 12px;
+        }
+
+        .progress-bar-fill.new {
+            background: linear-gradient(90deg, #4caf50 0%, #45a049 100%);
+            width: 25%;
+        }
+
+        .progress-bar-fill.learning {
+            background: linear-gradient(90deg, #ff9800 0%, #f57c00 100%);
+            width: 50%;
+        }
+
+        .progress-bar-fill.review {
+            background: linear-gradient(90deg, #2196f3 0%, #1976d2 100%);
+            width: 75%;
+        }
+
+        .progress-bar-fill.mature {
+            background: linear-gradient(90deg, #9c27b0 0%, #7b1fa2 100%);
+            width: 100%;
+        }
+
+        /* Responsive Design for Flashcard List */
+        @media (max-width: 768px) {
+            .flashcards-list {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            
+            .flashcard-item {
+                padding: 12px;
+            }
+            
+            .card-front-text {
+                font-size: 16px;
+            }
+            
+            .flashcard-actions {
+                opacity: 1;
+            }
+        }
+
+        /* Pronunciation Button Styles */
+        .pronunciation-btn {
+            background: none !important;
+            border: none !important;
+            font-size: 18px !important;
+            margin-left: 8px !important;
+            cursor: pointer !important;
+            opacity: 0.7 !important;
+            transition: opacity 0.2s ease !important;
+            padding: 2px 4px !important;
+            border-radius: 4px !important;
+        }
+
+        .pronunciation-btn:hover {
+            opacity: 1 !important;
+            background: rgba(25, 118, 210, 0.1) !important;
+        }
+
+        .pronunciation-btn:disabled {
+            opacity: 0.4 !important;
+            cursor: not-allowed !important;
+        }
+
+        /* Modal Styles - Force Light Theme Always */
+        .flashcard-modal,
+        .flashcard-modal[data-theme="light"],
+        body.dark-theme .flashcard-modal,
+        body[data-theme="dark"] .flashcard-modal,
+        [data-theme="dark"] .flashcard-modal {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            background: rgba(250, 250, 250, 0.98) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            z-index: 99999 !important;
+            backdrop-filter: blur(3px) !important;
+        }
+
+        .flashcard-modal-content,
+        .flashcard-modal-content[data-theme="light"],
+        body.dark-theme .flashcard-modal-content,
+        body[data-theme="dark"] .flashcard-modal-content,
+        [data-theme="dark"] .flashcard-modal-content {
+            background: #ffffff !important;
+            border-radius: 16px !important;
+            padding: 32px !important;
+            max-width: 500px !important;
+            width: 90% !important;
+            max-height: 80vh !important;
+            overflow-y: auto !important;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15) !important;
+            border: 3px solid #e8e8e8 !important;
+            color: #333333 !important;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            margin: 0;
+            color: #1976d2;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .modal-close-btn {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            font-size: 20px;
+            cursor: pointer;
+            color: #666;
+            padding: 8px 12px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close-btn:hover {
+            background: #e0e0e0;
+            transform: scale(1.1);
+        }
+
+        /* Modal Text Elements - Force Light Theme */
+        .modal-word,
+        body.dark-theme .modal-word,
+        body[data-theme="dark"] .modal-word,
+        [data-theme="dark"] .modal-word {
+            font-size: 24px !important;
+            font-weight: 600 !important;
+            color: #1976d2 !important;
+            margin-bottom: 12px !important;
+            word-break: break-word !important;
+        }
+
+        .modal-translation,
+        body.dark-theme .modal-translation,
+        body[data-theme="dark"] .modal-translation,
+        [data-theme="dark"] .modal-translation {
+            font-size: 18px !important;
+            color: #333333 !important;
+            margin-bottom: 10px !important;
+            line-height: 1.4 !important;
+            font-weight: 500 !important;
+        }
+
+        .modal-pronunciation,
+        body.dark-theme .modal-pronunciation,
+        body[data-theme="dark"] .modal-pronunciation,
+        [data-theme="dark"] .modal-pronunciation {
+            font-size: 16px !important;
+            color: #666666 !important;
+            margin-bottom: 8px !important;
+            font-style: italic !important;
+            font-family: 'Courier New', monospace !important;
+        }
+
+        .modal-definition,
+        body.dark-theme .modal-definition,
+        body[data-theme="dark"] .modal-definition,
+        [data-theme="dark"] .modal-definition {
+            font-size: 14px !important;
+            color: #555555 !important;
+            margin-bottom: 12px !important;
+            line-height: 1.4 !important;
+        }
+
+        .modal-title,
+        body.dark-theme .modal-title,
+        body[data-theme="dark"] .modal-title,
+        [data-theme="dark"] .modal-title {
+            margin: 0 !important;
+            color: #1976d2 !important;
+            font-size: 18px !important;
+            font-weight: 600 !important;
+        }
+
+        .modal-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-language-badge {
+            background: #1976d2;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .modal-difficulty-badge {
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .modal-difficulty-badge.new {
+            background: #e8f5e8;
+            color: #2e7d2e;
+        }
+
+        .modal-difficulty-badge.learning {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .modal-difficulty-badge.review {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .modal-difficulty-badge.mature {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .modal-stat {
+            color: #666;
+            font-size: 12px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .modal-action-btn {
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .modal-study-btn {
+            background: #1976d2;
+            color: white;
+        }
+
+        .modal-study-btn:hover {
+            background: #1565c0;
+            transform: translateY(-1px);
+        }
+
+        .modal-edit-btn {
+            background: #4caf50;
+            color: white;
+        }
+
+        .modal-edit-btn:hover {
+            background: #45a049;
+            transform: translateY(-1px);
+        }
+
+        /* Override Dark Mode for Flashcard List - Force Light Theme */
+        @media (prefers-color-scheme: dark) {
+            .flashcard-item,
+            .flashcard-item * {
+                background: #ffffff !important;
+                color: #333333 !important;
+                border-color: #e8e8e8 !important;
+            }
+            
+            .card-front-text {
+                color: #1565c0 !important;
+            }
+            
+            .card-back-text {
+                color: #424242 !important;
+            }
+            
+            .card-pronunciation {
+                color: #757575 !important;
+            }
+            
+            .card-definition {
+                color: #616161 !important;
+            }
+            
+            .card-meta {
+                color: #666666 !important;
+            }
+            
+            .flashcard-item:hover {
+                background: #ffffff !important;
+                border-color: #1976d2 !important;
+                box-shadow: 0 8px 20px rgba(0,0,0,0.12) !important;
+            }
+        }
+            
+            /* Override dark mode for flashcard modal to always be light */
+            .flashcard-modal {
+                background: rgba(240, 240, 240, 0.98) !important;
+            }
+            
+            .flashcard-modal-content {
+                background: #ffffff !important;
+                border-color: #e8e8e8 !important;
+                color: #333 !important;
+            }
+            
+            .modal-word {
+                color: #1976d2 !important;
+            }
+            
+            .modal-translation {
+                color: #333 !important;
+            }
+            
+            .modal-close-btn {
+                background: #f5f5f5 !important;
+                color: #666 !important;
+            }
+        }
+
+        /* Analytics View Styles */
+        .analytics-view {
+            padding: 20px;
+            max-height: 100vh;
+            overflow-y: auto;
+        }
+
+        .analytics-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .analytics-header h3 {
+            margin: 0;
+            color: #1976d2;
+            font-size: 20px;
+        }
+
+        .refresh-btn {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .refresh-btn:hover {
+            background: #e0e0e0;
+            transform: translateY(-1px);
+        }
+
+        .analytics-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid #90caf9;
+        }
+
+        .metric-value {
+            display: block;
+            font-size: 32px;
+            font-weight: 700;
+            color: #1976d2;
+            margin-bottom: 8px;
+        }
+
+        .metric-label {
+            font-size: 14px;
+            color: #1565c0;
+            font-weight: 500;
+        }
+
+        .analytics-recommendations {
+            margin-bottom: 32px;
+        }
+
+        .analytics-recommendations h4 {
+            color: #1976d2;
+            font-size: 18px;
+            margin-bottom: 16px;
+        }
+
+        .recommendation-item {
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .recommendation-item:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-color: #1976d2;
+        }
+
+        .recommendation-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .recommendation-content {
+            flex: 1;
+        }
+
+        .recommendation-content h5 {
+            margin: 0 0 8px 0;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .recommendation-content p {
+            margin: 0 0 12px 0;
+            color: #666;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .recommendation-btn {
+            background: #1976d2;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s ease;
+        }
+
+        .recommendation-btn:hover {
+            background: #1565c0;
+        }
+
+        .analytics-actions {
+            text-align: center;
+        }
+
+        .primary-btn {
+            background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .primary-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(25, 118, 210, 0.4);
+        }
+
+        .primary-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
         }
         
         .ai-loading {
@@ -2864,10 +3564,6 @@
                             <span class="btn-icon">🎯</span>
                             <span data-i18n="start_study">開始學習</span>
                         </button>
-                        <button id="fullScreenStudyBtn" class="flashcard-btn secondary">
-                            <span class="btn-icon">🖥️</span>
-                            <span data-i18n="fullscreen_study">全屏學習</span>
-                        </button>
                     </div>
                     
                     <div class="study-options">
@@ -2978,17 +3674,37 @@
                 </div>
                 
                 <div class="analytics-overview">
-                    <div class="metric-card">
+                    <div class="metric-card" title="您創建的記憶卡總數" data-detail="cards">
                         <span class="metric-value" id="totalVocab">0</span>
-                        <span class="metric-label">總詞彙</span>
+                        <span class="metric-label">記憶卡總數</span>
+                        <div class="metric-detail" id="totalVocabDetail"></div>
                     </div>
-                    <div class="metric-card">
+                    <div class="metric-card" title="連續學習天數" data-detail="streak">
                         <span class="metric-value" id="currentStreak">0</span>
-                        <span class="metric-label">連續天數</span>
+                        <span class="metric-label">學習連續天數</span>
+                        <div class="metric-detail" id="streakDetail"></div>
                     </div>
-                    <div class="metric-card">
+                    <div class="metric-card" title="答對率：複習記憶卡時答對的百分比，越高表示記得越好" data-detail="retention">
                         <span class="metric-value" id="retentionRate">0%</span>
-                        <span class="metric-label">保持率</span>
+                        <span class="metric-label">複習答對率</span>
+                        <div class="metric-detail" id="retentionDetail"></div>
+                    </div>
+                </div>
+                
+                <!-- 詳細統計說明 -->
+                <div id="analyticsExplanation" style="
+                    background: #f8f9fa; 
+                    padding: 16px; 
+                    border-radius: 8px; 
+                    margin-top: 16px;
+                    border-left: 4px solid #1976d2;
+                ">
+                    <h4 style="margin: 0 0 8px 0; color: #1976d2;">📊 如何累積統計數據</h4>
+                    <div style="font-size: 14px; line-height: 1.5; color: #666;">
+                        <p style="margin: 4px 0;"><strong>建立記憶卡</strong>：搜尋單字後點擊「建立記憶卡」</p>
+                        <p style="margin: 4px 0;"><strong>開始學習</strong>：在記憶卡頁面點擊「開始學習」</p>
+                        <p style="margin: 4px 0;"><strong>完成複習</strong>：學習時選擇難易度（簡單/困難/忘記/記住）</p>
+                        <p style="margin: 4px 0;"><strong>查看進步</strong>：數據會在每次學習後更新</p>
                     </div>
                 </div>
                 

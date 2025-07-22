@@ -63,6 +63,42 @@ window.addEventListener('load', async () => {
     }
     
     log('All services initialized successfully');
+    
+    // Add global event delegation for CSP-compliant event handling
+    document.addEventListener('click', (e) => {
+      // Handle audio badges with data-report-id
+      const audioBadge = e.target.closest('[data-report-id]');
+      if (audioBadge && audioBadge.classList.contains('audio-badge')) {
+        e.preventDefault();
+        const reportId = audioBadge.getAttribute('data-report-id');
+        playReportAudio(reportId);
+        return;
+      }
+      
+      // Handle buttons with data-action attributes
+      const actionBtn = e.target.closest('[data-action]');
+      if (actionBtn) {
+        e.preventDefault();
+        const action = actionBtn.getAttribute('data-action');
+        
+        // Execute the action function if it exists
+        if (typeof window[action] === 'function') {
+          window[action]();
+        } else if (action.includes('(')) {
+          // Handle function calls with parameters (security-limited)
+          try {
+            // Only allow safe, predefined function calls
+            if (action === 'loadAnalyticsView()') {
+              loadAnalyticsView();
+            }
+          } catch (error) {
+            console.error('Action execution failed:', error);
+          }
+        }
+        return;
+      }
+    });
+    
   } catch (error) {
     await handleError(error, { operation: 'service_initialization' });
   }
@@ -167,25 +203,59 @@ function showSearchResult(queryData) {
   
   // 只對新查詢觸發自動分析和發音 (如果啟用且服務可用)
   if (isNewQuery && queryData.autoAnalysis) {
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
         log('Auto-analysis requested for:', queryData.text);
+        
+        // Ensure aiService is initialized first
+        if (typeof aiService !== 'undefined' && aiService && !aiService.isInitialized) {
+          log('Initializing AI service for auto-generation...');
+          await aiService.initialize();
+        }
+        
         if (typeof generateAIAnalysis === 'function' && typeof aiService !== 'undefined' && aiService) {
           // Auto-generate AI analysis
           generateAIAnalysis().catch(err => log('Auto-analysis failed quietly:', err));
           
-          // Auto-generate audio after a short delay (so it doesn't interfere with AI analysis)
-          setTimeout(() => {
-            if (aiService && aiService.isAudioAvailable()) {
-              log('🔊 Auto-generating audio for new search...');
-              generateAudioPronunciation().catch(err => log('Auto-audio failed quietly:', err));
-            } else {
-              log('Auto-audio skipped: audio not available');
+          // Auto-generate and cache audio for future flashcard use
+          setTimeout(async () => {
+            if (currentQueryData.text && currentQueryData.language) {
+              try {
+                log('🔊 Auto-generating and caching audio for:', currentQueryData.text);
+                // Try OpenAI TTS first (just cache, don't play)
+                const audioData = await generateOpenAIAudio(
+                  currentQueryData.text, 
+                  currentQueryData.language, 
+                  false // Don't play immediately, just cache
+                );
+                
+                if (audioData) {
+                  log('✅ Audio cached for future flashcard use');
+                } else if (aiService && aiService.isAudioAvailable && aiService.isAudioAvailable()) {
+                  // Fallback to original audio generation
+                  log('⚠️ OpenAI TTS not available, using fallback audio generation');
+                  generateAudioPronunciation().catch(err => log('Auto-audio failed quietly:', err));
+                } else {
+                  log('Auto-audio skipped: no audio service available');
+                }
+              } catch (error) {
+                log('Auto-audio caching failed:', error);
+                // Fallback to original method if available
+                if (aiService && aiService.isAudioAvailable && aiService.isAudioAvailable()) {
+                  generateAudioPronunciation().catch(err => log('Auto-audio failed quietly:', err));
+                }
+              }
             }
           }, 3000); // 3 second delay to let AI analysis finish first
           
         } else {
-          log('Auto-generation skipped: AI service not available');
+          log('Auto-generation skipped: AI service not available or not initialized');
+          log('Debug info:', {
+            generateAIAnalysisExists: typeof generateAIAnalysis === 'function',
+            aiServiceExists: typeof aiService !== 'undefined',
+            aiServiceValue: !!aiService,
+            isInitialized: aiService?.isInitialized
+          });
         }
       } catch (error) {
         log('Auto-analysis error (non-blocking):', error);
@@ -203,12 +273,14 @@ function initializeViewControls() {
   const showHistoryBtn = document.getElementById('showHistoryBtn');
   const showSavedReportsBtn = document.getElementById('showSavedReportsBtn');
   const showFlashcardsBtn = document.getElementById('showFlashcardsBtn');
+  const showAnalyticsBtn = document.getElementById('showAnalyticsBtn');
   const openNewTabBtn = document.getElementById('openNewTabBtn');
   const analysisView = document.getElementById('analysisView');
   const videoView = document.getElementById('videoView');
   const historyView = document.getElementById('historyView');
   const savedReportsView = document.getElementById('savedReportsView');
   const flashcardsView = document.getElementById('flashcardsView');
+  const analyticsView = document.getElementById('analyticsView');
   
   // 分析視圖按鈕
   if (showAnalysisBtn) {
@@ -223,6 +295,7 @@ function initializeViewControls() {
       if (historyView) historyView.style.display = 'none';
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'none';
+      if (analyticsView) analyticsView.style.display = 'none';
       
       log('Switched to analysis view');
     };
@@ -241,6 +314,7 @@ function initializeViewControls() {
       if (historyView) historyView.style.display = 'none';
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'none';
+      if (analyticsView) analyticsView.style.display = 'none';
       
       log('Switched to video view');
     };
@@ -259,6 +333,7 @@ function initializeViewControls() {
       if (historyView) historyView.style.display = 'block';
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'none';
+      if (analyticsView) analyticsView.style.display = 'none';
       
       loadHistoryView();
       console.log('Switched to history view');
@@ -278,6 +353,7 @@ function initializeViewControls() {
       if (historyView) historyView.style.display = 'none';
       if (savedReportsView) savedReportsView.style.display = 'block';
       if (flashcardsView) flashcardsView.style.display = 'none';
+      if (analyticsView) analyticsView.style.display = 'none';
       
       loadSavedReports();
       console.log('Switched to saved reports view');
@@ -296,10 +372,31 @@ function initializeViewControls() {
       if (videoView) videoView.style.display = 'none';
       if (historyView) historyView.style.display = 'none';
       if (savedReportsView) savedReportsView.style.display = 'none';
+      if (analyticsView) analyticsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'block';
       
       loadFlashcardsView();
       console.log('Switched to flashcards view');
+    };
+  }
+
+  // Analytics view button
+  if (showAnalyticsBtn) {
+    showAnalyticsBtn.onclick = async () => {
+      // Remove active from all view buttons
+      document.querySelectorAll('.view-button').forEach(btn => btn.classList.remove('active'));
+      showAnalyticsBtn.classList.add('active');
+      
+      // Show analytics view, hide all others
+      if (analysisView) analysisView.style.display = 'none';
+      if (videoView) videoView.style.display = 'none';
+      if (historyView) historyView.style.display = 'none';
+      if (savedReportsView) savedReportsView.style.display = 'none';
+      if (flashcardsView) flashcardsView.style.display = 'none';
+      if (analyticsView) analyticsView.style.display = 'block';
+      
+      await loadAnalyticsView();
+      console.log('Switched to analytics view');
     };
   }
   
@@ -1169,7 +1266,138 @@ function replayQuery(text, language, url) {
 
 // 開啟設定頁面
 function openSettings() {
-  chrome.tabs.create({ url: chrome.runtime.getURL('options.html') });
+  showSettingsDialog();
+}
+
+// Show settings dialog for TTS configuration
+function showSettingsDialog() {
+  // Create modal dialog
+  const dialog = document.createElement('div');
+  dialog.id = 'settingsDialog';
+  dialog.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+  `;
+
+  dialog.innerHTML = `
+    <div style="
+      background: white;
+      padding: 24px;
+      border-radius: 8px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    ">
+      <h3 style="margin-top: 0; color: #1976d2;">🔧 語音設定</h3>
+      
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; margin-bottom: 8px; font-weight: 500;">
+          OpenAI API Key (可選 - 提供更自然的語音)
+        </label>
+        <input 
+          type="password" 
+          id="openaiApiKeyInput" 
+          placeholder="sk-..." 
+          style="
+            width: 100%; 
+            padding: 8px 12px; 
+            border: 1px solid #ddd; 
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+          "
+        >
+        <div style="font-size: 12px; color: #666; margin-top: 4px;">
+          提供 OpenAI API Key 將使用更自然的語音合成。留空則使用瀏覽器內建語音。
+        </div>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <h4 style="margin-bottom: 8px;">🎯 語音品質對比</h4>
+        <div style="font-size: 14px; line-height: 1.4;">
+          • <strong>瀏覽器語音</strong>：免費，機械感較重<br>
+          • <strong>OpenAI 語音</strong>：自然流暢，支援多語言，需要 API key
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 12px; justify-content: flex-end;">
+        <button id="cancelSettingsBtn" style="
+          padding: 8px 16px;
+          background: #f5f5f5;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          cursor: pointer;
+        ">取消</button>
+        <button id="saveSettingsBtn" style="
+          padding: 8px 16px;
+          background: #1976d2;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+        ">儲存</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(dialog);
+
+  // Load current API key
+  loadCurrentApiKey();
+
+  // Add event listeners
+  document.getElementById('cancelSettingsBtn').addEventListener('click', () => {
+    document.body.removeChild(dialog);
+  });
+
+  document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
+    const apiKey = document.getElementById('openaiApiKeyInput').value.trim();
+    
+    try {
+      // Save to Chrome storage
+      await new Promise((resolve) => {
+        chrome.storage.sync.set({ openaiApiKey: apiKey }, resolve);
+      });
+      
+      showMessage(apiKey ? 'OpenAI API Key 已儲存' : 'API Key 已清除，將使用瀏覽器語音', 'success');
+      document.body.removeChild(dialog);
+    } catch (error) {
+      console.error('Failed to save API key:', error);
+      showMessage('儲存失敗', 'error');
+    }
+  });
+
+  // Close on outside click
+  dialog.addEventListener('click', (e) => {
+    if (e.target === dialog) {
+      document.body.removeChild(dialog);
+    }
+  });
+}
+
+// Load current API key into the input
+async function loadCurrentApiKey() {
+  try {
+    const result = await new Promise((resolve) => {
+      chrome.storage.sync.get(['openaiApiKey'], resolve);
+    });
+    
+    const input = document.getElementById('openaiApiKeyInput');
+    if (input && result.openaiApiKey) {
+      input.value = result.openaiApiKey;
+    }
+  } catch (error) {
+    console.error('Failed to load API key:', error);
+  }
 }
 
 // 在新分頁開啟當前頁面
@@ -1221,13 +1449,26 @@ async function generateAIAnalysis(forceRefresh = false) {
     // 自動保存 AI 分析報告到存储管理器 (only if auto-save is enabled)
     if (autoSaveEnabled && storageManager && typeof storageManager.saveAIReport === 'function') {
       try {
+        // Get cached audio data if available
+        const cachedAudio = getCachedAudio(currentQueryData.text, currentQueryData.language);
+        const audioData = cachedAudio ? {
+          audioUrl: cachedAudio.audioUrl,
+          size: cachedAudio.size,
+          voice: cachedAudio.voice || 'OpenAI TTS'
+        } : null;
+        
         await storageManager.saveAIReport(
           currentQueryData.text,
           currentQueryData.language,
           analysis,
-          null // No audio data yet
+          audioData // Include cached audio data
         );
-        console.log('AI analysis report saved automatically');
+        
+        if (audioData) {
+          console.log('🎯 AI report auto-saved with cached audio:', Math.round(audioData.size / 1024), 'KB');
+        } else {
+          console.log('AI analysis report saved automatically (no audio)');
+        }
       } catch (error) {
         const result = await handleError(error, { operation: 'save_ai_report', context: 'auto_save' });
         log('Failed to save AI report:', result.success ? 'recovered' : error.message);
@@ -1980,7 +2221,7 @@ async function loadSavedReports() {
                 <div class="report-badges">
                   <span class="report-language">${languageNames[report.language] || report.language.toUpperCase()}</span>
                   ${report.favorite ? '<span class="favorite-badge">⭐ 最愛</span>' : ''}
-                  ${report.audioData ? '<span class="audio-badge">🔊 語音</span>' : ''}
+                  ${report.audioData ? `<span class="audio-badge" data-report-id="${report.id}" style="cursor: pointer;" title="點擊播放語音">🔊 語音</span>` : ''}
                 </div>
               </div>
               <div class="report-actions">
@@ -2102,7 +2343,11 @@ async function loadSavedReports() {
               }
             } catch (error) {
               console.error('Failed to create flashcard from report:', error);
-              showMessage('建立記憶卡失敗', 'error');
+              if (error.message.includes('already exists')) {
+                showMessage(`記憶卡「${report.searchText}」已存在`, 'warning');
+              } else {
+                showMessage('建立記憶卡失敗', 'error');
+              }
             }
           });
         }
@@ -2589,12 +2834,26 @@ async function manualSaveReport() {
     }
     
     if (storageManager && typeof storageManager.saveAIReport === 'function') {
+      // Get cached audio data if available
+      const cachedAudio = getCachedAudio(currentQueryData.text, currentQueryData.language);
+      const audioData = cachedAudio ? {
+        audioUrl: cachedAudio.audioUrl,
+        size: cachedAudio.size,
+        voice: cachedAudio.voice || 'OpenAI TTS'
+      } : null;
+      
       await storageManager.saveAIReport(
         currentQueryData.text,
         currentQueryData.language,
         currentAIAnalysis,
-        null // No audio data yet
+        audioData // Include cached audio data
       );
+      
+      if (audioData) {
+        console.log('🎯 AI report saved with cached audio:', Math.round(audioData.size / 1024), 'KB');
+      } else {
+        console.log('AI analysis report saved manually (no audio)');
+      }
       console.log('AI analysis report saved manually');
       
       // Show success feedback
@@ -2842,6 +3101,46 @@ function showAudioError(message) {
   }
 }
 
+// Play audio from saved report
+async function playReportAudio(reportId) {
+  try {
+    const reports = await storageManager.getReports();
+    const report = reports.find(r => r.id === reportId);
+    
+    if (!report || !report.audioData || !report.audioData.audioUrl) {
+      showMessage('此報告沒有語音數據', 'warning');
+      return;
+    }
+    
+    console.log('🔊 Playing audio from saved report:', report.searchText);
+    
+    const audio = new Audio(report.audioData.audioUrl);
+    
+    // Show feedback
+    const audioBadge = document.querySelector(`span[data-report-id="${reportId}"]`);
+    if (audioBadge) {
+      const originalText = audioBadge.textContent;
+      audioBadge.textContent = '🔊 播放中...';
+      
+      audio.onended = () => {
+        audioBadge.textContent = originalText;
+      };
+      
+      audio.onerror = () => {
+        audioBadge.textContent = originalText;
+        showMessage('語音播放失敗', 'error');
+      };
+    }
+    
+    await audio.play();
+    console.log('✅ Report audio playing:', report.searchText);
+    
+  } catch (error) {
+    console.error('Failed to play report audio:', error);
+    showMessage('播放語音失敗', 'error');
+  }
+}
+
 // Export functions (basic implementations)
 async function exportToMarkdown(reports) {
   console.log('Exporting to markdown:', reports);
@@ -2853,8 +3152,31 @@ async function exportToHeptaBase(reports) {
   return 'HeptaBase export not fully implemented';  
 }
 
+// Initialize TTS voices
+function initializeTTSVoices() {
+  if ('speechSynthesis' in window) {
+    // Load voices - some browsers need this to be called to populate voices
+    speechSynthesis.getVoices();
+    
+    // Handle voice loading event
+    speechSynthesis.addEventListener('voiceschanged', () => {
+      const voices = speechSynthesis.getVoices();
+      console.log('TTS voices loaded:', voices.length, 'voices available');
+      
+      // Log available voices for debugging
+      voices.forEach((voice, index) => {
+        if (voice.lang.startsWith('en') || voice.lang.startsWith('ja') || voice.lang.startsWith('ko') || voice.lang.startsWith('zh') || voice.lang.startsWith('nl')) {
+          console.log(`Voice ${index}: ${voice.name} (${voice.lang}) - Local: ${voice.localService}`);
+        }
+      });
+    });
+  }
+}
+
 // Initialize all buttons and features
 document.addEventListener('DOMContentLoaded', () => {
+  // Initialize TTS voices
+  initializeTTSVoices();
   // Settings button
   const settingsBtn = document.querySelector('.settings-button');
   if (settingsBtn) {
@@ -3207,7 +3529,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Add saved reports button handler
   const showSavedReportsBtn = document.getElementById('showSavedReportsBtn');
   if (showSavedReportsBtn) {
-    showSavedReportsBtn.addEventListener('click', () => {
+    showSavedReportsBtn.onclick = () => {
       // Switch to saved reports view
       const savedReportsView = document.getElementById('savedReportsView');
       const analysisView = document.getElementById('analysisView');
@@ -3228,7 +3550,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Update button states
       document.querySelectorAll('.view-button').forEach(btn => btn.classList.remove('active'));
       showSavedReportsBtn.classList.add('active');
-    });
+    };
   }
 });
 
@@ -3333,7 +3655,7 @@ function displayFilteredReports(reports) {
             <div class="report-badges">
               <span class="report-language">${languageNames[report.language] || report.language.toUpperCase()}</span>
               ${report.favorite ? '<span class="favorite-badge">⭐ 最愛</span>' : ''}
-              ${report.audioData ? '<span class="audio-badge">🔊 語音</span>' : ''}
+              ${report.audioData ? `<span class="audio-badge" data-report-id="${report.id}" style="cursor: pointer;" title="點擊播放語音">🔊 語音</span>` : ''}
             </div>
           </div>
           <div class="report-actions">
@@ -4099,25 +4421,416 @@ function performManualSearch() {
 }
 
 // ================================
+// ANALYTICS FUNCTIONALITY  
+// ================================
+
+// Load analytics view
+async function loadAnalyticsView() {
+  if (!learningAnalytics) {
+    console.error('Learning analytics not initialized');
+    showAnalyticsError();
+    return;
+  }
+
+  try {
+    // Initialize flashcard manager if not already done
+    if (!window.flashcardManager) {
+      if (typeof FlashcardManager !== 'undefined') {
+        window.flashcardManager = new FlashcardManager();
+        await window.flashcardManager.initialize();
+      }
+    }
+
+    // Get analytics data using the correct methods
+    const insights = learningAnalytics.getInsights();
+    const recommendations = learningAnalytics.generateRecommendations();
+
+    console.log('Analytics insights:', insights);
+    console.log('Analytics recommendations:', recommendations);
+
+    // Update UI with statistics
+    await updateAnalyticsUI(insights, recommendations);
+
+    // Set up refresh button
+    const refreshBtn = document.getElementById('refreshAnalyticsBtn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => loadAnalyticsView());
+    }
+
+    // Set up study plan generation
+    const generateStudyBtn = document.getElementById('generateStudyBtn');
+    if (generateStudyBtn) {
+      generateStudyBtn.addEventListener('click', async () => {
+        await generatePersonalizedStudyPlan();
+      });
+    }
+
+    // Set up analytics detail event listeners (CSP compliant)
+    const analyticsView = document.getElementById('analyticsView');
+    if (analyticsView) {
+      // Event delegation for metric cards with data-detail attribute
+      analyticsView.addEventListener('click', (e) => {
+        const metricCard = e.target.closest('[data-detail]');
+        if (metricCard) {
+          const detailType = metricCard.getAttribute('data-detail');
+          showAnalyticsDetail(detailType);
+        }
+        
+        // Handle audio badges
+        const audioBadge = e.target.closest('[data-report-id]');
+        if (audioBadge && audioBadge.classList.contains('audio-badge')) {
+          const reportId = audioBadge.getAttribute('data-report-id');
+          playReportAudio(reportId);
+        }
+        
+        // Handle data-action buttons
+        const actionBtn = e.target.closest('[data-action]');
+        if (actionBtn) {
+          const action = actionBtn.getAttribute('data-action');
+          if (action === 'loadAnalyticsView') {
+            loadAnalyticsView();
+          }
+          // Add other actions as needed
+        }
+      });
+    }
+
+    console.log('Analytics view loaded successfully');
+  } catch (error) {
+    console.error('Error loading analytics view:', error);
+    showAnalyticsError();
+  }
+}
+
+// Update analytics UI with data
+async function updateAnalyticsUI(insights, recommendations) {
+  // Get flashcard statistics for comparison
+  let flashcardStats = null;
+  if (window.flashcardManager) {
+    flashcardStats = window.flashcardManager.getStats();
+  }
+
+  // Update metrics with clear descriptions and debug info
+  const totalVocab = document.getElementById('totalVocab');
+  const currentStreak = document.getElementById('currentStreak');
+  const retentionRate = document.getElementById('retentionRate');
+
+  // Debug logging
+  console.log('📊 Analytics Debug:', {
+    insights,
+    flashcardStats,
+    vocabularySize: insights.totalVocabulary,
+    streakCurrent: insights.currentStreak,
+    retentionRate: insights.retentionRate
+  });
+
+  if (totalVocab) {
+    const vocabCount = flashcardStats ? flashcardStats.totalCards : (insights.totalVocabulary || 0);
+    totalVocab.textContent = vocabCount;
+    
+    // Add detail info
+    const detail = document.getElementById('totalVocabDetail');
+    if (detail && flashcardStats) {
+      detail.innerHTML = `新: ${flashcardStats.newCards} | 學習中: ${flashcardStats.learningCards} | 熟練: ${flashcardStats.reviewCards}`;
+    }
+  }
+  
+  if (currentStreak) {
+    const streakDays = insights.currentStreak || 0;
+    currentStreak.textContent = streakDays;
+    
+    // Add detail info
+    const detail = document.getElementById('streakDetail');
+    if (detail) {
+      if (streakDays === 0) {
+        detail.innerHTML = `還未開始學習記錄`;
+      } else {
+        detail.innerHTML = `最長紀錄: ${insights.longestStreak || streakDays} 天`;
+      }
+    }
+  }
+  
+  if (retentionRate) {
+    const retention = insights.retentionRate || 0;
+    retentionRate.textContent = `${retention}%`;
+    
+    // Add detail info
+    const detail = document.getElementById('retentionDetail');
+    if (detail) {
+      const totalReviews = getTotalReviewCount();
+      if (totalReviews === 0) {
+        detail.innerHTML = `還未進行複習`;
+      } else {
+        detail.innerHTML = `總複習次數: ${totalReviews}`;
+      }
+    }
+  }
+
+  // Add additional flashcard-specific metrics
+  if (flashcardStats) {
+    updateFlashcardMetrics(flashcardStats);
+  }
+
+  // Update recommendations with better formatting
+  const recommendationsList = document.getElementById('recommendationsList');
+  if (recommendationsList && recommendations && recommendations.length > 0) {
+    recommendationsList.innerHTML = recommendations.map(rec => `
+      <div class="recommendation-item" style="
+        display: flex; 
+        align-items: flex-start; 
+        margin-bottom: 16px; 
+        padding: 16px; 
+        background: #f8f9fa; 
+        border-radius: 8px;
+        border-left: 4px solid ${getPriorityColor(rec.priority)};
+      ">
+        <div class="recommendation-icon" style="font-size: 24px; margin-right: 12px;">
+          ${getRecommendationIcon(rec.type)}
+        </div>
+        <div class="recommendation-content" style="flex: 1;">
+          <h5 style="margin: 0 0 8px 0; color: #333;">${rec.title}</h5>
+          <p style="margin: 0; color: #666; line-height: 1.4;">${rec.description}</p>
+          ${rec.action ? `
+            <button class="recommendation-btn" data-action="${rec.action}" style="
+              margin-top: 12px; 
+              background: #1976d2; 
+              color: white; 
+              border: none; 
+              padding: 8px 16px; 
+              border-radius: 4px; 
+              cursor: pointer;
+              font-size: 14px;
+            ">${rec.actionText || '開始行動'}</button>
+          ` : ''}
+        </div>
+      </div>
+    `).join('');
+  } else {
+    recommendationsList.innerHTML = `
+      <div style="text-align: center; padding: 32px; color: #666;">
+        <div style="font-size: 48px; margin-bottom: 16px;">🎯</div>
+        <p>繼續學習以獲得個人化建議！</p>
+      </div>
+    `;
+  }
+}
+
+// Get total review count for debugging
+function getTotalReviewCount() {
+  if (!window.flashcardManager || !window.flashcardManager.flashcards) {
+    return 0;
+  }
+  
+  return window.flashcardManager.flashcards.reduce((total, card) => {
+    return total + (card.reviews || 0);
+  }, 0);
+}
+
+// Show detailed analytics information
+function showAnalyticsDetail(type) {
+  let message = '';
+  
+  if (type === 'cards') {
+    const stats = window.flashcardManager ? window.flashcardManager.getStats() : null;
+    if (stats) {
+      message = `📊 記憶卡詳情：\n\n` +
+                `• 總計: ${stats.totalCards} 張\n` +
+                `• 新卡片: ${stats.newCards} 張（未學習過）\n` +
+                `• 學習中: ${stats.learningCards} 張（正在學習）\n` +
+                `• 熟練: ${stats.reviewCards} 張（已掌握）\n` +
+                `• 待複習: ${stats.dueCards} 張（需要複習）`;
+    } else {
+      message = '還沒有記憶卡數據。請先建立一些記憶卡！';
+    }
+  } else if (type === 'streak') {
+    const analytics = learningAnalytics ? learningAnalytics.getInsights() : null;
+    if (analytics) {
+      message = `🔥 學習連續天數：\n\n` +
+                `• 目前連續: ${analytics.currentStreak} 天\n` +
+                `• 最長紀錄: ${analytics.longestStreak} 天\n` +
+                `• 學習建議: 每天至少學習幾張卡片保持連續記錄`;
+    } else {
+      message = '還沒有學習記錄。開始學習記憶卡來累積連續天數！';
+    }
+  } else if (type === 'retention') {
+    const totalReviews = getTotalReviewCount();
+    const analytics = learningAnalytics ? learningAnalytics.getInsights() : null;
+    
+    if (totalReviews === 0) {
+      message = '📈 複習答對率：\n\n' +
+                '還沒有複習記錄。\n\n' +
+                '如何累積數據：\n' +
+                '1. 建立記憶卡\n' +
+                '2. 點擊「開始學習」\n' +
+                '3. 在學習時選擇難易度\n' +
+                '4. 完成學習後查看統計';
+    } else {
+      message = `📈 複習答對率：\n\n` +
+                `• 答對率: ${analytics ? analytics.retentionRate : 0}%\n` +
+                `• 總複習次數: ${totalReviews}\n` +
+                `• 學習會話: ${analytics ? analytics.studySessions : 0} 次`;
+    }
+  }
+  
+  alert(message);
+}
+
+// Update flashcard-specific metrics
+function updateFlashcardMetrics(stats) {
+  // Add or update additional metric display
+  const analyticsOverview = document.querySelector('.analytics-overview');
+  if (analyticsOverview) {
+    // Check if we already have additional metrics
+    let additionalMetrics = document.getElementById('additionalMetrics');
+    if (!additionalMetrics) {
+      additionalMetrics = document.createElement('div');
+      additionalMetrics.id = 'additionalMetrics';
+      analyticsOverview.appendChild(additionalMetrics);
+    }
+    
+    additionalMetrics.innerHTML = `
+      <div class="metric-card">
+        <span class="metric-value">${stats.dueCards || 0}</span>
+        <span class="metric-label">待複習</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-value">${stats.newCards || 0}</span>
+        <span class="metric-label">新卡片</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-value">${stats.studyProgress || 0}%</span>
+        <span class="metric-label">學習進度</span>
+      </div>
+    `;
+  }
+}
+
+// Get priority color for recommendations
+function getPriorityColor(priority) {
+  const colors = {
+    'high': '#f44336',
+    'medium': '#ff9800',
+    'low': '#4caf50'
+  };
+  return colors[priority] || '#2196f3';
+}
+
+// Get icon for recommendation type
+function getRecommendationIcon(type) {
+  const icons = {
+    'schedule': '📅',
+    'review': '🔄',
+    'focus': '🎯',
+    'motivation': '⭐',
+    'study': '📚'
+  };
+  return icons[type] || '💡';
+}
+
+// Show analytics error
+function showAnalyticsError() {
+  const analyticsView = document.getElementById('analyticsView');
+  if (analyticsView) {
+    analyticsView.innerHTML = `
+      <div style="text-align: center; padding: 40px; color: #666;">
+        <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
+        <h3>無法載入學習統計</h3>
+        <p>學習分析服務目前無法使用。請稍後再試。</p>
+        <button data-action="loadAnalyticsView" style="
+          background: #1976d2;
+          color: white;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 6px;
+          cursor: pointer;
+          margin-top: 16px;
+        ">重新載入</button>
+      </div>
+    `;
+  }
+}
+
+// Generate personalized study plan
+async function generatePersonalizedStudyPlan() {
+  if (!studySessionGenerator) {
+    alert('學習計劃生成器未初始化');
+    return;
+  }
+
+  try {
+    const generateBtn = document.getElementById('generateStudyBtn');
+    if (generateBtn) {
+      generateBtn.textContent = '⏳ 生成中...';
+      generateBtn.disabled = true;
+    }
+
+    // Generate optimal study session based on user's learning data
+    const studySession = await studySessionGenerator.generateOptimalSession({
+      duration: 20, // 20 minutes
+      sessionType: 'auto', // Let AI choose the best type
+      maxWords: 20,
+      difficulty: 'adaptive'
+    });
+
+    if (studySession && studySession.words && studySession.words.length > 0) {
+      // Display the generated study session info
+      alert(`🎯 已生成個人化學習計劃！
+      
+📊 計劃詳情:
+• 類型: ${studySession.config.title}
+• 單字數量: ${studySession.words.length} 個
+• 預估時間: ${studySession.estimatedDuration} 分鐘
+• 說明: ${studySession.config.description}
+
+點擊確定開始學習！`);
+      
+      // Switch to flashcards view and start study
+      document.getElementById('showFlashcardsBtn')?.click();
+      setTimeout(() => {
+        // Start the study session
+        startStudyMode();
+      }, 500);
+    } else {
+      alert('目前沒有足夠的數據生成學習計劃。請先添加一些記憶卡。');
+    }
+
+  } catch (error) {
+    console.error('Error generating study plan:', error);
+    alert('學習計劃生成失敗，請稍後再試。');
+  } finally {
+    const generateBtn = document.getElementById('generateStudyBtn');
+    if (generateBtn) {
+      generateBtn.textContent = '📚 智能學習計劃';
+      generateBtn.disabled = false;
+    }
+  }
+}
+
+// ================================
 // FLASHCARDS FUNCTIONALITY
 // ================================
 
 // Initialize flashcard manager
-let flashcardManager = null;
 let currentStudySession = null;
 
 // Initialize flashcard system
 window.addEventListener('load', async () => {
-  if (typeof FlashcardManager !== 'undefined') {
-    flashcardManager = new FlashcardManager();
-    await flashcardManager.initialize();
-    console.log('🃏 Flashcard manager initialized');
+  try {
+    if (typeof FlashcardManager !== 'undefined') {
+      window.flashcardManager = new FlashcardManager();
+      await window.flashcardManager.initialize();
+      console.log('🃏 Flashcard manager initialized with', window.flashcardManager.flashcards.length, 'cards');
+    } else {
+      console.error('FlashcardManager class not found');
+    }
+  } catch (error) {
+    console.error('Failed to initialize flashcard manager:', error);
   }
 });
 
 // Load flashcards view
 async function loadFlashcardsView() {
-  if (!flashcardManager) {
+  if (!window.flashcardManager) {
     console.error('Flashcard manager not initialized');
     return;
   }
@@ -4134,8 +4847,18 @@ async function loadFlashcardsView() {
   // Update statistics
   await updateFlashcardStats();
 
-  // Load flashcards
-  const flashcards = flashcardManager.flashcards;
+  // Load flashcards and sort by creation date (newest first)
+  let flashcards = [...window.flashcardManager.flashcards].sort((a, b) => {
+    return (b.created || 0) - (a.created || 0);
+  });
+  console.log('Loading flashcards:', flashcards.length, 'cards found, sorted by newest first');
+  
+  // Apply difficulty filter
+  const difficultyFilter = document.getElementById('difficultyFilter')?.value || 'all';
+  if (difficultyFilter !== 'all') {
+    flashcards = filterFlashcardsByDifficulty(flashcards, difficultyFilter);
+    console.log('After filtering by difficulty:', flashcards.length, 'cards remaining');
+  }
   
   if (flashcards.length === 0) {
     // Show empty state
@@ -4145,7 +4868,7 @@ async function loadFlashcardsView() {
     // Add event listener for create first card button
     const createFirstCardBtn = document.getElementById('createFirstCardBtn');
     if (createFirstCardBtn) {
-      createFirstCardBtn.onclick = () => showCreateFlashcardDialog();
+      createFirstCardBtn.addEventListener('click', () => showCreateFlashcardDialog());
     }
   } else {
     // Show flashcards list
@@ -4162,7 +4885,7 @@ async function loadFlashcardsView() {
 async function updateFlashcardStats() {
   if (!flashcardManager) return;
 
-  const stats = flashcardManager.getStats();
+  const stats = window.flashcardManager.getStats();
   
   const totalCards = document.getElementById('totalCards');
   const studyProgress = document.getElementById('studyProgress');
@@ -4176,72 +4899,135 @@ async function updateFlashcardStats() {
 // Display flashcards list
 function displayFlashcardsList(flashcards) {
   const flashcardsList = document.getElementById('flashcardsList');
-  if (!flashcardsList) return;
+  if (!flashcardsList) {
+    console.error('Flashcards list element not found');
+    return;
+  }
 
-  flashcardsList.innerHTML = flashcards.map(card => {
+  if (!flashcards || !Array.isArray(flashcards)) {
+    console.error('Invalid flashcards data:', flashcards);
+    flashcardsList.innerHTML = '<div class="flashcard-item error">無法載入記憶卡數據</div>';
+    return;
+  }
+
+  console.log('Rendering flashcards:', flashcards.length, 'cards');
+
+  flashcardsList.innerHTML = flashcards.map((card, index) => {
+    try {
     const nextReviewDate = new Date(card.nextReview);
     const isOverdue = nextReviewDate.getTime() < Date.now();
     const difficultyLabels = ['新卡片', '學習中', '複習', '熟練'];
-    const difficultyColors = ['#2196f3', '#ff9800', '#4caf50', '#9c27b0'];
+    const difficultyClasses = ['new', 'learning', 'review', 'mature'];
+    
+    // Ensure difficulty is a valid number
+    const cardDifficulty = typeof card.difficulty === 'number' ? card.difficulty : 0;
+    const safeDifficulty = Math.max(0, Math.min(3, cardDifficulty)); // Clamp between 0-3
+    
+    const difficultyClass = difficultyClasses[safeDifficulty];
+    const difficultyLabel = difficultyLabels[safeDifficulty];
     
     return `
-      <div class="flashcard-item" data-id="${card.id}">
+      <div class="flashcard-item" data-id="${card.id}" style="background: #ffffff !important; color: #333333 !important; border: 2px solid #e8e8e8 !important;">
+        <div class="card-difficulty ${difficultyClass}">
+          ${difficultyLabel}
+        </div>
+        
         <div class="flashcard-header">
-          <div class="card-front-text">${card.front}</div>
-          <div class="card-difficulty" style="background: ${difficultyColors[card.difficulty]}">
-            ${difficultyLabels[card.difficulty]}
+          <div>
+            <div class="card-front-text" style="color: #1565c0 !important;">
+              ${card.front || 'No front text'}
+              <button class="pronunciation-btn" data-id="${card.id}" title="播放發音">
+                🔊
+              </button>
+            </div>
+            <div class="card-back-text" style="color: #424242 !important;">${card.back || 'No translation'}</div>
+            ${card.pronunciation ? `<div class="card-pronunciation" style="color: #757575 !important;">[${card.pronunciation}]</div>` : ''}
+            ${card.definition ? `<div class="card-definition" style="color: #616161 !important;">${card.definition}</div>` : ''}
           </div>
         </div>
-        <div class="card-back-preview">${card.back}</div>
-        ${card.pronunciation ? `<div class="card-pronunciation-preview">${card.pronunciation}</div>` : ''}
-        <div class="card-meta">
-          <span class="card-language">${card.language}</span>
-          <span class="card-reviews">${card.reviews} 次複習</span>
-          <span class="next-review ${isOverdue ? 'overdue' : ''}">
-            ${isOverdue ? '需要複習' : `下次: ${nextReviewDate.toLocaleDateString()}`}
+        
+        <div class="card-meta" style="color: #666666 !important;">
+          <span class="card-language">${languageNames[card.language] || card.language || 'unknown'}</span>
+          <span class="card-reviews" style="color: #666666 !important;">
+            📊 ${card.reviews || 0} 次複習
+          </span>
+          <span class="card-next-review ${isOverdue ? 'overdue' : ''}" style="color: #666666 !important;">
+            ${isOverdue ? '🔴 需要複習' : `📅 ${nextReviewDate.toLocaleDateString()}`}
           </span>
         </div>
-        <div class="card-actions">
-          <button class="card-action-btn study-card" data-id="${card.id}" title="學習這張卡片">
+        
+        ${card.tags && card.tags.length > 0 ? 
+          `<div class="card-tags" style="margin-top: 8px;">
+            ${card.tags.map(tag => `<span class="tag-chip" style="background: #e3f2fd; color: #1976d2; padding: 2px 6px; border-radius: 8px; font-size: 10px; margin-right: 4px;">#${tag}</span>`).join('')}
+          </div>` : ''
+        }
+        
+        <div class="flashcard-actions">
+          <button class="card-action-btn study" data-id="${card.id}" title="學習這張卡片">
             🎯 學習
           </button>
-          <button class="card-action-btn edit-card" data-id="${card.id}" title="編輯卡片">
+          <button class="card-action-btn edit" data-id="${card.id}" title="編輯卡片">
             ✏️ 編輯
           </button>
-          <button class="card-action-btn delete-card" data-id="${card.id}" title="刪除卡片">
+          <button class="card-action-btn delete" data-id="${card.id}" title="刪除卡片">
             🗑️ 刪除
           </button>
         </div>
-        ${card.tags && card.tags.length > 0 ? 
-          `<div class="card-tags">${card.tags.map(tag => `<span class="tag-chip">#${tag}</span>`).join('')}</div>` : ''
-        }
+        
+        <div class="flashcard-progress-indicator">
+          <div class="progress-bar-fill ${difficultyClass}"></div>
+        </div>
       </div>
     `;
+    } catch (error) {
+      console.error(`Error rendering flashcard ${index}:`, error, card);
+      return `<div class="flashcard-item error">Error rendering card: ${error.message}</div>`;
+    }
   }).join('');
 
   // Add event listeners to card action buttons
   addFlashcardItemEventListeners();
 }
 
+// Filter flashcards by difficulty
+function filterFlashcardsByDifficulty(flashcards, difficulty) {
+  switch (difficulty) {
+    case 'new':
+      return flashcards.filter(card => card.difficulty === 0);
+    case 'learning':
+      return flashcards.filter(card => card.difficulty === 1);
+    case 'review':
+      return flashcards.filter(card => card.difficulty === 2);
+    case 'difficult':
+      // Cards that are new or learning (having trouble)
+      return flashcards.filter(card => card.difficulty <= 1);
+    default:
+      return flashcards;
+  }
+}
+
 // Initialize flashcard event listeners
 function initializeFlashcardEventListeners() {
+  // Difficulty filter
+  const difficultyFilter = document.getElementById('difficultyFilter');
+  if (difficultyFilter) {
+    difficultyFilter.addEventListener('change', () => {
+      loadFlashcardsView(); // Reload with new filter
+    });
+  }
+  
   // Create flashcard button
   const createFlashcardBtn = document.getElementById('createFlashcardBtn');
   if (createFlashcardBtn) {
-    createFlashcardBtn.onclick = () => showCreateFlashcardDialog();
+    createFlashcardBtn.addEventListener('click', () => showCreateFlashcardDialog());
   }
 
   // Study mode button
   const studyModeBtn = document.getElementById('studyModeBtn');
   if (studyModeBtn) {
-    studyModeBtn.onclick = () => startStudyMode();
+    studyModeBtn.addEventListener('click', () => startStudyMode());
   }
 
-  // Full screen study button
-  const fullScreenStudyBtn = document.getElementById('fullScreenStudyBtn');
-  if (fullScreenStudyBtn) {
-    fullScreenStudyBtn.onclick = () => startFullScreenStudy();
-  }
 
   // Study controls in study interface
   initializeStudyInterfaceListeners();
@@ -4250,31 +5036,238 @@ function initializeFlashcardEventListeners() {
 // Add event listeners to flashcard items
 function addFlashcardItemEventListeners() {
   // Study card buttons
-  document.querySelectorAll('.study-card').forEach(btn => {
-    btn.onclick = (e) => {
+  document.querySelectorAll('.card-action-btn.study').forEach(btn => {
+    btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const cardId = btn.getAttribute('data-id');
       studySingleCard(cardId);
-    };
+    });
   });
 
   // Edit card buttons
-  document.querySelectorAll('.edit-card').forEach(btn => {
-    btn.onclick = (e) => {
+  document.querySelectorAll('.card-action-btn.edit').forEach(btn => {
+    btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const cardId = btn.getAttribute('data-id');
       editFlashcard(cardId);
-    };
+    });
   });
 
   // Delete card buttons
-  document.querySelectorAll('.delete-card').forEach(btn => {
-    btn.onclick = (e) => {
+  document.querySelectorAll('.card-action-btn.delete').forEach(btn => {
+    btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const cardId = btn.getAttribute('data-id');
-      deleteFlashcard(cardId);
-    };
+      if (confirm('確定要刪除這張記憶卡嗎？')) {
+        deleteFlashcard(cardId);
+      }
+    });
   });
+
+  // Add click handlers for flashcard items (for quick preview)
+  document.querySelectorAll('.flashcard-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      // Only if not clicking on action buttons or pronunciation button
+      if (!e.target.closest('.card-action-btn') && !e.target.closest('.pronunciation-btn')) {
+        const cardId = item.getAttribute('data-id');
+        previewFlashcard(cardId);
+      }
+    });
+  });
+
+  // Add pronunciation button listeners
+  document.querySelectorAll('.pronunciation-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const cardId = btn.getAttribute('data-id');
+      
+      // Show loading state
+      const originalText = btn.textContent;
+      btn.textContent = '⏳';
+      btn.disabled = true;
+      
+      try {
+        const success = await window.flashcardManager.playPronunciation(cardId);
+        if (!success) {
+          // Show error briefly
+          btn.textContent = '❌';
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.disabled = false;
+          }, 1000);
+        } else {
+          // Show success briefly
+          btn.textContent = '✅';
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.disabled = false;
+          }, 1000);
+        }
+      } catch (error) {
+        console.error('Error playing pronunciation:', error);
+        btn.textContent = '❌';
+        setTimeout(() => {
+          btn.textContent = originalText;
+          btn.disabled = false;
+        }, 1000);
+      }
+    });
+  });
+}
+
+// Preview flashcard in a modal or expanded view
+async function previewFlashcard(cardId) {
+  if (!window.flashcardManager) return;
+  
+  const card = window.flashcardManager.flashcards.find(c => c.id === cardId);
+  if (!card) return;
+  
+  // Create a modal with ONLY inline styles (no CSS classes to avoid conflicts)
+  const modal = document.createElement('div');
+  // Don't use any CSS classes that might be overridden
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(245, 245, 245, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999999;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+  `;
+  
+  const difficultyLabels = ['新卡片', '學習中', '複習', '熟練'];
+  const difficultyClasses = ['new', 'learning', 'review', 'mature'];
+  const cardDifficulty = typeof card.difficulty === 'number' ? card.difficulty : 0;
+  const safeDifficulty = Math.max(0, Math.min(3, cardDifficulty));
+  const nextReview = new Date(card.nextReview);
+  
+  modal.innerHTML = `
+    <div style="
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+      border: 3px solid #ddd;
+      color: #333;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    ">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3 style="margin: 0; color: #1976d2; font-size: 18px; font-weight: 600;">記憶卡預覽</h3>
+        <button data-action="close" style="
+          background: #f5f5f5;
+          border: 1px solid #ddd;
+          font-size: 20px;
+          cursor: pointer;
+          color: #666;
+          padding: 8px 12px;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        ">×</button>
+      </div>
+      
+      <div style="margin-bottom: 20px;">
+        <div style="color: #1976d2; font-size: 24px; font-weight: 600; margin-bottom: 12px;">
+          ${card.front || 'No front text'}
+        </div>
+        <div style="color: #333; font-size: 18px; font-weight: 500; margin-bottom: 10px;">
+          ${card.back || 'No translation'}
+        </div>
+        ${card.pronunciation ? `<div style="color: #666; font-style: italic; font-family: 'Courier New', monospace; margin-bottom: 8px;">[${card.pronunciation}]</div>` : ''}
+        ${card.definition ? `<div style="color: #555; font-size: 14px; margin-bottom: 12px;">${card.definition}</div>` : ''}
+      </div>
+      
+      <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 20px;">
+        <span style="background: #1976d2; color: white; padding: 4px 8px; border-radius: 8px; font-size: 12px;">
+          ${languageNames[card.language] || card.language || 'unknown'}
+        </span>
+        <span style="background: #e8f5e8; color: #2e7d2e; padding: 4px 8px; border-radius: 8px; font-size: 12px;">
+          ${difficultyLabels[safeDifficulty]}
+        </span>
+        <span style="color: #666; font-size: 12px;">📊 ${card.reviews || 0} 次複習</span>
+        <span style="color: #666; font-size: 12px;">📅 ${nextReview.toLocaleDateString()}</span>
+      </div>
+      
+      ${card.tags && card.tags.length > 0 ? `
+        <div style="margin-bottom: 20px;">
+          ${card.tags.map(tag => `
+            <span style="background: #e3f2fd; color: #1976d2; padding: 4px 8px; border-radius: 12px; font-size: 11px; margin-right: 8px;">
+              #${tag}
+            </span>
+          `).join('')}
+        </div>
+      ` : ''}
+      
+      <div style="display: flex; gap: 12px; justify-content: center;">
+        <button data-action="study" data-card-id="${card.id}" style="
+          background: #1976d2;
+          color: white;
+          border: none;
+          padding: 12px 20px;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: 500;
+        ">🎯 開始學習</button>
+        <button data-action="edit" data-card-id="${card.id}" style="
+          background: #4caf50;
+          color: white;
+          border: none;
+          padding: 12px 20px;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: 500;
+        ">✏️ 編輯</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  // Add event listeners without inline handlers
+  const closeBtn = modal.querySelector('[data-action="close"]');
+  const studyBtn = modal.querySelector('[data-action="study"]');
+  const editBtn = modal.querySelector('[data-action="edit"]');
+  
+  // Close modal handlers
+  closeBtn.addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.remove();
+  });
+  
+  // Action button handlers
+  studyBtn.addEventListener('click', () => {
+    studySingleCard(card.id);
+    modal.remove();
+  });
+  
+  editBtn.addEventListener('click', () => {
+    editFlashcard(card.id);
+    modal.remove();
+  });
+  
+  // ESC key to close
+  const handleEscape = (e) => {
+    if (e.key === 'Escape') {
+      modal.remove();
+      document.removeEventListener('keydown', handleEscape);
+    }
+  };
+  document.addEventListener('keydown', handleEscape);
 }
 
 // Initialize study interface listeners
@@ -4282,27 +5275,27 @@ function initializeStudyInterfaceListeners() {
   // Flip card button
   const flipCardBtn = document.getElementById('flipCardBtn');
   if (flipCardBtn) {
-    flipCardBtn.onclick = () => flipCurrentCard();
+    flipCardBtn.addEventListener('click', () => flipCurrentCard());
   }
 
   // Answer buttons
   ['againBtn', 'hardBtn', 'goodBtn', 'easyBtn'].forEach((btnId, quality) => {
     const btn = document.getElementById(btnId);
     if (btn) {
-      btn.onclick = () => processStudyAnswer(quality);
+      btn.addEventListener('click', () => processStudyAnswer(quality));
     }
   });
 
   // Navigation buttons
   const exitStudyBtn = document.getElementById('exitStudyBtn');
   if (exitStudyBtn) {
-    exitStudyBtn.onclick = () => exitStudyMode();
+    exitStudyBtn.addEventListener('click', () => exitStudyMode());
   }
 
   // Audio play button
   const audioPlayBtn = document.getElementById('audioPlayBtn');
   if (audioPlayBtn) {
-    audioPlayBtn.onclick = () => playCardAudio();
+    audioPlayBtn.addEventListener('click', () => playCardAudio());
   }
 }
 
@@ -4462,14 +5455,14 @@ function showCreateFlashcardDialog() {
     dialog.remove();
   };
 
-  dialog.querySelector('.close-dialog').onclick = closeDialog;
-  dialog.querySelector('.cancel-btn').onclick = closeDialog;
+  dialog.querySelector('.close-dialog').addEventListener('click', closeDialog);
+  dialog.querySelector('.cancel-btn').addEventListener('click', closeDialog);
   
-  dialog.onclick = (e) => {
+  dialog.addEventListener('click', (e) => {
     if (e.target === dialog) closeDialog();
-  };
+  });
 
-  dialog.querySelector('.create-btn').onclick = async () => {
+  dialog.querySelector('.create-btn').addEventListener('click', async () => {
     const front = dialog.querySelector('#flashcard-front').value.trim();
     const back = dialog.querySelector('#flashcard-back').value.trim();
     
@@ -4494,7 +5487,7 @@ function showCreateFlashcardDialog() {
     });
 
     closeDialog();
-  };
+  });
 
   // Focus on first input
   setTimeout(() => {
@@ -4502,12 +5495,19 @@ function showCreateFlashcardDialog() {
   }, 100);
 }
 
-// Create flashcard
+// Create flashcard (with cached audio support)
 async function createFlashcard(data) {
   if (!flashcardManager) return;
 
   try {
-    const card = await flashcardManager.createFlashcard(data);
+    // Check if we have cached audio for this word
+    const cachedAudio = getCachedAudio(data.front, data.language || 'english');
+    if (cachedAudio && cachedAudio.audioUrl) {
+      data.audioUrl = cachedAudio.audioUrl;
+      console.log('🎯 Added cached audio to flashcard:', data.front);
+    }
+
+    const card = await window.flashcardManager.createFlashcard(data);
     console.log('📇 Created new flashcard:', card);
     
     // Refresh the flashcards view
@@ -4517,7 +5517,11 @@ async function createFlashcard(data) {
     showMessage('記憶卡建立成功！', 'success');
   } catch (error) {
     console.error('Failed to create flashcard:', error);
-    showMessage('建立記憶卡失敗', 'error');
+    if (error.message.includes('already exists')) {
+      showMessage('記憶卡已存在，無需重複建立', 'warning');
+    } else {
+      showMessage('建立記憶卡失敗', 'error');
+    }
   }
 }
 
@@ -4614,7 +5618,14 @@ async function createFlashcardFromReport(report) {
       tags: [...(report.tags || []), 'from-report']
     };
 
-    const card = await flashcardManager.createFlashcard(flashcardData);
+    // Check if we have cached audio for this word
+    const cachedAudio = getCachedAudio(report.searchText, report.language);
+    if (cachedAudio && cachedAudio.audioUrl) {
+      flashcardData.audioUrl = cachedAudio.audioUrl;
+      console.log('🎯 Added cached audio to flashcard:', report.searchText);
+    }
+
+    const card = await window.flashcardManager.createFlashcard(flashcardData);
     console.log('📇 Created flashcard from report:', card);
     
     return card;
@@ -4654,24 +5665,13 @@ async function createAllFlashcardsFromReports() {
 
     let successCount = 0;
     let failCount = 0;
+    let duplicateCount = 0;
 
     // Create flashcards for each report
     for (let i = 0; i < filteredReports.length; i++) {
       const report = filteredReports[i];
       
       try {
-        // Check if flashcard already exists for this word
-        const existingCards = flashcardManager.searchFlashcards(report.searchText);
-        const duplicateCard = existingCards.find(card => 
-          card.front.toLowerCase() === report.searchText.toLowerCase() && 
-          card.language === report.language
-        );
-
-        if (duplicateCard) {
-          console.log(`Skipping duplicate flashcard for: ${report.searchText}`);
-          continue;
-        }
-
         await createFlashcardFromReport(report);
         successCount++;
 
@@ -4684,23 +5684,41 @@ async function createAllFlashcardsFromReports() {
         await new Promise(resolve => setTimeout(resolve, 100));
       } catch (error) {
         console.error(`Failed to create flashcard for ${report.searchText}:`, error);
-        failCount++;
+        if (error.message && error.message.includes('already exists')) {
+          duplicateCount++;
+          console.log(`Skipped duplicate: ${report.searchText} (${report.language})`);
+        } else {
+          failCount++;
+        }
       }
     }
 
-    // Show completion message
+    // Show detailed completion message
     let message = '';
-    if (successCount > 0 && failCount === 0) {
-      message = `✅ 成功建立 ${successCount} 張記憶卡！`;
-    } else if (successCount > 0 && failCount > 0) {
-      message = `⚠️ 建立了 ${successCount} 張記憶卡，${failCount} 張失敗`;
-    } else if (successCount === 0 && failCount > 0) {
+    const total = filteredReports.length;
+    
+    if (successCount > 0) {
+      message = `✅ 成功建立 ${successCount} 張新記憶卡！`;
+      if (duplicateCount > 0) {
+        message += ` (跳過 ${duplicateCount} 張重複)`;
+      }
+      if (failCount > 0) {
+        message += ` (${failCount} 張失敗)`;
+      }
+    } else if (duplicateCount > 0) {
+      message = `ℹ️ 所有 ${duplicateCount} 張記憶卡都已存在，跳過重複建立`;
+    } else if (failCount > 0) {
       message = `❌ 建立失敗，共 ${failCount} 張`;
     } else {
-      message = '沒有建立新的記憶卡（可能已存在）';
+      message = '沒有處理任何記憶卡';
     }
 
-    showMessage(message, successCount > 0 ? 'success' : 'warning');
+    // Add summary if there were mixed results
+    if (total > 1 && (successCount + duplicateCount + failCount) > 0) {
+      message += `\n總計處理: ${total} 個項目`;
+    }
+
+    showMessage(message, successCount > 0 ? 'success' : (duplicateCount > 0 ? 'info' : 'warning'));
 
     // Refresh flashcards view if it's currently active
     const flashcardsView = document.getElementById('flashcardsView');
@@ -4728,7 +5746,7 @@ function startStudyMode() {
   const studyMode = document.getElementById('studyModeSelect')?.value || 'word-to-translation';
   const difficulty = document.getElementById('difficultyFilter')?.value || 'all';
 
-  const session = flashcardManager.startStudySession({
+  const session = window.flashcardManager.startStudySession({
     mode: studyMode,
     difficulty: difficulty,
     maxCards: 20
@@ -4759,14 +5777,14 @@ function showStudyInterface() {
 function loadCurrentCard() {
   if (!currentStudySession) return;
 
-  const card = flashcardManager.getCurrentCard();
+  const card = window.flashcardManager.getCurrentCard();
   if (!card) {
     // Study session completed
     completeStudySession();
     return;
   }
 
-  const progress = flashcardManager.getStudyProgress();
+  const progress = window.flashcardManager.getStudyProgress();
   updateStudyProgress(progress);
 
   // Reset card state
@@ -4780,10 +5798,13 @@ function loadCurrentCard() {
   const audioPlayBtn = document.getElementById('audioPlayBtn');
 
   if (flashcard) flashcard.classList.remove('flipped');
-  if (frontText) frontText.textContent = card.front;
-  if (backText) backText.textContent = card.back;
-  if (cardDefinition) cardDefinition.textContent = card.definition;
-  if (cardPronunciation) cardPronunciation.textContent = card.pronunciation;
+  if (frontText) frontText.textContent = card.front || 'No front text';
+  if (backText) {
+    backText.textContent = card.back || 'No translation available';
+    console.log('Setting back text:', card.back);
+  }
+  if (cardDefinition) cardDefinition.textContent = card.definition || '';
+  if (cardPronunciation) cardPronunciation.textContent = card.pronunciation ? `[${card.pronunciation}]` : '';
   if (flipCardBtn) {
     flipCardBtn.style.display = 'block';
     flipCardBtn.textContent = '翻轉卡片';
@@ -4795,10 +5816,100 @@ function loadCurrentCard() {
     audioPlayBtn.style.display = card.audioUrl ? 'block' : 'none';
   }
 
-  // Show card front/back based on study mode
+  // Configure display based on study mode
   const studyMode = currentStudySession.mode;
   const cardFront = document.querySelector('.card-front');
   const cardBack = document.querySelector('.card-back');
+  
+  // Configure card display and content based on study mode
+  if (studyMode === 'translation-to-word') {
+    // Show translation first, word on back
+    if (frontText) frontText.textContent = card.back || card.definition || 'No translation available';
+    if (backText) backText.textContent = card.front || 'No word available';
+  } else if (studyMode === 'audio-to-meaning') {
+    // Show audio button prominently, meaning on back
+    if (frontText) {
+      frontText.innerHTML = `
+        <div style="text-align: center; padding: 20px;">
+          <div style="font-size: 48px; margin-bottom: 16px;">🔊</div>
+          <div style="margin-bottom: 16px; font-size: 18px;">聆聽發音</div>
+          <button id="studyModePlayBtn" style="
+            background: #1976d2; 
+            color: white; 
+            border: none; 
+            padding: 12px 24px; 
+            border-radius: 6px; 
+            font-size: 16px;
+            cursor: pointer;
+          ">播放發音</button>
+        </div>
+      `;
+      
+      // Add event listener for the play button (CSP compliant)
+      setTimeout(() => {
+        const playBtn = document.getElementById('studyModePlayBtn');
+        if (playBtn) {
+          playBtn.addEventListener('click', () => playCardPronunciation());
+          
+          // Auto-play the pronunciation when entering audio-to-meaning mode
+          setTimeout(() => {
+            playCardPronunciation();
+          }, 500);
+        }
+      }, 10);
+    }
+    if (backText) backText.textContent = `${card.front} - ${card.back || card.definition}`;
+  } else if (studyMode === 'mixed') {
+    // Random mode selection for each card
+    const modes = ['word-to-translation', 'translation-to-word', 'audio-to-meaning'];
+    const randomMode = modes[Math.floor(Math.random() * modes.length)];
+    currentStudySession.currentCardMode = randomMode;
+    
+    if (randomMode === 'translation-to-word') {
+      if (frontText) frontText.textContent = card.back || card.definition || 'No translation available';
+      if (backText) backText.textContent = card.front || 'No word available';
+    } else if (randomMode === 'audio-to-meaning') {
+      if (frontText) {
+        frontText.innerHTML = `
+          <div style="text-align: center; padding: 20px;">
+            <div style="font-size: 48px; margin-bottom: 16px;">🔊</div>
+            <div style="margin-bottom: 16px; font-size: 18px;">聆聽發音</div>
+            <button id="studyModePlayBtn" style="
+              background: #1976d2; 
+              color: white; 
+              border: none; 
+              padding: 12px 24px; 
+              border-radius: 6px; 
+              font-size: 16px;
+              cursor: pointer;
+            ">播放發音</button>
+          </div>
+        `;
+        
+        // Add event listener for the play button (CSP compliant)
+        setTimeout(() => {
+          const playBtn = document.getElementById('studyModePlayBtn');
+          if (playBtn) {
+            playBtn.addEventListener('click', () => playCardPronunciation());
+            
+            // Auto-play the pronunciation when entering audio-to-meaning mode
+            setTimeout(() => {
+              playCardPronunciation();
+            }, 500);
+          }
+        }, 10);
+      }
+      if (backText) backText.textContent = `${card.front} - ${card.back || card.definition}`;
+    } else {
+      // Default word-to-translation
+      if (frontText) frontText.textContent = card.front || 'No front text';
+      if (backText) backText.textContent = card.back || 'No translation available';
+    }
+  } else {
+    // Default: word-to-translation
+    if (frontText) frontText.textContent = card.front || 'No front text';
+    if (backText) backText.textContent = card.back || 'No translation available';
+  }
   
   if (cardFront) cardFront.style.display = 'flex';
   if (cardBack) cardBack.style.display = 'none';
@@ -4823,21 +5934,29 @@ function flipCurrentCard() {
   const flashcard = document.getElementById('flashcard');
   const flipCardBtn = document.getElementById('flipCardBtn');
   const answerButtons = document.getElementById('answerButtons');
+  const cardFront = document.querySelector('.card-front');
+  const cardBack = document.querySelector('.card-back');
 
   if (flashcard && !flashcard.classList.contains('flipped')) {
     flashcard.classList.add('flipped');
+    
+    // Explicitly show/hide the card sides
+    if (cardFront) cardFront.style.display = 'none';
+    if (cardBack) cardBack.style.display = 'flex';
     
     if (flipCardBtn) flipCardBtn.style.display = 'none';
     if (answerButtons) answerButtons.style.display = 'flex';
 
     // Update answer button timings based on card difficulty
     updateAnswerButtonTimings();
+    
+    console.log('Card flipped - back side should now be visible');
   }
 }
 
 // Update answer button timings
 function updateAnswerButtonTimings() {
-  const card = flashcardManager.getCurrentCard();
+  const card = window.flashcardManager.getCurrentCard();
   if (!card) return;
 
   // Calculate next intervals for each answer quality
@@ -4861,9 +5980,31 @@ function updateAnswerButtonTimings() {
 async function processStudyAnswer(quality) {
   if (!flashcardManager || !currentStudySession) return;
 
-  const success = await flashcardManager.processAnswer(quality);
+  const card = window.flashcardManager.getCurrentCard();
   
-  if (success) {
+  const success = await window.flashcardManager.processAnswer(quality);
+  
+  if (success && card) {
+    // Record vocabulary interaction in learning analytics
+    if (learningAnalytics) {
+      try {
+        const action = quality >= 3 ? 'correct_answer' : 'incorrect_answer';
+        learningAnalytics.recordVocabularyInteraction(
+          card.front,
+          card.language,
+          action,
+          { 
+            studyMode: currentStudySession.mode,
+            quality: quality,
+            timestamp: Date.now()
+          }
+        );
+        console.log('📝 Recorded vocabulary interaction:', card.front, action, quality);
+      } catch (error) {
+        console.error('Failed to record vocabulary interaction:', error);
+      }
+    }
+
     // Move to next card after a short delay
     setTimeout(() => {
       loadCurrentCard();
@@ -4879,10 +6020,10 @@ async function processStudyAnswer(quality) {
 }
 
 // Complete study session
-function completeStudySession() {
+async function completeStudySession() {
   if (!flashcardManager) return;
 
-  const results = flashcardManager.endStudySession();
+  const results = window.flashcardManager.endStudySession();
   const studyInterface = document.getElementById('studyInterface');
   
   if (studyInterface) studyInterface.style.display = 'none';
@@ -4892,10 +6033,36 @@ function completeStudySession() {
   const accuracy = results.accuracy;
   const duration = Math.round(results.duration / 1000 / 60); // minutes
 
+  // Update learning analytics with the completed study session
+  if (learningAnalytics && results && cardsStudied > 0) {
+    try {
+      learningAnalytics.recordStudySession(
+        'flashcard', 
+        results.duration, 
+        cardsStudied, 
+        accuracy / 100 // Convert percentage to 0-1 scale
+      );
+      console.log('📊 Recorded study session:', {
+        type: 'flashcard',
+        duration: results.duration,
+        cardsStudied,
+        accuracy: accuracy / 100
+      });
+    } catch (error) {
+      console.error('Failed to record study session:', error);
+    }
+  }
+
   showMessage(
     `學習完成！複習了 ${cardsStudied} 張卡片，準確率 ${accuracy}%，用時 ${duration} 分鐘`,
     'success'
   );
+
+  // Update analytics view if it's currently displayed
+  const analyticsView = document.getElementById('analyticsView');
+  if (analyticsView && analyticsView.style.display !== 'none') {
+    await loadAnalyticsView();
+  }
 
   // Return to flashcards list
   loadFlashcardsView();
@@ -4921,7 +6088,7 @@ function studySingleCard(cardId) {
   if (!flashcardManager) return;
 
   // Find the card
-  const card = flashcardManager.flashcards.find(c => c.id === cardId);
+  const card = window.flashcardManager.flashcards.find(c => c.id === cardId);
   if (!card) return;
 
   // Create a single-card study session
@@ -4933,7 +6100,7 @@ function studySingleCard(cardId) {
     answers: []
   };
 
-  flashcardManager.currentStudySession = currentStudySession;
+  window.flashcardManager.currentStudySession = currentStudySession;
   
   showStudyInterface();
   loadCurrentCard();
@@ -4943,7 +6110,7 @@ function studySingleCard(cardId) {
 function editFlashcard(cardId) {
   if (!flashcardManager) return;
 
-  const card = flashcardManager.flashcards.find(c => c.id === cardId);
+  const card = window.flashcardManager.flashcards.find(c => c.id === cardId);
   if (!card) return;
 
   const front = prompt('編輯單字/問題:', card.front);
@@ -4959,7 +6126,7 @@ function editFlashcard(cardId) {
   if (definition === null) return;
 
   // Update card
-  flashcardManager.updateFlashcard(cardId, {
+  window.flashcardManager.updateFlashcard(cardId, {
     front: front,
     back: back,
     pronunciation: pronunciation || '',
@@ -4979,7 +6146,7 @@ async function deleteFlashcard(cardId) {
   if (!confirmed) return;
 
   try {
-    await flashcardManager.deleteFlashcard(cardId);
+    await window.flashcardManager.deleteFlashcard(cardId);
     await loadFlashcardsView();
     showMessage('記憶卡已刪除', 'success');
   } catch (error) {
@@ -4988,17 +6155,10 @@ async function deleteFlashcard(cardId) {
   }
 }
 
-// Start full screen study
-function startFullScreenStudy() {
-  // This would create a new tab/window with full flashcard interface
-  // For now, just start regular study mode
-  startStudyMode();
-  showMessage('全屏學習功能開發中，使用普通學習模式', 'info');
-}
 
 // Play card audio
 function playCardAudio() {
-  const card = flashcardManager.getCurrentCard();
+  const card = window.flashcardManager.getCurrentCard();
   if (!card || !card.audioUrl) return;
 
   const audio = new Audio(card.audioUrl);
@@ -5006,6 +6166,323 @@ function playCardAudio() {
     console.error('Failed to play audio:', error);
     showMessage('播放音頻失敗', 'error');
   });
+}
+
+// Play card pronunciation using enhanced TTS with OpenAI support
+async function playCardPronunciation() {
+  const card = window.flashcardManager.getCurrentCard();
+  if (!card) {
+    showMessage('沒有卡片可播放', 'error');
+    return;
+  }
+
+  console.log('Playing pronunciation for card:', card.front, 'language:', card.language);
+
+  // Update button state
+  const playBtn = document.getElementById('studyModePlayBtn');
+  if (playBtn) {
+    playBtn.textContent = '生成中...';
+    playBtn.disabled = true;
+  }
+
+  try {
+    // Try OpenAI TTS first for better quality
+    const audioSuccess = await generateOpenAIAudio(card.front, card.language);
+    
+    if (audioSuccess) {
+      console.log('✅ Used OpenAI TTS for pronunciation');
+      return;
+    }
+    
+    // Fallback to Web Speech API
+    console.log('⚠️ Falling back to Web Speech API');
+    await playWithWebSpeechAPI(card);
+    
+  } catch (error) {
+    console.error('TTS error:', error);
+    showMessage('語音播放失敗', 'error');
+    
+    // Try Web Speech API as final fallback
+    try {
+      await playWithWebSpeechAPI(card);
+    } catch (fallbackError) {
+      console.error('Fallback TTS also failed:', fallbackError);
+      showMessage('語音系統無法使用', 'error');
+    }
+  } finally {
+    // Reset button state
+    if (playBtn) {
+      playBtn.textContent = '播放發音';
+      playBtn.disabled = false;
+    }
+  }
+}
+
+// Global audio cache to reuse generated audio
+window.audioCache = window.audioCache || new Map();
+
+// Generate audio using OpenAI TTS API (with caching)
+async function generateOpenAIAudio(text, language, playImmediately = true) {
+  try {
+    // Check cache first
+    const cacheKey = `${text.toLowerCase()}_${language}`;
+    if (window.audioCache.has(cacheKey)) {
+      const cachedAudio = window.audioCache.get(cacheKey);
+      console.log('🎯 Using cached audio for:', text);
+      
+      if (playImmediately) {
+        return await playCachedAudio(cachedAudio);
+      } else {
+        return cachedAudio; // Return cached audio data
+      }
+    }
+
+    // Get OpenAI API key from storage or environment
+    const apiKey = await getOpenAIApiKey();
+    if (!apiKey) {
+      console.log('No OpenAI API key found, skipping OpenAI TTS');
+      return false;
+    }
+
+    // Map our language codes to OpenAI voice options
+    const voiceMap = {
+      'english': 'alloy',    // Clear, natural English voice
+      'japanese': 'nova',    // Works well for Japanese
+      'korean': 'echo',      // Good for Korean
+      'dutch': 'fable',      // European languages
+      'chinese': 'onyx'      // Works for Chinese
+    };
+
+    const voice = voiceMap[language] || 'alloy';
+    
+    console.log('🎙️ Requesting OpenAI TTS:', text, 'voice:', voice);
+
+    const response = await fetch('https://api.openai.com/v1/audio/speech', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'tts-1',
+        input: text,
+        voice: voice,
+        response_format: 'mp3',
+        speed: 0.9  // Slightly slower for learning
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('OpenAI TTS API error:', response.status, errorText);
+      return false;
+    }
+
+    // Convert response to audio blob and create data URL for persistent storage
+    const audioBlob = await response.blob();
+    const audioDataUrl = await blobToDataURL(audioBlob);
+    
+    // Cache the audio data
+    const audioData = {
+      text: text,
+      language: language,
+      audioUrl: audioDataUrl, // Data URL for persistent storage
+      blobUrl: URL.createObjectURL(audioBlob), // Blob URL for immediate playback
+      size: audioBlob.size,
+      timestamp: Date.now()
+    };
+    
+    window.audioCache.set(cacheKey, audioData);
+    console.log('💾 Cached audio for:', text, 'size:', Math.round(audioBlob.size / 1024), 'KB');
+    
+    if (playImmediately) {
+      return await playCachedAudio(audioData);
+    } else {
+      return audioData; // Return audio data without playing
+    }
+
+  } catch (error) {
+    console.error('OpenAI TTS generation failed:', error);
+    return false;
+  }
+}
+
+// Play cached audio
+async function playCachedAudio(audioData) {
+  const audio = new Audio(audioData.blobUrl || audioData.audioUrl);
+  
+  return new Promise((resolve) => {
+    audio.onloadeddata = () => {
+      console.log('🔊 Playing cached OpenAI audio');
+      const playBtn = document.getElementById('studyModePlayBtn');
+      if (playBtn) {
+        playBtn.textContent = '播放中...';
+        playBtn.disabled = true;
+      }
+      
+      audio.play()
+        .then(() => {
+          console.log('✅ Cached audio playing successfully');
+          resolve(true);
+        })
+        .catch(error => {
+          console.error('Failed to play cached audio:', error);
+          resolve(false);
+        });
+    };
+    
+    audio.onended = () => {
+      console.log('🎵 Cached audio finished');
+      const playBtn = document.getElementById('studyModePlayBtn');
+      if (playBtn) {
+        playBtn.textContent = '播放發音';
+        playBtn.disabled = false;
+      }
+    };
+    
+    audio.onerror = (error) => {
+      console.error('Cached audio playback error:', error);
+      resolve(false);
+    };
+  });
+}
+
+// Convert blob to data URL for persistent storage
+function blobToDataURL(blob) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+}
+
+// Get cached audio for flashcard creation
+function getCachedAudio(text, language) {
+  const cacheKey = `${text.toLowerCase()}_${language}`;
+  return window.audioCache.get(cacheKey) || null;
+}
+
+// Get OpenAI API key from storage
+async function getOpenAIApiKey() {
+  try {
+    // First try to get from Chrome storage
+    const result = await new Promise((resolve) => {
+      chrome.storage.sync.get(['openaiApiKey'], resolve);
+    });
+    
+    if (result.openaiApiKey) {
+      return result.openaiApiKey;
+    }
+    
+    // Fallback: check if there's a global variable or config
+    if (typeof window.OPENAI_API_KEY !== 'undefined') {
+      return window.OPENAI_API_KEY;
+    }
+    
+    console.log('No OpenAI API key configured');
+    return null;
+  } catch (error) {
+    console.error('Failed to retrieve OpenAI API key:', error);
+    return null;
+  }
+}
+
+// Fallback to Web Speech API (enhanced version)
+async function playWithWebSpeechAPI(card) {
+  if (!('speechSynthesis' in window)) {
+    throw new Error('Web Speech API not supported');
+  }
+
+  // Cancel any ongoing speech
+  speechSynthesis.cancel();
+  
+  const utterance = new SpeechSynthesisUtterance(card.front);
+  
+  // Enhanced language mapping
+  const langMap = {
+    'english': 'en-US',
+    'japanese': 'ja-JP', 
+    'korean': 'ko-KR',
+    'dutch': 'nl-NL',
+    'chinese': 'zh-CN'
+  };
+  
+  utterance.lang = langMap[card.language] || 'en-US';
+  utterance.rate = 0.75;
+  utterance.pitch = 1.0;
+  utterance.volume = 1.0;
+  
+  // Select best voice
+  const voices = speechSynthesis.getVoices();
+  const preferredVoice = selectBestVoice(voices, utterance.lang, card.language);
+  if (preferredVoice) {
+    utterance.voice = preferredVoice;
+    console.log('Using voice:', preferredVoice.name);
+  }
+  
+  return new Promise((resolve, reject) => {
+    utterance.onstart = () => {
+      console.log('🔊 Playing Web Speech API audio');
+      const playBtn = document.getElementById('studyModePlayBtn');
+      if (playBtn) {
+        playBtn.textContent = '播放中...';
+        playBtn.disabled = true;
+      }
+    };
+    
+    utterance.onend = () => {
+      console.log('✅ Web Speech API finished');
+      const playBtn = document.getElementById('studyModePlayBtn');
+      if (playBtn) {
+        playBtn.textContent = '播放發音';
+        playBtn.disabled = false;
+      }
+      resolve();
+    };
+    
+    utterance.onerror = (event) => {
+      console.error('Web Speech API error:', event.error);
+      reject(new Error('Web Speech API error: ' + event.error));
+    };
+    
+    speechSynthesis.speak(utterance);
+  });
+}
+
+// Select the best available voice for the language
+function selectBestVoice(voices, langCode, cardLanguage) {
+  if (!voices || voices.length === 0) return null;
+  
+  // Filter voices by language
+  const matchingVoices = voices.filter(voice => voice.lang.startsWith(langCode.split('-')[0]));
+  
+  if (matchingVoices.length === 0) return null;
+  
+  // Language-specific voice preferences (more natural sounding voices)
+  const voicePreferences = {
+    'english': ['Microsoft Zira', 'Google US English', 'Alex', 'Daniel', 'Karen', 'Moira', 'Samantha'],
+    'japanese': ['Microsoft Haruka', 'Google 日本語', 'Kyoko', 'Otoya', 'O-ren'],
+    'korean': ['Microsoft Heami', 'Google 한국의', 'Yuna'],
+    'dutch': ['Microsoft Frank', 'Google Nederlands', 'Ellen', 'Xander'],
+    'chinese': ['Microsoft Huihui', 'Google 中文', 'Ting-Ting', 'Sin-ji']
+  };
+  
+  const preferences = voicePreferences[cardLanguage] || [];
+  
+  // Try to find a preferred voice
+  for (const prefName of preferences) {
+    const voice = matchingVoices.find(v => v.name.includes(prefName));
+    if (voice) return voice;
+  }
+  
+  // Prefer local voices over remote ones
+  const localVoices = matchingVoices.filter(v => v.localService);
+  if (localVoices.length > 0) {
+    return localVoices[0];
+  }
+  
+  // Return first matching voice
+  return matchingVoices[0];
 }
 
 // Show message (utility function)
