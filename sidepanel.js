@@ -2816,6 +2816,14 @@ document.addEventListener('DOMContentLoaded', () => {
       await createAllFlashcardsFromReports();
     });
   }
+
+  // Notion sync button
+  const syncToNotionBtn = document.getElementById('syncToNotionBtn');
+  if (syncToNotionBtn) {
+    syncToNotionBtn.addEventListener('click', async () => {
+      await syncFilteredReportsToNotion();
+    });
+  }
   
   // Export dropdown functionality
   if (exportReportsBtn) {
@@ -2839,7 +2847,8 @@ document.addEventListener('DOMContentLoaded', () => {
     'exportMarkdown': () => exportSavedReports('markdown'),
     'exportHeptabase': () => exportSavedReports('heptabase'),
     'exportObsidian': () => exportSavedReports('obsidian'),
-    'exportNotion': () => exportSavedReports('notion'),
+    'exportNotion': () => exportSavedReports('notion-api'),
+    'exportEmail': () => exportSavedReports('email'),
     'exportJSON': () => exportSavedReports('json')
   };
   
@@ -3213,6 +3222,12 @@ async function exportSavedReports(format = 'json') {
       case 'notion':
         await exportNotion(reports, dateStr, filterInfo);
         break;
+      case 'notion-api':
+        await exportNotionAPI(reports, dateStr, filterInfo);
+        break;
+      case 'email':
+        await exportEmail(reports, dateStr, filterInfo);
+        break;
       case 'json':
       default:
         await exportJSON(reports, dateStr, filterInfo);
@@ -3352,24 +3367,15 @@ async function exportHeptabase(reports, dateStr, filterInfo = '全部報告') {
     throw new Error('Export templates not loaded');
   }
   
-  const heptabaseData = ExportTemplates.generateHeptabase(reports, filterInfo);
-  const filename = getFilteredFilename('youglish-heptabase', dateStr, filterInfo, 'json');
+  const heptabaseMarkdown = ExportTemplates.generateHeptabase(reports, filterInfo);
+  const filename = getFilteredFilename('youglish-heptabase-whiteboard', dateStr, filterInfo, 'md');
   
-  // Create a JSON file with Heptabase-compatible structure
+  // Download as a single Markdown file optimized for Heptabase import
   downloadFile(
-    JSON.stringify(heptabaseData, null, 2), 
+    heptabaseMarkdown, 
     filename,
-    'application/json'
+    'text/markdown'
   );
-  
-  // Also create individual markdown files for each card
-  const zip = await createZipFile(heptabaseData.cards.map(card => ({
-    filename: `${card.title.replace(/[^\w\s-]/g, '').trim()}.md`,
-    content: card.content
-  })));
-  
-  const zipFilename = getFilteredFilename('youglish-heptabase-cards', dateStr, filterInfo, 'zip');
-  downloadBlob(zip, zipFilename);
 }
 
 async function exportObsidian(reports, dateStr, filterInfo = '全部報告') {
@@ -3445,6 +3451,240 @@ async function exportJSON(reports, dateStr, filterInfo = '全部報告') {
     filename,
     'application/json'
   );
+}
+
+// Email export - opens email client with vocabulary content
+async function exportEmail(reports, dateStr, filterInfo = '全部報告') {
+  if (typeof ExportTemplates === 'undefined') {
+    throw new Error('Export templates not loaded');
+  }
+  
+  const emailData = ExportTemplates.generateEmail(reports, filterInfo);
+  
+  // Create mailto link with pre-filled email containing vocabulary
+  const encodedSubject = encodeURIComponent(emailData.subject);
+  const encodedBody = encodeURIComponent(emailData.body);
+  
+  // Check if body is too long for mailto (most email clients have ~2000 char limit for URLs)
+  if (encodedBody.length > 1800) {
+    // If too long, show dialog to choose what to do
+    const choice = confirm(
+      `📧 Your vocabulary export has ${reports.length} words and is too large for direct email.\n\n` +
+      `Click OK to:\n` +
+      `• Open email with summary (${reports.length} words)\n` +
+      `• Download full export as attachment\n\n` +
+      `Click Cancel to:\n` +
+      `• Copy vocabulary content to clipboard instead`
+    );
+    
+    if (choice) {
+      // Option 1: Try to include as much vocabulary as possible in email
+      // Use the actual vocabulary content but trim if needed
+      const maxBodyLength = 1500; // Leave some room for encoding
+      let trimmedBody = emailData.body;
+      
+      if (emailData.body.length > maxBodyLength) {
+        // Find a good cut-off point (end of a word entry)
+        trimmedBody = emailData.body.substring(0, maxBodyLength);
+        const lastNewline = trimmedBody.lastIndexOf('\n\n');
+        if (lastNewline > 0) {
+          trimmedBody = trimmedBody.substring(0, lastNewline);
+        }
+        trimmedBody += '\n\n... [Content truncated - see attachment for full list] ...\n';
+      }
+      
+      const mailtoLink = `mailto:?subject=${encodedSubject}&body=${encodeURIComponent(trimmedBody)}`;
+      
+      // Download the full content as attachment
+      downloadFile(
+        emailData.attachment.content,
+        emailData.attachment.filename,
+        emailData.attachment.type
+      );
+      
+      // Open email client
+      window.open(mailtoLink);
+      
+      showMessage('📧 Email opened with summary. Full vocabulary downloaded as attachment!', 'success');
+    } else {
+      // Option 2: Copy to clipboard
+      navigator.clipboard.writeText(emailData.body).then(() => {
+        showMessage('📋 Vocabulary content copied to clipboard! You can paste it into any email.', 'success');
+      }).catch(err => {
+        // Fallback: download as text file
+        downloadFile(emailData.body, 'vocabulary-email-content.txt', 'text/plain');
+        showMessage('📄 Vocabulary content downloaded as text file!', 'success');
+      });
+    }
+  } else {
+    // Content is short enough for direct email
+    const mailtoLink = `mailto:?subject=${encodedSubject}&body=${encodedBody}`;
+    window.open(mailtoLink);
+    showMessage('📧 Email opened with your vocabulary content!', 'success');
+  }
+}
+
+// Notion API export - direct integration with Notion
+async function exportNotionAPI(reports, dateStr, filterInfo = '全部報告') {
+  if (!window.notionIntegration) {
+    window.notionIntegration = new NotionIntegration();
+  }
+
+  const notion = window.notionIntegration;
+  
+  // Check if Notion is configured
+  const isConfigured = await notion.initialize();
+  
+  if (!isConfigured) {
+    // Show configuration dialog
+    await notion.showConfigDialog();
+    
+    // Check again after configuration
+    const isNowConfigured = await notion.initialize();
+    if (!isNowConfigured) {
+      showMessage('Notion integration not configured', 'warning');
+      return;
+    }
+  }
+
+  // Show progress dialog
+  const progressDialog = document.createElement('div');
+  progressDialog.className = 'export-progress-dialog';
+  progressDialog.innerHTML = `
+    <div class="progress-content">
+      <h3>📄 Exporting to Notion...</h3>
+      <div class="progress-bar">
+        <div class="progress-fill" id="notion-progress-fill" style="width: 0%"></div>
+      </div>
+      <p id="notion-progress-text">Preparing export...</p>
+      <button id="cancel-notion-export" style="display: none;">Cancel</button>
+    </div>
+  `;
+  
+  // Add progress dialog styles
+  if (!document.getElementById('export-progress-styles')) {
+    const styles = document.createElement('style');
+    styles.id = 'export-progress-styles';
+    styles.textContent = `
+      .export-progress-dialog {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        padding: 24px;
+        z-index: 1001;
+        min-width: 300px;
+      }
+      .progress-content h3 {
+        margin: 0 0 16px 0;
+        color: #333;
+      }
+      .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #e0e0e0;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 16px;
+      }
+      .progress-fill {
+        height: 100%;
+        background: #1a73e8;
+        transition: width 0.3s ease;
+      }
+      #notion-progress-text {
+        margin: 0 0 16px 0;
+        color: #666;
+        font-size: 14px;
+      }
+      #cancel-notion-export {
+        background: #f44336;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+    `;
+    document.head.appendChild(styles);
+  }
+  
+  document.body.appendChild(progressDialog);
+
+  try {
+    // Update progress
+    progressDialog.querySelector('#notion-progress-text').textContent = `Exporting ${reports.length} words to Notion...`;
+    
+    // Export to Notion
+    const results = await notion.exportToNotion(reports);
+    
+    // Remove progress dialog
+    progressDialog.remove();
+    
+    // Show results
+    let message = '';
+    if (results.success > 0 && results.failed === 0) {
+      message = `✅ Successfully exported ${results.success} words to Notion!`;
+      showMessage(message, 'success');
+    } else if (results.success > 0 && results.failed > 0) {
+      message = `⚠️ Exported ${results.success} words, ${results.failed} failed.\n\nErrors:\n${results.errors.slice(0, 3).join('\n')}`;
+      alert(message);
+    } else {
+      message = `❌ Export failed. ${results.errors[0] || 'Unknown error'}`;
+      alert(message);
+    }
+    
+  } catch (error) {
+    progressDialog.remove();
+    console.error('Notion export failed:', error);
+    
+    if (error.message.includes('No database selected')) {
+      // Show configuration dialog
+      await notion.showConfigDialog();
+    } else {
+      alert(`❌ Export failed: ${error.message}`);
+    }
+  }
+}
+
+// Sync filtered reports to Notion (direct button)
+async function syncFilteredReportsToNotion() {
+  try {
+    // Get currently filtered reports
+    const reports = await getCurrentlyFilteredReports();
+    
+    if (reports.length === 0) {
+      showMessage('沒有可同步的報告', 'warning');
+      return;
+    }
+
+    // Disable button during sync
+    const syncBtn = document.getElementById('syncToNotionBtn');
+    if (syncBtn) {
+      syncBtn.disabled = true;
+      syncBtn.textContent = '🔄 同步中...';
+    }
+
+    // Use the existing Notion export function
+    const dateStr = new Date().toISOString().split('T')[0];
+    const filterInfo = getCurrentFilterInfo();
+    
+    await exportNotionAPI(reports, dateStr, filterInfo);
+
+  } catch (error) {
+    console.error('Notion sync failed:', error);
+    showMessage('同步到 Notion 失敗', 'error');
+  } finally {
+    // Re-enable button
+    const syncBtn = document.getElementById('syncToNotionBtn');
+    if (syncBtn) {
+      syncBtn.disabled = false;
+      syncBtn.textContent = '📄 Sync to Notion';
+    }
+  }
 }
 
 // Generate filename that reflects current filters

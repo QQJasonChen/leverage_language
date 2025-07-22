@@ -887,6 +887,26 @@
             cursor: not-allowed;
         }
 
+        .notion-sync-btn {
+            background: #000;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+        .notion-sync-btn:hover {
+            background: #333;
+        }
+
+        .notion-sync-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
         .export-btn:hover {
             background: #45a049;
         }
@@ -2790,7 +2810,8 @@
                                 <a href="#" id="exportMarkdown">📝 Markdown</a>
                                 <a href="#" id="exportHeptabase">🧠 Heptabase</a>
                                 <a href="#" id="exportObsidian">🔗 Obsidian</a>
-                                <a href="#" id="exportNotion">📄 Notion</a>
+                                <a href="#" id="exportNotion">📄 Notion API</a>
+                                <a href="#" id="exportEmail">📧 Send Email</a>
                                 <a href="#" id="exportJSON">📊 JSON</a>
                             </div>
                         </div>
@@ -2802,6 +2823,7 @@
                         </label>
                         <button id="cleanupDuplicatesBtn" class="cleanup-btn">🗂️ Clean Duplicates</button>
                         <button id="createAllFlashcardsBtn" class="flashcard-bulk-btn">🃏 Create All Flashcards</button>
+                        <button id="syncToNotionBtn" class="notion-sync-btn">📄 Sync to Notion</button>
                     </div>
                 </div>
                 
@@ -2956,6 +2978,7 @@
     <script src="lib/lang-detect.js"></script>
     <script src="lib/export-templates.js"></script>
     <script src="lib/flashcard-manager.js"></script>
+    <script src="lib/notion-integration.js"></script>
     <script src="sidepanel.js"></script>
 </body>
 </html>

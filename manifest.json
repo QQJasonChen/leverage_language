@@ -22,7 +22,8 @@
     "https://translate.googleapis.com/*",
     "https://api.cognitive.microsofttranslator.com/*",
     "https://api.dictionaryapi.dev/*",
-    "https://www.immersionkit.com/*"
+    "https://www.immersionkit.com/*",
+    "https://api.notion.com/*"
   ],
   
   "background": {
