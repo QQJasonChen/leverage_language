@@ -39,6 +39,7 @@ jobs:
     
     - name: Generate backup report
       run: |
+        echo "Generating backup report..."
         echo "# YouGlish Extension Backup Report" > backup-report.md
         echo "**Backup Date:** $(date)" >> backup-report.md
         echo "**Commit Hash:** ${{ github.sha }}" >> backup-report.md
@@ -52,10 +53,16 @@ jobs:
         git log --oneline -5 >> backup-report.md
         echo "" >> backup-report.md
         echo "## File Structure" >> backup-report.md
-        tree -I 'node_modules|.git' -L 2 >> backup-report.md || ls -la >> backup-report.md
+        if command -v tree &> /dev/null; then
+          tree -I 'node_modules|.git' -L 2 >> backup-report.md
+        else
+          echo "tree command not available, using ls:" >> backup-report.md
+          ls -la >> backup-report.md
+        fi
+        echo "✅ Backup report generated successfully"
     
     - name: Upload backup report as artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: backup-report-${{ steps.timestamp.outputs.date }}
         path: backup-report.md
@@ -84,12 +91,12 @@ jobs:
     
     - name: Create release on tag push
       if: startsWith(github.ref, 'refs/tags/v')
-      uses: actions/create-release@v1
+      uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.ref }}
-        release_name: YouGlish Extension ${{ github.ref }}
+        tag_name: ${{ github.ref_name }}
+        name: YouGlish Extension ${{ github.ref_name }}
         body: |
           Automated backup and release of YouGlish Chrome Extension.
           
