@@ -723,7 +723,20 @@ function generateUrlForSite(siteName, text, language) {
   
   // Handle language-specific URLs
   if (siteName === 'PlayPhrase.me') {
-    // Default English PlayPhrase.me
+    // Language-specific PlayPhrase.me URLs
+    const languageMap = {
+      'japanese': 'ja',
+      'korean': 'ko',
+      'dutch': 'nl',
+      'english': 'en'
+    };
+    
+    const langCode = languageMap[language];
+    if (langCode && langCode !== 'en') {
+      return `https://www.playphrase.me/#/search?q=${encodedText}&language=${langCode}`;
+    }
+    
+    // Default English PlayPhrase.me (no language parameter needed)
     return `https://www.playphrase.me/#/search?q=${encodedText}`;
   }
   
