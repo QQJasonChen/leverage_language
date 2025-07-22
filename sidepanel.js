@@ -575,6 +575,13 @@ function getSiteConfigs(language) {
         category: 'pronunciation'
       },
       {
+        name: 'PlayPhrase.me',
+        icon: '🎬',
+        description: '影視劇日語發音',
+        longDescription: '從電影和電視劇中查找日語詞彙的真實發音和使用情境',
+        category: 'pronunciation'
+      },
+      {
         name: 'Immersion Kit',
         icon: '🎌',
         description: '日語動漫例句',
