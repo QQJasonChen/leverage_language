@@ -439,7 +439,30 @@ async function executeSearchWithLanguage(text, tabId, language) {
   }
 
   // 根據設定選擇開啟方式
-  if (openMethod === 'sidepanel') {
+  if (openMethod === 'analysis-only') {
+    try {
+      // 儲存查詢資訊到 storage 供 Side Panel 使用 (僅分析，不開啟 YouGlish)
+      await chrome.storage.local.set({
+        currentQuery: {
+          primaryUrl: urls.primaryUrl,
+          secondaryUrl: urls.secondaryUrl,
+          tertiaryUrl: urls.tertiaryUrl,
+          allUrls: urls.allUrls,
+          text: cleanText,
+          language: language,
+          source: 'user-selected',
+          analysisOnly: true,
+          autoAnalysis: true
+        }
+      });
+      
+      // 開啟 Side Panel 僅顯示分析
+      await chrome.sidePanel.open({ tabId });
+      
+    } catch (error) {
+      console.log('Side Panel 開啟失敗:', error);
+    }
+  } else if (openMethod === 'sidepanel') {
     try {
       // 儲存查詢資訊到 storage 供 Side Panel 使用
       await chrome.storage.local.set({
@@ -450,7 +473,9 @@ async function executeSearchWithLanguage(text, tabId, language) {
           allUrls: urls.allUrls,
           text: cleanText,
           language: language,
-          source: 'user-selected'
+          source: 'user-selected',
+          analysisOnly: false,
+          autoAnalysis: true
         }
       });
       
@@ -478,7 +503,30 @@ async function proceedWithSearch(text, tabId, language, urls, openMethod, source
   }
 
   // 根據設定選擇開啟方式
-  if (openMethod === 'sidepanel') {
+  if (openMethod === 'analysis-only') {
+    try {
+      // 儲存查詢資訊到 storage 供 Side Panel 使用 (僅分析，不開啟 YouGlish)
+      await chrome.storage.local.set({
+        currentQuery: {
+          primaryUrl: urls.primaryUrl,
+          secondaryUrl: urls.secondaryUrl,
+          tertiaryUrl: urls.tertiaryUrl,
+          allUrls: urls.allUrls,
+          text: text,
+          language: language,
+          source: source,
+          analysisOnly: true,
+          autoAnalysis: true
+        }
+      });
+      
+      // 開啟 Side Panel 僅顯示分析
+      await chrome.sidePanel.open({ tabId });
+      
+    } catch (error) {
+      console.log('Side Panel 開啟失敗:', error);
+    }
+  } else if (openMethod === 'sidepanel') {
     try {
       // 儲存查詢資訊到 storage 供 Side Panel 使用
       await chrome.storage.local.set({
@@ -489,7 +537,9 @@ async function proceedWithSearch(text, tabId, language, urls, openMethod, source
           allUrls: urls.allUrls,
           text: text,
           language: language,
-          source: source
+          source: source,
+          analysisOnly: false,
+          autoAnalysis: true
         }
       });
       
