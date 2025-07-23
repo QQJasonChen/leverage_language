@@ -3104,7 +3104,7 @@ function showAudioError(message) {
 // Play audio from saved report
 async function playReportAudio(reportId) {
   try {
-    const reports = await storageManager.getReports();
+    const reports = await storageManager.getAIReports();
     const report = reports.find(r => r.id === reportId);
     
     if (!report || !report.audioData || !report.audioData.audioUrl) {
@@ -3359,6 +3359,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const savedReportsSearchInput = document.getElementById('savedReportsSearchInput');
   const savedReportsLanguageFilter = document.getElementById('savedReportsLanguageFilter');
   const savedReportsTagFilter = document.getElementById('savedReportsTagFilter');
+  const savedReportsDateFilter = document.getElementById('savedReportsDateFilter');
+  const dateRangeInputs = document.getElementById('dateRangeInputs');
+  const startDate = document.getElementById('startDate');
+  const endDate = document.getElementById('endDate');
   const favoritesOnlyFilter = document.getElementById('favoritesOnlyFilter');
   const exportReportsBtn = document.getElementById('exportReportsBtn');
   const exportDropdown = document.getElementById('exportDropdown');
@@ -3381,6 +3385,30 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
+  if (savedReportsDateFilter) {
+    savedReportsDateFilter.addEventListener('change', () => {
+      // Show/hide custom date range inputs
+      if (savedReportsDateFilter.value === 'custom') {
+        dateRangeInputs.style.display = 'block';
+      } else {
+        dateRangeInputs.style.display = 'none';
+      }
+      filterSavedReports();
+    });
+  }
+  
+  if (startDate) {
+    startDate.addEventListener('change', () => {
+      filterSavedReports();
+    });
+  }
+  
+  if (endDate) {
+    endDate.addEventListener('change', () => {
+      filterSavedReports();
+    });
+  }
+
   if (favoritesOnlyFilter) {
     favoritesOnlyFilter.addEventListener('change', () => {
       filterSavedReports();
@@ -3554,14 +3582,17 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Filter saved reports based on search, language, tags, and favorites
+// Filter saved reports based on search, language, tags, date, and favorites
 async function filterSavedReports() {
   const searchQuery = document.getElementById('savedReportsSearchInput')?.value.trim().toLowerCase() || '';
   const languageFilter = document.getElementById('savedReportsLanguageFilter')?.value || '';
   const tagFilter = document.getElementById('savedReportsTagFilter')?.value || '';
+  const dateFilter = document.getElementById('savedReportsDateFilter')?.value || '';
+  const startDate = document.getElementById('startDate')?.value || '';
+  const endDate = document.getElementById('endDate')?.value || '';
   const favoritesOnly = document.getElementById('favoritesOnlyFilter')?.checked || false;
   
-  console.log('Filtering saved reports:', { searchQuery, languageFilter, tagFilter, favoritesOnly });
+  console.log('Filtering saved reports:', { searchQuery, languageFilter, tagFilter, dateFilter, startDate, endDate, favoritesOnly });
   
   try {
     let reports = [];
@@ -3606,6 +3637,56 @@ async function filterSavedReports() {
       
       if (favoritesOnly) {
         reports = reports.filter(report => report.favorite);
+      }
+    }
+    
+    // Apply date filtering
+    if (dateFilter) {
+      const now = new Date();
+      let startDateTime, endDateTime;
+      
+      switch (dateFilter) {
+        case 'today':
+          startDateTime = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          endDateTime = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+          break;
+          
+        case 'week':
+          const startOfWeek = new Date(now);
+          startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
+          startOfWeek.setHours(0, 0, 0, 0);
+          startDateTime = startOfWeek;
+          endDateTime = new Date(startOfWeek.getTime() + 7 * 24 * 60 * 60 * 1000);
+          break;
+          
+        case 'month':
+          startDateTime = new Date(now.getFullYear(), now.getMonth(), 1);
+          endDateTime = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+          break;
+          
+        case 'custom':
+          if (startDate) {
+            startDateTime = new Date(startDate);
+            startDateTime.setHours(0, 0, 0, 0);
+          }
+          if (endDate) {
+            endDateTime = new Date(endDate);
+            endDateTime.setHours(23, 59, 59, 999);
+          }
+          break;
+      }
+      
+      if (startDateTime || endDateTime) {
+        reports = reports.filter(report => {
+          if (!report.timestamp) return true; // Keep reports without timestamp
+          
+          const reportDate = new Date(report.timestamp);
+          
+          if (startDateTime && reportDate < startDateTime) return false;
+          if (endDateTime && reportDate > endDateTime) return false;
+          
+          return true;
+        });
       }
     }
     
@@ -3838,6 +3919,9 @@ async function getCurrentlyFilteredReports() {
   const searchQuery = document.getElementById('savedReportsSearchInput')?.value.trim().toLowerCase() || '';
   const languageFilter = document.getElementById('savedReportsLanguageFilter')?.value || '';
   const tagFilter = document.getElementById('savedReportsTagFilter')?.value || '';
+  const dateFilter = document.getElementById('savedReportsDateFilter')?.value || '';
+  const startDate = document.getElementById('startDate')?.value || '';
+  const endDate = document.getElementById('endDate')?.value || '';
   const favoritesOnly = document.getElementById('favoritesOnlyFilter')?.checked || false;
   
   try {
@@ -3886,6 +3970,56 @@ async function getCurrentlyFilteredReports() {
       }
     }
     
+    // Apply date filtering
+    if (dateFilter) {
+      const now = new Date();
+      let startDateTime, endDateTime;
+      
+      switch (dateFilter) {
+        case 'today':
+          startDateTime = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          endDateTime = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+          break;
+          
+        case 'week':
+          const startOfWeek = new Date(now);
+          startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
+          startOfWeek.setHours(0, 0, 0, 0);
+          startDateTime = startOfWeek;
+          endDateTime = new Date(startOfWeek.getTime() + 7 * 24 * 60 * 60 * 1000);
+          break;
+          
+        case 'month':
+          startDateTime = new Date(now.getFullYear(), now.getMonth(), 1);
+          endDateTime = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+          break;
+          
+        case 'custom':
+          if (startDate) {
+            startDateTime = new Date(startDate);
+            startDateTime.setHours(0, 0, 0, 0);
+          }
+          if (endDate) {
+            endDateTime = new Date(endDate);
+            endDateTime.setHours(23, 59, 59, 999);
+          }
+          break;
+      }
+      
+      if (startDateTime || endDateTime) {
+        reports = reports.filter(report => {
+          if (!report.timestamp) return true; // Keep reports without timestamp
+          
+          const reportDate = new Date(report.timestamp);
+          
+          if (startDateTime && reportDate < startDateTime) return false;
+          if (endDateTime && reportDate > endDateTime) return false;
+          
+          return true;
+        });
+      }
+    }
+    
     return reports;
     
   } catch (error) {
@@ -3913,6 +4047,9 @@ function getCurrentFilterInfo() {
   const searchQuery = document.getElementById('savedReportsSearchInput')?.value.trim() || '';
   const languageFilter = document.getElementById('savedReportsLanguageFilter')?.value || '';
   const tagFilter = document.getElementById('savedReportsTagFilter')?.value || '';
+  const dateFilter = document.getElementById('savedReportsDateFilter')?.value || '';
+  const startDate = document.getElementById('startDate')?.value || '';
+  const endDate = document.getElementById('endDate')?.value || '';
   const favoritesOnly = document.getElementById('favoritesOnlyFilter')?.checked || false;
   
   const filters = [];
@@ -3928,6 +4065,29 @@ function getCurrentFilterInfo() {
   
   if (tagFilter) {
     filters.push(`標籤: #${tagFilter}`);
+  }
+  
+  if (dateFilter) {
+    switch (dateFilter) {
+      case 'today':
+        filters.push('日期: 今天');
+        break;
+      case 'week':
+        filters.push('日期: 本週');
+        break;
+      case 'month':
+        filters.push('日期: 本月');
+        break;
+      case 'custom':
+        if (startDate && endDate) {
+          filters.push(`日期: ${startDate} 到 ${endDate}`);
+        } else if (startDate) {
+          filters.push(`日期: 從 ${startDate}`);
+        } else if (endDate) {
+          filters.push(`日期: 到 ${endDate}`);
+        }
+        break;
+    }
   }
   
   if (favoritesOnly) {

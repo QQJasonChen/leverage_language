@@ -841,6 +841,29 @@
             font-size: 14px;
             background: white;
         }
+        
+        .date-range-inputs {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .date-range-inputs input[type="date"] {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+        }
+        
+        .date-range-inputs input[type="date"]:focus {
+            outline: none;
+            border-color: #1976d2;
+            box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+        }
 
         .export-btn {
             background: #4CAF50;
@@ -3505,6 +3528,13 @@
                             <option value="" data-i18n="all_tags">All Tags</option>
                             <!-- Dynamic tag options will be populated here -->
                         </select>
+                        <select id="savedReportsDateFilter">
+                            <option value="">📅 All Dates</option>
+                            <option value="today">📅 Today</option>
+                            <option value="week">📅 This Week</option>
+                            <option value="month">📅 This Month</option>
+                            <option value="custom">📅 Custom Range</option>
+                        </select>
                         <div class="export-dropdown">
                             <button id="exportReportsBtn" class="export-btn" data-i18n="export_reports">💾 Export ▼</button>
                             <div id="exportDropdown" class="export-dropdown-content">
@@ -3516,6 +3546,11 @@
                                 <a href="#" id="exportJSON">📊 JSON</a>
                             </div>
                         </div>
+                    </div>
+                    <div class="date-range-inputs" id="dateRangeInputs" style="display: none;">
+                        <input type="date" id="startDate" placeholder="Start date" />
+                        <span style="padding: 0 10px;">to</span>
+                        <input type="date" id="endDate" placeholder="End date" />
                     </div>
                     <div class="saved-reports-filters">
                         <label>
