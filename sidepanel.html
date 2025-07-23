@@ -3305,6 +3305,68 @@
                     </div>
                 </div>
                 
+                <!-- AI 語音發音區域 -->
+                <div id="aiAudioSection" class="ai-audio-section" style="display: none;">
+                    <div class="audio-header">
+                        <h5>🔊 AI 語音發音</h5>
+                        <div class="audio-controls">
+                            <button id="generateAudioBtn" class="audio-button primary">
+                                🎵 生成語音
+                            </button>
+                            <button id="regenerateAudioBtn" class="audio-button secondary" style="display: none;">
+                                🔄 重新生成
+                            </button>
+                            <button id="testAudioBtn" class="audio-button secondary" style="font-size: 10px;">
+                                🧪 測試
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="audioContent" class="audio-content">
+                        <div id="audioPlaceholder" class="audio-placeholder">
+                            <div class="placeholder-icon">🎵</div>
+                            <p class="placeholder-text">點擊「生成語音」開始</p>
+                        </div>
+                        
+                        <div id="audioLoading" class="audio-loading" style="display: none;">
+                            <div class="loading-icon">⏳</div>
+                            <p class="loading-text">正在生成語音...</p>
+                        </div>
+                        
+                        <div id="audioResult" class="audio-result" style="display: none;">
+                            <div class="audio-info">
+                                <span class="audio-duration" id="audioDuration"></span>
+                                <span class="audio-size" id="audioSize"></span>
+                            </div>
+                            
+                            <div class="audio-player">
+                                <audio id="aiAudio" controls preload="metadata" style="width: 100%;">
+                                    <source id="audioSource" src="" type="audio/mpeg">
+                                    您的瀏覽器不支援音頻播放
+                                </audio>
+                                <div class="audio-actions">
+                                    <button id="playAudioBtn" class="audio-action-btn">
+                                        ▶️ 播放
+                                    </button>
+                                    <button id="downloadAudioBtn" class="audio-action-btn">
+                                        💾 下載
+                                    </button>
+                                    <button id="repeatAudioBtn" class="audio-action-btn">
+                                        🔄 重複
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="audioError" class="audio-error" style="display: none;">
+                            <div class="error-icon">⚠️</div>
+                            <p class="error-message">語音生成失敗</p>
+                            <p class="error-details" id="audioErrorDetails"></p>
+                            <button id="retryAudioBtn" class="audio-button secondary">重試</button>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- AI 分析區域 -->
                 <div id="aiAnalysisSection" class="ai-analysis-section" style="display: none;">
                     <div class="section-header">
@@ -3376,69 +3438,6 @@
                         
                         <div id="aiAnalysisResult" class="ai-analysis-result" style="display: none;">
                             <!-- AI 分析結果將在這裡顯示 -->
-                        </div>
-                        
-                        <!-- AI 語音發音區域 -->
-                        <div id="aiAudioSection" class="ai-audio-section" style="display: none;">
-                            <div class="audio-header">
-                                <h5>🔊 AI 語音發音</h5>
-                                <div class="audio-controls">
-                                    <button id="generateAudioBtn" class="audio-button primary">
-                                        🎵 生成語音
-                                    </button>
-                                    <button id="regenerateAudioBtn" class="audio-button secondary" style="display: none;">
-                                        🔄 重新生成
-                                    </button>
-                                    <button id="testAudioBtn" class="audio-button secondary" style="font-size: 10px;">
-                                        🧪 測試
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div id="audioContent" class="audio-content">
-                                <div id="audioPlaceholder" class="audio-placeholder">
-                                    <div class="audio-placeholder-icon">🎙️</div>
-                                    <p data-i18n="audio_placeholder">Click 'Generate Audio' to get AI voice pronunciation</p>
-                                    <p class="audio-note" data-i18n="audio_tech_note">Uses OpenAI TTS technology for natural speech</p>
-                                </div>
-                                
-                                <div id="audioLoading" class="audio-loading" style="display: none;">
-                                    <div class="loading-spinner"></div>
-                                    <p data-i18n="generating_audio">Generating audio, please wait...</p>
-                                </div>
-                                
-                                <div id="audioPlayer" class="audio-player" style="display: none;">
-                                    <div class="audio-info">
-                                        <div class="audio-text" id="audioText"></div>
-                                        <div class="audio-meta">
-                                            <span id="audioVoice"></span> • <span id="audioSpeed"></span>
-                                        </div>
-                                    </div>
-                                    <div class="audio-controls-full">
-                                        <audio id="pronunciationAudio" controls preload="metadata" crossorigin="anonymous">
-                                            <span data-i18n="audio_not_supported">Your browser does not support audio playback</span>
-                                        </audio>
-                                        <div class="audio-actions">
-                                            <button id="playAudioBtn" class="audio-action-btn">
-                                                ▶️ 播放
-                                            </button>
-                                            <button id="downloadAudioBtn" class="audio-action-btn">
-                                                💾 下載
-                                            </button>
-                                            <button id="repeatAudioBtn" class="audio-action-btn">
-                                                🔄 重複
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div id="audioError" class="audio-error" style="display: none;">
-                                    <div class="error-icon">⚠️</div>
-                                    <p class="error-message">語音生成失敗</p>
-                                    <p class="error-details" id="audioErrorDetails"></p>
-                                    <button id="retryAudioBtn" class="audio-button secondary">重試</button>
-                                </div>
-                            </div>
                         </div>
                         
                         <div id="aiAnalysisError" class="ai-error" style="display: none;">

@@ -1768,7 +1768,7 @@ function showAIResult(analysis) {
 }
 
 // Format AI analysis for better readability (render markdown for display)
-function formatAIAnalysis(content) {
+function formatAIAnalysis(content, context = 'main') {
   if (!content) return '';
   
   // First escape HTML to prevent XSS
@@ -1806,7 +1806,11 @@ function formatAIAnalysis(content) {
     // Line breaks
     .replace(/\n/g, '<br>');
   
-  return `<div style="color: #333; font-size: 14px; line-height: 1.6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; max-width: 100%; word-wrap: break-word;">${formatted}</div>`;
+  // Different font sizes for different contexts
+  const fontSize = context === 'saved-tab' ? '12px' : '14px';
+  const lineHeight = context === 'saved-tab' ? '1.5' : '1.6';
+  
+  return `<div style="color: #333; font-size: ${fontSize}; line-height: ${lineHeight}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; max-width: 100%; word-wrap: break-word;">${formatted}</div>`;
 }
 
 // 顯示 AI 錯誤
@@ -2599,7 +2603,14 @@ async function loadSavedReports() {
                 : (report.analysisData && report.analysisData.content 
                     ? report.analysisData.content 
                     : 'No analysis available');
-              previewText.textContent = fullAnalysis;
+              
+              // 使用 formatAIAnalysis 來格式化完整分析內容 (小字體)
+              const formattedAnalysis = formatAIAnalysis(fullAnalysis, 'saved-tab');
+              if (window.SecurityFixes) {
+                window.SecurityFixes.safeSetHTML(previewText, formattedAnalysis);
+              } else {
+                previewText.innerHTML = formattedAnalysis;
+              }
               expandBtn.textContent = '收合';
               expandBtn.dataset.expanded = 'true';
             } else {
@@ -3643,7 +3654,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   if (savedReportsTagFilter) {
-    savedReportsTagFilter.addEventListener('change', () => {
+    savedReportsTagFilter.addEventListener('change', (e) => {
+      console.log('🎯 Tag filter changed! New value:', e.target.value);
       filterSavedReports();
     });
   }
@@ -3847,6 +3859,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Filter saved reports based on search, language, tags, date, and favorites
 async function filterSavedReports() {
+  console.log('🚨 filterSavedReports() called!');
+  
   const searchQuery = document.getElementById('savedReportsSearchInput')?.value.trim().toLowerCase() || '';
   const languageFilter = document.getElementById('savedReportsLanguageFilter')?.value || '';
   const tagFilter = document.getElementById('savedReportsTagFilter')?.value || '';
@@ -3855,7 +3869,16 @@ async function filterSavedReports() {
   const endDate = document.getElementById('endDate')?.value || '';
   const favoritesOnly = document.getElementById('favoritesOnlyFilter')?.checked || false;
   
-  console.log('Filtering saved reports:', { searchQuery, languageFilter, tagFilter, dateFilter, startDate, endDate, favoritesOnly });
+  console.log('🔧 All filter values:', { searchQuery, languageFilter, tagFilter, dateFilter, startDate, endDate, favoritesOnly });
+  
+  // Debug tag filter
+  if (tagFilter) {
+    console.log('🏷️ Tag filter active:', `"${tagFilter}"`);
+    console.log('🏷️ Tag filter length:', tagFilter.length);
+    console.log('🏷️ Tag filter char codes:', Array.from(tagFilter).map(c => c.charCodeAt(0)));
+  } else {
+    console.log('❌ No tag filter detected');
+  }
   
   try {
     let reports = [];
@@ -3891,11 +3914,51 @@ async function filterSavedReports() {
       }
       
       if (tagFilter) {
-        reports = reports.filter(report => 
-          report.tags && report.tags.some(tag => 
-            tag.toLowerCase().includes(tagFilter.toLowerCase())
-          )
-        );
+        console.log('🔍 DETAILED TAG FILTER DEBUG:');
+        console.log('  Filter value:', `"${tagFilter}"`);
+        console.log('  Total reports before filtering:', reports.length);
+        
+        // Check what tags actually exist in reports
+        const allFoundTags = [];
+        reports.forEach(report => {
+          if (report.tags && Array.isArray(report.tags)) {
+            report.tags.forEach(tag => allFoundTags.push(`"${tag}"`));
+          }
+        });
+        console.log('  All tags found in reports:', allFoundTags);
+        
+        const filteredReports = reports.filter(report => {
+          console.log(`\n  📋 Checking report: "${report.searchText}"`);
+          console.log(`    Report tags:`, report.tags);
+          console.log(`    Has tags array:`, report.tags && Array.isArray(report.tags));
+          
+          if (!report.tags || !Array.isArray(report.tags)) {
+            console.log(`    ❌ No valid tags array`);
+            return false;
+          }
+          
+          const matches = report.tags.some(tag => {
+            console.log(`    🏷️ Comparing tag: "${tag}"`);
+            if (!tag) {
+              console.log(`      ❌ Tag is null/undefined`);
+              return false;
+            }
+            const cleanTag = tag.trim().toLowerCase();
+            const cleanFilter = tagFilter.trim().toLowerCase();
+            const isMatch = cleanTag === cleanFilter;
+            console.log(`      Clean tag: "${cleanTag}"`);
+            console.log(`      Clean filter: "${cleanFilter}"`);
+            console.log(`      Match: ${isMatch}`);
+            return isMatch;
+          });
+          
+          console.log(`    Final result for "${report.searchText}": ${matches}`);
+          return matches;
+        });
+        
+        reports = filteredReports;
+        console.log(`\n  ✅ Final filtered count: ${reports.length}`);
+        console.log('  END TAG FILTER DEBUG\n');
       }
       
       if (favoritesOnly) {
@@ -4099,7 +4162,14 @@ function displayFilteredReports(reports) {
             : (report.analysisData && report.analysisData.content 
                 ? report.analysisData.content 
                 : 'No analysis available');
-          previewText.textContent = fullAnalysis;
+          
+          // 使用 formatAIAnalysis 來格式化完整分析內容 (小字體)
+          const formattedAnalysis = formatAIAnalysis(fullAnalysis, 'saved-tab');
+          if (window.SecurityFixes) {
+            window.SecurityFixes.safeSetHTML(previewText, formattedAnalysis);
+          } else {
+            previewText.innerHTML = formattedAnalysis;
+          }
           expandBtn.textContent = '收合';
           expandBtn.dataset.expanded = 'true';
         } else {
@@ -4221,11 +4291,51 @@ async function getCurrentlyFilteredReports() {
       }
       
       if (tagFilter) {
-        reports = reports.filter(report => 
-          report.tags && report.tags.some(tag => 
-            tag.toLowerCase().includes(tagFilter.toLowerCase())
-          )
-        );
+        console.log('🔍 DETAILED TAG FILTER DEBUG:');
+        console.log('  Filter value:', `"${tagFilter}"`);
+        console.log('  Total reports before filtering:', reports.length);
+        
+        // Check what tags actually exist in reports
+        const allFoundTags = [];
+        reports.forEach(report => {
+          if (report.tags && Array.isArray(report.tags)) {
+            report.tags.forEach(tag => allFoundTags.push(`"${tag}"`));
+          }
+        });
+        console.log('  All tags found in reports:', allFoundTags);
+        
+        const filteredReports = reports.filter(report => {
+          console.log(`\n  📋 Checking report: "${report.searchText}"`);
+          console.log(`    Report tags:`, report.tags);
+          console.log(`    Has tags array:`, report.tags && Array.isArray(report.tags));
+          
+          if (!report.tags || !Array.isArray(report.tags)) {
+            console.log(`    ❌ No valid tags array`);
+            return false;
+          }
+          
+          const matches = report.tags.some(tag => {
+            console.log(`    🏷️ Comparing tag: "${tag}"`);
+            if (!tag) {
+              console.log(`      ❌ Tag is null/undefined`);
+              return false;
+            }
+            const cleanTag = tag.trim().toLowerCase();
+            const cleanFilter = tagFilter.trim().toLowerCase();
+            const isMatch = cleanTag === cleanFilter;
+            console.log(`      Clean tag: "${cleanTag}"`);
+            console.log(`      Clean filter: "${cleanFilter}"`);
+            console.log(`      Match: ${isMatch}`);
+            return isMatch;
+          });
+          
+          console.log(`    Final result for "${report.searchText}": ${matches}`);
+          return matches;
+        });
+        
+        reports = filteredReports;
+        console.log(`\n  ✅ Final filtered count: ${reports.length}`);
+        console.log('  END TAG FILTER DEBUG\n');
       }
       
       if (favoritesOnly) {
@@ -4475,22 +4585,22 @@ async function exportEmail(reports, dateStr, filterInfo = '全部報告') {
   const encodedSubject = encodeURIComponent(emailData.subject);
   const encodedBody = encodeURIComponent(emailData.body);
   
-  // Check if body is too long for mailto (most email clients have ~2000 char limit for URLs)
-  if (encodedBody.length > 1800) {
+  // Check if body is too long for mailto (most email clients have ~8000 char limit for URLs, but we'll be conservative)
+  if (encodedBody.length > 6000) {
     // If too long, show dialog to choose what to do
-    const choice = confirm(
-      `📧 Your vocabulary export has ${reports.length} words and is too large for direct email.\n\n` +
-      `Click OK to:\n` +
-      `• Open email with summary (${reports.length} words)\n` +
-      `• Download full export as attachment\n\n` +
-      `Click Cancel to:\n` +
-      `• Copy vocabulary content to clipboard instead`
+    const choice = prompt(
+      `📧 Your vocabulary export has ${reports.length} words and is quite large.\n\n` +
+      `Choose an option:\n` +
+      `1 - Open email with truncated content + download full file\n` +
+      `2 - Try to send full content in email (may not work in all email clients)\n` +
+      `3 - Copy full vocabulary content to clipboard\n\n` +
+      `Enter 1, 2, or 3:`,
+      '1'
     );
     
-    if (choice) {
-      // Option 1: Try to include as much vocabulary as possible in email
-      // Use the actual vocabulary content but trim if needed
-      const maxBodyLength = 1500; // Leave some room for encoding
+    if (choice === '1') {
+      // Option 1: Truncated email + download full file
+      const maxBodyLength = 5000; // Leave some room for encoding
       let trimmedBody = emailData.body;
       
       if (emailData.body.length > maxBodyLength) {
@@ -4500,24 +4610,30 @@ async function exportEmail(reports, dateStr, filterInfo = '全部報告') {
         if (lastNewline > 0) {
           trimmedBody = trimmedBody.substring(0, lastNewline);
         }
-        trimmedBody += '\n\n... [Content truncated - see attachment for full list] ...\n';
+        trimmedBody += '\n\n... [Content truncated - full vocabulary list downloaded as text file] ...\n';
       }
       
       const mailtoLink = `mailto:?subject=${encodedSubject}&body=${encodeURIComponent(trimmedBody)}`;
       
-      // Download the full content as attachment
+      // Download the full content as a text file
+      const filename = `youglish-vocabulary-${dateStr.replace(/\s+/g, '-').toLowerCase()}.txt`;
       downloadFile(
-        emailData.attachment.content,
-        emailData.attachment.filename,
-        emailData.attachment.type
+        emailData.body,
+        filename,
+        'text/plain'
       );
       
       // Open email client
       window.open(mailtoLink);
       
-      showMessage('📧 Email opened with summary. Full vocabulary downloaded as attachment!', 'success');
-    } else {
-      // Option 2: Copy to clipboard
+      showMessage('📧 Email opened with summary. Full vocabulary downloaded as text file!', 'success');
+    } else if (choice === '2') {
+      // Option 2: Try to send full content in email
+      const mailtoLink = `mailto:?subject=${encodedSubject}&body=${encodedBody}`;
+      window.open(mailtoLink);
+      showMessage('📧 Email opened with full vocabulary content! (May be truncated by email client)', 'success');
+    } else if (choice === '3') {
+      // Option 3: Copy to clipboard
       navigator.clipboard.writeText(emailData.body).then(() => {
         showMessage('📋 Vocabulary content copied to clipboard! You can paste it into any email.', 'success');
       }).catch(err => {
