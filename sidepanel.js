@@ -3862,13 +3862,17 @@ document.addEventListener('DOMContentLoaded', () => {
       reAnalyzeReportsBtn.disabled = true;
       
       try {
+        console.log('🔄 Starting manual re-analysis...');
         const result = await storageManager.reAnalyzeAllReports();
+        console.log('🔄 Re-analysis result:', result);
+        
         if (result.success) {
           alert(`✅ 重新分析完成！更新了 ${result.updatedCount} 個報告的錯誤狀態`);
           // Reload the saved reports view
           loadSavedReports();
         } else {
-          alert(`❌ 重新分析失敗：${result.error}`);
+          console.error('Re-analysis failed:', result);
+          alert(`❌ 重新分析失敗：${result.error || 'Unknown error'}`);
         }
       } catch (error) {
         console.error('Re-analysis error:', error);
@@ -3880,52 +3884,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  // Debug reports button
-  const debugReportsBtn = document.getElementById('debugReportsBtn');
-  if (debugReportsBtn) {
-    debugReportsBtn.addEventListener('click', async () => {
-      if (!storageManager) {
-        alert('Storage manager not available');
-        return;
-      }
-      
-      try {
-        const reports = await storageManager.getAIReports();
-        console.log('🐛 DEBUG: All reports:', reports);
-        
-        // Find reports with Dutch sentences containing "one" and "at"
-        const testReports = reports.filter(r => 
-          r.language === 'dutch' && 
-          (r.searchText.includes('one') || r.searchText.includes('at'))
-        );
-        
-        console.log('🐛 DEBUG: Test reports (Dutch with English words):', testReports);
-        
-        testReports.forEach(report => {
-          console.log('🐛 Report:', report.searchText);
-          console.log('  hasErrors:', report.hasErrors);
-          console.log('  isCorrect:', report.isCorrect);
-          console.log('  errorTypes:', report.errorTypes);
-          console.log('  analysisData preview:', report.analysisData?.substring(0, 200));
-          
-          // Re-test error analysis
-          if (report.analysisData && storageManager.analyzeForErrors && typeof storageManager.analyzeForErrors === 'function') {
-            try {
-              const freshAnalysis = storageManager.analyzeForErrors(report.analysisData);
-              console.log('  🧪 Fresh analysis result:', freshAnalysis);
-            } catch (analysisError) {
-              console.error('  ❌ Error running fresh analysis:', analysisError);
-            }
-          }
-        });
-        
-        alert(`Debug info logged to console. Found ${testReports.length} Dutch reports with English words.`);
-      } catch (error) {
-        console.error('Debug error:', error);
-        alert('Debug failed: ' + error.message);
-      }
-    });
-  }
   
   // Manual save button
   const manualSaveBtn = document.getElementById('manualSaveBtn');
