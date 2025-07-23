@@ -144,8 +144,11 @@ function showSearchResult(queryData) {
   currentQueryData = queryData;
   
   // 如果是新查詢，清空之前的分析結果並更新追蹤
+  // 但不要清空已設定的分析結果 (例如重播時的快取結果)
   if (isNewQuery) {
-    currentAIAnalysis = null;
+    if (!currentAIAnalysis || queryData.autoAnalysis !== false) {
+      currentAIAnalysis = null;
+    }
     lastProcessedQuery = queryKey;
   }
   
@@ -202,7 +205,7 @@ function showSearchResult(queryData) {
   loadPronunciationSites(queryData);
   
   // 只對新查詢觸發自動分析和發音 (如果啟用且服務可用)
-  if (isNewQuery && queryData.autoAnalysis) {
+  if (isNewQuery && queryData.autoAnalysis === true) {
     setTimeout(async () => {
       try {
         log('Auto-analysis requested for:', queryData.text);
@@ -1164,6 +1167,7 @@ function displayHistoryItems(queries) {
           <div class="history-text">${query.text || 'Unknown'}</div>
           <div class="history-actions">
             <button class="history-action-btn replay" data-text="${query.text}" data-language="${query.language}" data-id="${query.id || ''}">重播</button>
+            <button class="history-action-btn audio" data-text="${query.text}" data-language="${query.language}" title="播放語音">🔊</button>
             ${query.id ? `<button class="history-action-btn delete" data-id="${query.id}">刪除</button>` : ''}
           </div>
         </div>
@@ -1181,6 +1185,7 @@ function displayHistoryItems(queries) {
     
     // Add event listeners
     const replayButton = item.querySelector('.history-action-btn.replay');
+    const audioButton = item.querySelector('.history-action-btn.audio');
     const deleteButton = item.querySelector('.history-action-btn.delete');
     
     if (replayButton) {
@@ -1191,6 +1196,18 @@ function displayHistoryItems(queries) {
         console.log('Replaying query:', { text, language });
         if (text && language) {
           await replayQuery(text, language);
+        }
+      });
+    }
+    
+    if (audioButton) {
+      audioButton.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const text = audioButton.dataset.text;
+        const language = audioButton.dataset.language;
+        console.log('Playing history audio:', { text, language });
+        if (text && language) {
+          await playHistoryAudio(text, language, audioButton);
         }
       });
     }
@@ -1264,6 +1281,23 @@ async function replayQuery(text, language, url) {
         console.log('Found existing AI analysis for replay:', exactMatch.id);
         existingAnalysis = exactMatch.analysisData;
         autoAnalysis = false; // Don't generate new analysis
+        
+        // Also restore cached audio if available
+        if (exactMatch.audioData && exactMatch.audioData.audioUrl) {
+          const cacheKey = `${text.toLowerCase()}_${language}`;
+          const cachedAudioData = {
+            text: text,
+            language: language,
+            audioUrl: exactMatch.audioData.audioUrl,
+            blobUrl: exactMatch.audioData.audioUrl, // Use audioUrl as fallback for blobUrl
+            size: exactMatch.audioData.size || 0,
+            voice: exactMatch.audioData.voice || 'OpenAI TTS',
+            timestamp: Date.now()
+          };
+          
+          window.audioCache.set(cacheKey, cachedAudioData);
+          console.log('🎯 Restored cached audio for replay:', text, 'from saved report');
+        }
       }
     }
   } catch (error) {
@@ -1282,18 +1316,19 @@ async function replayQuery(text, language, url) {
     autoAnalysis: autoAnalysis
   };
   
-  // Set current AI analysis if we found one
-  if (existingAnalysis) {
-    currentAIAnalysis = existingAnalysis;
-  }
-  
-  // Show the search result
-  showSearchResult(queryData);
-  
-  // If we have existing analysis, show it immediately
+  // For replays with existing analysis, work like saved reports
   if (existingAnalysis) {
     console.log('Displaying cached AI analysis for replay');
+    currentAIAnalysis = existingAnalysis;
+    
+    // Show search result first
+    showSearchResult(queryData);
+    
+    // Then immediately show the cached analysis
     showAIResult(existingAnalysis);
+  } else {
+    // Normal flow for new queries
+    showSearchResult(queryData);
   }
   
   // Switch to analysis view by default (instead of video view)
@@ -1625,14 +1660,72 @@ function showAIResult(analysis) {
     });
     
     if (audioSection) {
+      audioSection.style.display = 'block';
+      const audioContent = document.getElementById('audioContent');
+      
+      // First check if we have cached audio for the current query
+      if (currentQueryData?.text && currentQueryData?.language) {
+        const cachedAudio = getCachedAudio(currentQueryData.text, currentQueryData.language);
+        
+        if (cachedAudio && cachedAudio.audioUrl) {
+          console.log('Found cached audio for current query, showing play button');
+          if (audioContent) {
+            audioContent.innerHTML = `
+              <div class="audio-ready">
+                ✅ 語音已準備 (${Math.round((cachedAudio.size || 0) / 1024)} KB) - ${cachedAudio.voice || 'OpenAI TTS'}
+                <br>
+                <button id="playCachedAudioBtn" style="
+                  background: #1976d2; 
+                  color: white; 
+                  border: none; 
+                  padding: 8px 16px; 
+                  border-radius: 4px; 
+                  cursor: pointer; 
+                  margin: 8px 0;
+                  font-size: 14px;
+                ">🔊 播放語音</button>
+              </div>
+            `;
+            
+            // Add event listener for the play button
+            setTimeout(() => {
+              const playBtn = document.getElementById('playCachedAudioBtn');
+              if (playBtn) {
+                playBtn.addEventListener('click', async () => {
+                  const originalText = playBtn.textContent;
+                  playBtn.textContent = '播放中...';
+                  playBtn.disabled = true;
+                  
+                  try {
+                    await playCachedAudio(cachedAudio);
+                  } catch (error) {
+                    console.error('Failed to play cached audio:', error);
+                    showMessage('播放語音失敗', 'error');
+                  } finally {
+                    playBtn.textContent = originalText;
+                    playBtn.disabled = false;
+                  }
+                });
+              }
+            }, 100);
+          }
+          return; // Exit early since we found cached audio
+        }
+      }
+      
+      // If no cached audio, show service status
       if (aiService && aiService.isAudioAvailable()) {
-        console.log('Showing audio section - audio is available');
-        audioSection.style.display = 'block';
+        console.log('Showing audio section - audio service available but no cached audio');
+        if (audioContent) {
+          audioContent.innerHTML = `
+            <div class="audio-info">
+              🎵 語音功能已啟用
+              <br><small style="color: #666;">語音將在生成後自動顯示</small>
+            </div>
+          `;
+        }
       } else {
-        console.log('Audio section hidden - audio not available or service not ready');
-        // Show audio section anyway but with a disabled state or message
-        audioSection.style.display = 'block';
-        const audioContent = document.getElementById('audioContent');
+        console.log('Audio section shown with service status message');
         if (audioContent) {
           if (!aiService) {
             if (window.SecurityFixes) {
@@ -3177,6 +3270,109 @@ async function playReportAudio(reportId) {
   } catch (error) {
     console.error('Failed to play report audio:', error);
     showMessage('播放語音失敗', 'error');
+  }
+}
+
+// Play audio from history (cached audio)
+async function playHistoryAudio(text, language, buttonElement) {
+  try {
+    // Check if we have cached audio first
+    const cachedAudio = getCachedAudio(text, language);
+    
+    if (cachedAudio && cachedAudio.audioUrl) {
+      console.log('🔊 Playing cached audio from history:', text);
+      
+      // Show feedback on button
+      const originalText = buttonElement.textContent;
+      buttonElement.textContent = '播放中...';
+      buttonElement.disabled = true;
+      
+      const audio = new Audio(cachedAudio.blobUrl || cachedAudio.audioUrl);
+      
+      audio.onended = () => {
+        buttonElement.textContent = originalText;
+        buttonElement.disabled = false;
+      };
+      
+      audio.onerror = () => {
+        buttonElement.textContent = originalText;
+        buttonElement.disabled = false;
+        showMessage('語音播放失敗', 'error');
+      };
+      
+      await audio.play();
+      console.log('✅ History audio playing:', text);
+      
+    } else {
+      // Try to check saved reports for audio
+      if (storageManager) {
+        const reports = await storageManager.getAIReports({
+          language: language,
+          searchText: text
+        });
+        
+        const exactMatch = reports.find(report => 
+          report.searchText.toLowerCase() === text.toLowerCase() && 
+          report.language === language &&
+          report.audioData && report.audioData.audioUrl
+        );
+        
+        if (exactMatch) {
+          console.log('🔊 Playing audio from saved report for history:', text);
+          
+          // Show feedback on button
+          const originalText = buttonElement.textContent;
+          buttonElement.textContent = '播放中...';
+          buttonElement.disabled = true;
+          
+          const audio = new Audio(exactMatch.audioData.audioUrl);
+          
+          audio.onended = () => {
+            buttonElement.textContent = originalText;
+            buttonElement.disabled = false;
+          };
+          
+          audio.onerror = () => {
+            buttonElement.textContent = originalText;
+            buttonElement.disabled = false;
+            showMessage('語音播放失敗', 'error');
+          };
+          
+          await audio.play();
+          console.log('✅ History audio from saved report playing:', text);
+          
+          // Also cache this audio for future use
+          const cacheKey = `${text.toLowerCase()}_${language}`;
+          const cachedAudioData = {
+            text: text,
+            language: language,
+            audioUrl: exactMatch.audioData.audioUrl,
+            blobUrl: exactMatch.audioData.audioUrl,
+            size: exactMatch.audioData.size || 0,
+            voice: exactMatch.audioData.voice || 'OpenAI TTS',
+            timestamp: Date.now()
+          };
+          window.audioCache.set(cacheKey, cachedAudioData);
+          
+        } else {
+          // No audio available - try to generate it
+          console.log('⚠️ No cached or saved audio found, generating new audio:', text);
+          await generateOpenAIAudio(text, language, true);
+        }
+      } else {
+        showMessage('此歷史項目沒有語音數據', 'warning');
+      }
+    }
+    
+  } catch (error) {
+    console.error('Failed to play history audio:', error);
+    showMessage('播放語音失敗', 'error');
+    
+    // Reset button state
+    if (buttonElement) {
+      buttonElement.textContent = '🔊';
+      buttonElement.disabled = false;
+    }
   }
 }
 
@@ -6494,6 +6690,11 @@ async function generateOpenAIAudio(text, language, playImmediately = true) {
     window.audioCache.set(cacheKey, audioData);
     console.log('💾 Cached audio for:', text, 'size:', Math.round(audioBlob.size / 1024), 'KB');
     
+    // Update audio section if it's currently displayed for this query
+    if (currentQueryData?.text === text && currentQueryData?.language === language) {
+      updateAudioSection();
+    }
+    
     if (playImmediately) {
       return await playCachedAudio(audioData);
     } else {
@@ -6553,6 +6754,61 @@ function blobToDataURL(blob) {
     reader.onloadend = () => resolve(reader.result);
     reader.readAsDataURL(blob);
   });
+}
+
+// Update audio section when new audio becomes available
+function updateAudioSection() {
+  const audioSection = document.getElementById('aiAudioSection');
+  const audioContent = document.getElementById('audioContent');
+  
+  if (!audioSection || !audioContent || !currentQueryData?.text || !currentQueryData?.language) {
+    return;
+  }
+  
+  const cachedAudio = getCachedAudio(currentQueryData.text, currentQueryData.language);
+  
+  if (cachedAudio && cachedAudio.audioUrl) {
+    console.log('🔄 Updating audio section with newly cached audio');
+    
+    audioContent.innerHTML = `
+      <div class="audio-ready">
+        ✅ 語音已準備 (${Math.round((cachedAudio.size || 0) / 1024)} KB) - ${cachedAudio.voice || 'OpenAI TTS'}
+        <br>
+        <button id="playCachedAudioBtn" style="
+          background: #1976d2; 
+          color: white; 
+          border: none; 
+          padding: 8px 16px; 
+          border-radius: 4px; 
+          cursor: pointer; 
+          margin: 8px 0;
+          font-size: 14px;
+        ">🔊 播放語音</button>
+      </div>
+    `;
+    
+    // Add event listener for the play button
+    setTimeout(() => {
+      const playBtn = document.getElementById('playCachedAudioBtn');
+      if (playBtn) {
+        playBtn.addEventListener('click', async () => {
+          const originalText = playBtn.textContent;
+          playBtn.textContent = '播放中...';
+          playBtn.disabled = true;
+          
+          try {
+            await playCachedAudio(cachedAudio);
+          } catch (error) {
+            console.error('Failed to play cached audio:', error);
+            showMessage('播放語音失敗', 'error');
+          } finally {
+            playBtn.textContent = originalText;
+            playBtn.disabled = false;
+          }
+        });
+      }
+    }, 100);
+  }
 }
 
 // Get cached audio for flashcard creation
