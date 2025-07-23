@@ -1767,18 +1767,46 @@ function showAIResult(analysis) {
   updateAutoSaveButtonUI();
 }
 
-// Format AI analysis for better readability
+// Format AI analysis for better readability (render markdown for display)
 function formatAIAnalysis(content) {
   if (!content) return '';
   
-  // Simply escape HTML and preserve line breaks
+  // First escape HTML to prevent XSS
   let formatted = content
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
+    .replace(/>/g, '&gt;');
+  
+  // Render markdown formatting for better display
+  formatted = formatted
+    // Headers (##, ###, ####)
+    .replace(/^####\s+(.+)$/gm, '<h4 style="color: #1976d2; font-size: 16px; font-weight: 600; margin: 16px 0 8px 0; border-bottom: 1px solid #e0e0e0; padding-bottom: 4px;">$1</h4>')
+    .replace(/^###\s+(.+)$/gm, '<h3 style="color: #1976d2; font-size: 18px; font-weight: 600; margin: 20px 0 12px 0; border-bottom: 2px solid #e0e0e0; padding-bottom: 6px;">$1</h3>')
+    .replace(/^##\s+(.+)$/gm, '<h2 style="color: #1565c0; font-size: 20px; font-weight: 700; margin: 24px 0 16px 0; border-bottom: 2px solid #1976d2; padding-bottom: 8px;">$1</h2>')
+    .replace(/^#\s+(.+)$/gm, '<h1 style="color: #0d47a1; font-size: 24px; font-weight: 700; margin: 32px 0 20px 0; border-bottom: 3px solid #1976d2; padding-bottom: 10px;">$1</h1>')
+    
+    // Bold text (**text**)
+    .replace(/\*\*([^*]+)\*\*/g, '<strong style="font-weight: 600; color: #1976d2;">$1</strong>')
+    
+    // Italic text (*text*)
+    .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em style="font-style: italic; color: #666;">$1</em>')
+    
+    // Code blocks (```code```)
+    .replace(/```([^`]+)```/g, '<pre style="background: #f5f5f5; padding: 12px; border-radius: 6px; border-left: 4px solid #1976d2; margin: 12px 0; font-family: monospace; overflow-x: auto; font-size: 13px;"><code>$1</code></pre>')
+    
+    // Inline code (`code`)
+    .replace(/`([^`]+)`/g, '<code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 13px; color: #d32f2f;">$1</code>')
+    
+    // Unordered list items (- item)
+    .replace(/^-\s+(.+)$/gm, '<li style="margin: 4px 0; padding-left: 8px; color: #333;">$1</li>')
+    
+    // Convert consecutive list items into proper ul tags
+    .replace(/(<li[^>]*>.*<\/li>\s*)+/gs, '<ul style="margin: 8px 0; padding-left: 20px; list-style-type: disc;">$&</ul>')
+    
+    // Line breaks
     .replace(/\n/g, '<br>');
   
-  return `<div style="color: #333; font-size: 14px; line-height: 1.6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;">${formatted}</div>`;
+  return `<div style="color: #333; font-size: 14px; line-height: 1.6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; max-width: 100%; word-wrap: break-word;">${formatted}</div>`;
 }
 
 // 顯示 AI 錯誤
