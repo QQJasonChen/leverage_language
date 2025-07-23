@@ -1195,6 +1195,24 @@
             font-weight: 500;
         }
         
+        .error-badge {
+            background: #f44336;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .correct-badge {
+            background: #4caf50;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
         .report-actions {
             display: flex;
             gap: 4px;
@@ -3208,6 +3226,69 @@
             padding: 16px;
             color: #d93025;
         }
+        
+        /* Status badges for error detection */
+        .status-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 500;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        
+        .status-badge.correct {
+            background-color: #e8f5e8;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+        
+        .status-badge.error {
+            background-color: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
+        }
+        
+        /* Filter buttons for history */
+        .history-filters {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding: 0 16px;
+        }
+        
+        .filter-btn {
+            padding: 4px 8px;
+            border: 1px solid #dadce0;
+            background: #f8f9fa;
+            color: #5f6368;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .filter-btn:hover {
+            background: #e8eaed;
+        }
+        
+        .filter-btn.active {
+            background: #1a73e8;
+            color: white;
+            border-color: #1a73e8;
+        }
+        
+        .filter-btn.error-filter.active {
+            background: #d93025;
+            border-color: #d93025;
+        }
+        
+        .filter-btn.correct-filter.active {
+            background: #188038;
+            border-color: #188038;
+        }
     </style>
 </head>
 <body>
@@ -3381,6 +3462,9 @@
                             <button id="autoSaveToggleBtn" class="ai-button secondary auto-save-toggle active" data-i18n="auto_save_on" title="Click to toggle auto-save">
                                 💾 Auto-Save
                             </button>
+                            <button id="errorDetectionToggleBtn" class="ai-button secondary error-detection-toggle" title="啟用錯誤檢測功能（會增加分析時間）">
+                                🔍 錯誤檢測
+                            </button>
                             <button id="manualSaveBtn" class="ai-button primary" style="display: none;" data-i18n="save_this_report" title="Save this analysis to your saved reports">
                                 💾 Save This Report
                             </button>
@@ -3495,6 +3579,14 @@
                         </select>
                         <button id="clearHistoryBtn" class="clear-btn" data-i18n="clear_history">Clear History</button>
                     </div>
+                    
+                    <!-- Error status filters -->
+                    <div class="history-filters">
+                        <button id="filterAllBtn" class="filter-btn active" data-filter="all">全部</button>
+                        <button id="filterCorrectBtn" class="filter-btn correct-filter" data-filter="correct">✅ 正確</button>
+                        <button id="filterErrorBtn" class="filter-btn error-filter" data-filter="error">❌ 錯誤</button>
+                        <button id="filterUnanalyzedBtn" class="filter-btn" data-filter="unanalyzed">🔍 未分析</button>
+                    </div>
                 </div>
                 
                 <div class="history-stats" id="historyStats">
@@ -3559,6 +3651,16 @@
                         <button id="cleanupDuplicatesBtn" class="cleanup-btn">🗂️ Clean Duplicates</button>
                         <button id="createAllFlashcardsBtn" class="flashcard-bulk-btn">🃏 Create All Flashcards</button>
                         <button id="syncToNotionBtn" class="notion-sync-btn">📄 Sync to Notion</button>
+                        <button id="reAnalyzeReportsBtn" class="re-analyze-btn" title="重新分析所有報告的錯誤狀態">🔄 Re-analyze Errors</button>
+                        <button id="debugReportsBtn" class="debug-btn" title="顯示錯誤檢測除錯資訊">🐛 Debug Status</button>
+                    </div>
+                    
+                    <!-- Error status filters for saved reports -->
+                    <div class="history-filters">
+                        <button id="reportsFilterAllBtn" class="filter-btn active" data-filter="all">全部</button>
+                        <button id="reportsFilterCorrectBtn" class="filter-btn correct-filter" data-filter="correct">✅ 正確</button>
+                        <button id="reportsFilterErrorBtn" class="filter-btn error-filter" data-filter="error">❌ 錯誤</button>
+                        <button id="reportsFilterUnanalyzedBtn" class="filter-btn" data-filter="unanalyzed">🔍 未分析</button>
                     </div>
                 </div>
                 

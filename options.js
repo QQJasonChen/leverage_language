@@ -30,7 +30,7 @@ function loadSettings() {
   chrome.storage.sync.get([
     'uiLanguage', 'defaultLanguage', 'openMethod', 'preferredLanguage', 'uncertaintyHandling',
     'aiEnabled', 'autoAnalysis', 'aiProvider', 'apiKey', 'pronunciationGuide', 'wordExplanation', 
-    'grammarAnalysis', 'culturalContext', 'audioPronunciation', 'ttsVoice', 
+    'grammarAnalysis', 'culturalContext', 'errorDetection', 'audioPronunciation', 'ttsVoice', 
     'speechSpeed', 'autoPlayAudio'
   ], (result) => {
     document.getElementById('uiLanguage').value = result.uiLanguage || 'auto';
@@ -48,6 +48,7 @@ function loadSettings() {
     document.getElementById('wordExplanation').checked = result.wordExplanation !== false;
     document.getElementById('grammarAnalysis').checked = result.grammarAnalysis || false;
     document.getElementById('culturalContext').checked = result.culturalContext || false;
+    document.getElementById('errorDetection').checked = result.errorDetection || false; // Default to false
     document.getElementById('audioPronunciation').checked = result.audioPronunciation !== false; // Default to true
     
     // 語音設定
@@ -74,6 +75,7 @@ function saveSettings() {
   const wordExplanation = document.getElementById('wordExplanation').checked;
   const grammarAnalysis = document.getElementById('grammarAnalysis').checked;
   const culturalContext = document.getElementById('culturalContext').checked;
+  const errorDetection = document.getElementById('errorDetection').checked;
   const audioPronunciation = document.getElementById('audioPronunciation').checked;
   
   // 語音設定
@@ -103,6 +105,7 @@ function saveSettings() {
     wordExplanation: wordExplanation,
     grammarAnalysis: grammarAnalysis,
     culturalContext: culturalContext,
+    errorDetection: errorDetection,
     audioPronunciation: audioPronunciation,
     ttsVoice: ttsVoice,
     speechSpeed: speechSpeed,

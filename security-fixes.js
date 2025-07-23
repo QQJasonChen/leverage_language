@@ -56,6 +56,23 @@ function safeCreateHistoryItem(item, historyData) {
   // Create header section
   const header = safeCreateElement('div', '', 'history-item-header');
   const textDiv = safeCreateElement('div', historyData.text, 'history-text');
+  
+  // Add error status badge if available
+  if (historyData.hasErrors !== null) {
+    const statusBadge = safeCreateElement('span', '', 'status-badge');
+    if (historyData.isCorrect) {
+      statusBadge.textContent = '✅ 正確';
+      statusBadge.classList.add('correct');
+    } else if (historyData.hasErrors) {
+      statusBadge.textContent = '❌ 錯誤';
+      statusBadge.classList.add('error');
+      if (historyData.errorCount > 0) {
+        statusBadge.textContent += ` (${historyData.errorCount})`;
+      }
+    }
+    textDiv.appendChild(statusBadge);
+  }
+  
   const actionsDiv = safeCreateElement('div', '', 'history-actions');
   
   // Create replay button

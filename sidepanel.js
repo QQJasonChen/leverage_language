@@ -18,7 +18,7 @@ const log = (...args) => {
 
 // Safe error handling wrapper
 const handleError = async (error, context = {}) => {
-  if (typeof window !== 'undefined' && window.globalErrorHandler) {
+  if (typeof window !== 'undefined' && window.globalErrorHandler && typeof window.globalErrorHandler.handleError === 'function') {
     return await window.globalErrorHandler.handleError(error, context);
   }
   console.error('Error:', error);
@@ -980,14 +980,20 @@ async function loadHistoryView() {
   log('Loading history view...');
   
   try {
-    // Use chrome.runtime.sendMessage to get history from background script's HistoryManager
-    const response = await new Promise((resolve) => {
-      chrome.runtime.sendMessage({ action: 'getHistory' }, resolve);
-    });
+    // Get both history and AI reports to match error status
+    const [historyResponse, reportsResponse] = await Promise.all([
+      new Promise((resolve) => {
+        chrome.runtime.sendMessage({ action: 'getHistory' }, resolve);
+      }),
+      storageManager ? storageManager.getAIReports() : Promise.resolve([])
+    ]);
     
-    if (response && response.success) {
-      const history = response.history || [];
+    if (historyResponse && historyResponse.success) {
+      const history = historyResponse.history || [];
+      const reports = reportsResponse || [];
+      
       log('Loaded history from HistoryManager:', history.length, 'items');
+      log('Loaded AI reports for error status:', reports.length, 'items');
       
       if (history.length === 0) {
         // Show empty state
@@ -1012,15 +1018,42 @@ async function loadHistoryView() {
       // Hide empty state
       if (historyEmpty) historyEmpty.style.display = 'none';
       
-      // Update stats
+      // Match history items with AI reports to get error status
+      const historyWithErrorStatus = history.map(historyItem => {
+        // Find matching AI report by text and language
+        const matchingReport = reports.find(report => 
+          report.searchText.toLowerCase().trim() === historyItem.text.toLowerCase().trim() &&
+          report.language.toLowerCase() === historyItem.language.toLowerCase()
+        );
+        
+        return {
+          ...historyItem,
+          hasErrors: matchingReport ? matchingReport.hasErrors : null,
+          isCorrect: matchingReport ? matchingReport.isCorrect : null,
+          errorTypes: matchingReport ? matchingReport.errorTypes : [],
+          errorCount: matchingReport ? matchingReport.errorCount : 0
+        };
+      });
+      
+      // Update stats with error information
       if (historyStats) {
-        const totalQueries = history.reduce((sum, item) => sum + (item.queryCount || 1), 0);
+        const totalQueries = historyWithErrorStatus.reduce((sum, item) => sum + (item.queryCount || 1), 0);
         const languageStats = {};
-        history.forEach(item => {
+        historyWithErrorStatus.forEach(item => {
           languageStats[item.language] = (languageStats[item.language] || 0) + 1;
         });
         
-        const statsText = `📊 總共 ${history.length} 個搜尋詞，${totalQueries} 次查詢 | 語言分布: ${Object.entries(languageStats).map(([lang, count]) => `${languageNames[lang] || lang}: ${count}`).join(', ')}`;
+        // Add error statistics
+        const itemsWithAnalysis = historyWithErrorStatus.filter(item => item.hasErrors !== null);
+        const correctItems = itemsWithAnalysis.filter(item => item.isCorrect);
+        const errorItems = itemsWithAnalysis.filter(item => item.hasErrors);
+        
+        let statsText = `📊 總共 ${historyWithErrorStatus.length} 個搜尋詞，${totalQueries} 次查詢`;
+        if (itemsWithAnalysis.length > 0) {
+          statsText += ` | ✅ 正確: ${correctItems.length} ❌ 錯誤: ${errorItems.length}`;
+        }
+        statsText += ` | 語言分布: ${Object.entries(languageStats).map(([lang, count]) => `${languageNames[lang] || lang}: ${count}`).join(', ')}`;
+        
         if (window.SecurityFixes) {
           window.SecurityFixes.safeUpdateStats(historyStats, statsText);
         } else {
@@ -1028,8 +1061,13 @@ async function loadHistoryView() {
         }
       }
       
-      // Display history items using the new format
-      displayHistoryItems(history);
+      // Store history data for filtering
+      if (window.setCurrentHistoryData) {
+        window.setCurrentHistoryData(historyWithErrorStatus);
+      }
+      
+      // Display history items with error status
+      displayHistoryItems(historyWithErrorStatus);
       
     } else {
       console.error('Failed to load history:', response?.error);
@@ -1149,7 +1187,7 @@ function displayHistoryItems(queries) {
     const detectionMethod = query.detectionMethod || 'auto';
     const websitesUsed = query.websitesUsed || [];
     
-    // Create history item using SecurityUtils
+    // Create history item using SecurityUtils with error status
     if (window.SecurityFixes) {
       window.SecurityFixes.safeCreateHistoryItem(item, {
         text: query.text || 'Unknown',
@@ -1158,7 +1196,12 @@ function displayHistoryItems(queries) {
         queryCount: queryCount,
         detectionMethod: detectionMethod,
         websitesUsed: websitesUsed,
-        id: query.id
+        id: query.id,
+        // Error status information
+        hasErrors: query.hasErrors,
+        isCorrect: query.isCorrect,
+        errorTypes: query.errorTypes,
+        errorCount: query.errorCount
       });
     } else {
       // Fallback to innerHTML (unsafe)
@@ -2338,6 +2381,26 @@ async function loadSavedReports() {
     if (storageManager && typeof storageManager.getAIReports === 'function') {
       reports = await storageManager.getAIReports();
       console.log('Loaded reports from storage manager:', reports);
+      
+      // Check if we need to re-analyze reports (detect reports with missing error analysis)
+      const needsReAnalysis = reports.some(report => 
+        report.analysisData && (report.hasErrors === undefined || report.hasErrors === null)
+      );
+      
+      console.log('🔍 Checking if re-analysis needed:', needsReAnalysis);
+      console.log('🔍 Reports without error analysis:', reports.filter(r => 
+        r.analysisData && (r.hasErrors === undefined || r.hasErrors === null)
+      ).map(r => ({ text: r.searchText, hasErrors: r.hasErrors })));
+      
+      if (needsReAnalysis && storageManager.reAnalyzeAllReports) {
+        console.log('🔄 Re-analyzing existing reports with updated error detection...');
+        const result = await storageManager.reAnalyzeAllReports();
+        if (result.success && result.updatedCount > 0) {
+          console.log(`✅ Updated ${result.updatedCount} reports`);
+          // Reload reports after re-analysis
+          reports = await storageManager.getAIReports();
+        }
+      }
     } else {
       // Fallback: get reports directly from storage
       console.log('Using fallback storage method');
@@ -2360,13 +2423,28 @@ async function loadSavedReports() {
     if (reportsEmpty) reportsEmpty.style.display = 'none';
     if (reportsList) reportsList.style.display = 'block';
     
-    // Update stats
+    // Update stats with error information
     if (reportsStats) {
-      reportsStats.innerHTML = `<p>📊 Total reports: ${reports.length}</p>`;
+      const correctItems = reports.filter(report => report.isCorrect === true);
+      const errorItems = reports.filter(report => report.hasErrors === true);
+      const unanalyzedItems = reports.filter(report => report.hasErrors === null);
+      
+      let statsText = `📊 總共 ${reports.length} 個分析報告`;
+      if (correctItems.length > 0 || errorItems.length > 0) {
+        statsText += ` | ✅ 正確: ${correctItems.length} ❌ 錯誤: ${errorItems.length}`;
+        if (unanalyzedItems.length > 0) {
+          statsText += ` 🔍 未分析: ${unanalyzedItems.length}`;
+        }
+      }
+      
+      reportsStats.innerHTML = `<p>${statsText}</p>`;
     }
     
     // Populate tag filter dropdown
     populateTagFilter(reports);
+    
+    // Initialize saved reports filters
+    initializeSavedReportsFilters(reports);
     
     // Generate reports HTML with improved design and buttons
     if (reportsList) {
@@ -2386,6 +2464,10 @@ async function loadSavedReports() {
                   <span class="report-language">${languageNames[report.language] || report.language.toUpperCase()}</span>
                   ${report.favorite ? '<span class="favorite-badge">⭐ 最愛</span>' : ''}
                   ${report.audioData ? `<span class="audio-badge" data-report-id="${report.id}" style="cursor: pointer;" title="點擊播放語音">🔊 語音</span>` : ''}
+                  ${report.hasErrors ? 
+                    `<span class="error-badge" title="檢測到錯誤：${report.errorTypes ? report.errorTypes.join(', ') : ''}">❌ 有錯誤</span>` : 
+                    report.isCorrect === true ? '<span class="correct-badge" title="語法正確">✅ 正確</span>' : ''
+                  }
                 </div>
               </div>
               <div class="report-actions">
@@ -2989,6 +3071,72 @@ function updateAutoSaveButtonUI() {
   }
 }
 
+// 錯誤檢測狀態變數
+let errorDetectionEnabled = false;
+
+// 載入錯誤檢測設定
+async function loadErrorDetectionSetting() {
+  try {
+    const result = await new Promise((resolve) => {
+      chrome.storage.sync.get(['errorDetection'], (data) => {
+        resolve(data.errorDetection === true);
+      });
+    });
+    
+    errorDetectionEnabled = result;
+    updateErrorDetectionButtonUI();
+  } catch (error) {
+    console.error('Failed to load error detection setting:', error);
+    errorDetectionEnabled = false; // Default to disabled
+    updateErrorDetectionButtonUI();
+  }
+}
+
+// 切換錯誤檢測功能
+async function toggleErrorDetection() {
+  try {
+    errorDetectionEnabled = !errorDetectionEnabled;
+    
+    // Save to storage
+    await new Promise((resolve) => {
+      chrome.storage.sync.set({ errorDetection: errorDetectionEnabled }, resolve);
+    });
+    
+    updateErrorDetectionButtonUI();
+    console.log('Error detection toggled:', errorDetectionEnabled ? 'ON' : 'OFF');
+    
+    // Reinitialize AI service to pick up the new setting
+    if (window.aiService) {
+      await window.aiService.initialize();
+    }
+    
+  } catch (error) {
+    console.error('Failed to toggle error detection:', error);
+    // Revert on error
+    errorDetectionEnabled = !errorDetectionEnabled;
+    updateErrorDetectionButtonUI();
+  }
+}
+
+// 更新錯誤檢測按鈕 UI
+function updateErrorDetectionButtonUI() {
+  const errorDetectionBtn = document.getElementById('errorDetectionToggleBtn');
+  
+  if (!errorDetectionBtn) return;
+  
+  if (errorDetectionEnabled) {
+    errorDetectionBtn.classList.add('active');
+    errorDetectionBtn.classList.remove('inactive');
+    errorDetectionBtn.textContent = '🔍 錯誤檢測 ✓';
+    errorDetectionBtn.title = '錯誤檢測已啟用（會增加分析時間）- 點擊關閉';
+  } else {
+    errorDetectionBtn.classList.remove('active');
+    errorDetectionBtn.classList.add('inactive');
+    errorDetectionBtn.textContent = '🔍 錯誤檢測';
+    errorDetectionBtn.title = '啟用錯誤檢測功能（會增加分析時間）- 點擊啟用';
+  }
+}
+
 // Manual save function for when auto-save is disabled
 async function manualSaveReport() {
   if (!currentAIAnalysis || !currentQueryData.text || !currentQueryData.language) {
@@ -3445,6 +3593,171 @@ function initializeTTSVoices() {
       });
     });
   }
+
+  // Initialize error status filter buttons
+  initializeHistoryFilters();
+}
+
+// Initialize error status filter functionality
+function initializeHistoryFilters() {
+  const filterButtons = document.querySelectorAll('.filter-btn');
+  let currentHistoryData = [];
+  
+  filterButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      // Remove active class from all buttons
+      filterButtons.forEach(btn => btn.classList.remove('active'));
+      // Add active class to clicked button
+      button.classList.add('active');
+      
+      const filterType = button.getAttribute('data-filter');
+      applyHistoryFilter(filterType, currentHistoryData);
+    });
+  });
+  
+  // Store reference to history data when it's loaded
+  window.setCurrentHistoryData = (data) => {
+    currentHistoryData = data;
+  };
+}
+
+// Apply filter to history items
+function applyHistoryFilter(filterType, historyData) {
+  if (!historyData || historyData.length === 0) {
+    return;
+  }
+  
+  let filteredData = [];
+  
+  switch (filterType) {
+    case 'all':
+      filteredData = historyData;
+      break;
+    case 'correct':
+      filteredData = historyData.filter(item => item.isCorrect === true);
+      break;
+    case 'error':
+      filteredData = historyData.filter(item => item.hasErrors === true);
+      break;
+    case 'unanalyzed':
+      filteredData = historyData.filter(item => item.hasErrors === null);
+      break;
+    default:
+      filteredData = historyData;
+  }
+  
+  displayHistoryItems(filteredData);
+}
+
+// Initialize saved reports filter functionality
+function initializeSavedReportsFilters(reports) {
+  const filterButtons = document.querySelectorAll('[id^="reportsFilter"]');
+  
+  filterButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      // Remove active class from all buttons
+      filterButtons.forEach(btn => btn.classList.remove('active'));
+      // Add active class to clicked button
+      button.classList.add('active');
+      
+      const filterType = button.getAttribute('data-filter');
+      applySavedReportsFilter(filterType, reports);
+    });
+  });
+}
+
+// Apply filter to saved reports
+function applySavedReportsFilter(filterType, reports) {
+  if (!reports || reports.length === 0) {
+    return;
+  }
+  
+  let filteredReports = [];
+  
+  switch (filterType) {
+    case 'all':
+      filteredReports = reports;
+      break;
+    case 'correct':
+      filteredReports = reports.filter(report => report.isCorrect === true);
+      break;
+    case 'error':
+      filteredReports = reports.filter(report => report.hasErrors === true);
+      break;
+    case 'unanalyzed':
+      filteredReports = reports.filter(report => report.hasErrors === null);
+      break;
+    default:
+      filteredReports = reports;
+  }
+  
+  // Re-render the reports list with filtered data
+  displayFilteredSavedReports(filteredReports);
+}
+
+// Display filtered saved reports
+function displayFilteredSavedReports(reports) {
+  const reportsList = document.getElementById('savedReportsList');
+  if (!reportsList) return;
+  
+  if (reports.length === 0) {
+    reportsList.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">沒有符合篩選條件的報告</div>';
+    return;
+  }
+  
+  // Generate reports HTML (same as in loadSavedReports)
+  reportsList.innerHTML = reports.map(report => {
+    const truncatedAnalysis = typeof report.analysisData === 'string' 
+      ? report.analysisData.substring(0, 150) + (report.analysisData.length > 150 ? '...' : '')
+      : (report.analysisData && report.analysisData.content 
+          ? report.analysisData.content.substring(0, 150) + (report.analysisData.content.length > 150 ? '...' : '')
+          : 'No analysis preview available');
+    
+    return `
+      <div class="saved-report-item" data-report-id="${report.id}">
+        <div class="saved-report-header">
+          <div class="report-main-info">
+            <span class="report-text">${report.searchText}</span>
+            <div class="report-badges">
+              <span class="report-language">${languageNames[report.language] || report.language.toUpperCase()}</span>
+              ${report.favorite ? '<span class="favorite-badge">⭐ 最愛</span>' : ''}
+              ${report.audioData ? `<span class="audio-badge" data-report-id="${report.id}" style="cursor: pointer;" title="點擊播放語音">🔊 語音</span>` : ''}
+              ${report.hasErrors ? 
+                `<span class="error-badge" title="檢測到錯誤：${report.errorTypes ? report.errorTypes.join(', ') : ''}">❌ 有錯誤</span>` : 
+                report.isCorrect === true ? '<span class="correct-badge" title="語法正確">✅ 正確</span>' : ''
+              }
+            </div>
+          </div>
+          <div class="report-actions">
+            <button class="report-action-btn create-flashcard-btn" data-id="${report.id}" title="建立記憶卡">
+              🃏
+            </button>
+            <button class="report-action-btn favorite-btn ${report.favorite ? 'active' : ''}" data-id="${report.id}" title="${report.favorite ? '取消最愛' : '加入最愛'}">
+              ${report.favorite ? '⭐' : '☆'}
+            </button>
+            <button class="report-action-btn edit-tags-btn" data-id="${report.id}" title="編輯標籤">
+              🏷️
+            </button>
+            <button class="report-action-btn delete-btn" data-id="${report.id}" title="刪除報告">
+              🗑️
+            </button>
+          </div>
+        </div>
+        <div class="saved-report-meta">
+          <span class="report-date">${new Date(report.timestamp).toLocaleDateString('zh-TW')}</span>
+          ${report.tags && report.tags.length > 0 ? `<span class="report-tags">${report.tags.map(tag => `<span class="tag-chip">#${tag}</span>`).join('')}</span>` : ''}
+        </div>
+        <div class="saved-report-preview">
+          <p>${truncatedAnalysis}</p>
+        </div>
+        <div class="saved-report-actions">
+          <button class="action-button show-full-btn" data-id="${report.id}">📖 查看完整分析</button>
+          <button class="action-button secondary export-single-btn" data-id="${report.id}">📧 Email Export</button>
+          <button class="action-button secondary replay-btn" data-text="${report.searchText}" data-language="${report.language}">🔄 Replay</button>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 // Initialize all buttons and features
@@ -3524,6 +3837,94 @@ document.addEventListener('DOMContentLoaded', () => {
     loadAutoSaveSetting();
     
     autoSaveToggleBtn.addEventListener('click', () => toggleAutoSave());
+  }
+  
+  // Error detection toggle button
+  const errorDetectionToggleBtn = document.getElementById('errorDetectionToggleBtn');
+  if (errorDetectionToggleBtn) {
+    // Load current error detection setting
+    loadErrorDetectionSetting();
+    
+    errorDetectionToggleBtn.addEventListener('click', () => toggleErrorDetection());
+  }
+  
+  // Re-analyze reports button
+  const reAnalyzeReportsBtn = document.getElementById('reAnalyzeReportsBtn');
+  if (reAnalyzeReportsBtn) {
+    reAnalyzeReportsBtn.addEventListener('click', async () => {
+      if (!storageManager || !storageManager.reAnalyzeAllReports) {
+        alert('Storage manager not available');
+        return;
+      }
+      
+      const originalText = reAnalyzeReportsBtn.textContent;
+      reAnalyzeReportsBtn.textContent = '🔄 分析中...';
+      reAnalyzeReportsBtn.disabled = true;
+      
+      try {
+        const result = await storageManager.reAnalyzeAllReports();
+        if (result.success) {
+          alert(`✅ 重新分析完成！更新了 ${result.updatedCount} 個報告的錯誤狀態`);
+          // Reload the saved reports view
+          loadSavedReports();
+        } else {
+          alert(`❌ 重新分析失敗：${result.error}`);
+        }
+      } catch (error) {
+        console.error('Re-analysis error:', error);
+        alert(`❌ 重新分析失敗：${error.message}`);
+      } finally {
+        reAnalyzeReportsBtn.textContent = originalText;
+        reAnalyzeReportsBtn.disabled = false;
+      }
+    });
+  }
+  
+  // Debug reports button
+  const debugReportsBtn = document.getElementById('debugReportsBtn');
+  if (debugReportsBtn) {
+    debugReportsBtn.addEventListener('click', async () => {
+      if (!storageManager) {
+        alert('Storage manager not available');
+        return;
+      }
+      
+      try {
+        const reports = await storageManager.getAIReports();
+        console.log('🐛 DEBUG: All reports:', reports);
+        
+        // Find reports with Dutch sentences containing "one" and "at"
+        const testReports = reports.filter(r => 
+          r.language === 'dutch' && 
+          (r.searchText.includes('one') || r.searchText.includes('at'))
+        );
+        
+        console.log('🐛 DEBUG: Test reports (Dutch with English words):', testReports);
+        
+        testReports.forEach(report => {
+          console.log('🐛 Report:', report.searchText);
+          console.log('  hasErrors:', report.hasErrors);
+          console.log('  isCorrect:', report.isCorrect);
+          console.log('  errorTypes:', report.errorTypes);
+          console.log('  analysisData preview:', report.analysisData?.substring(0, 200));
+          
+          // Re-test error analysis
+          if (report.analysisData && storageManager.analyzeForErrors && typeof storageManager.analyzeForErrors === 'function') {
+            try {
+              const freshAnalysis = storageManager.analyzeForErrors(report.analysisData);
+              console.log('  🧪 Fresh analysis result:', freshAnalysis);
+            } catch (analysisError) {
+              console.error('  ❌ Error running fresh analysis:', analysisError);
+            }
+          }
+        });
+        
+        alert(`Debug info logged to console. Found ${testReports.length} Dutch reports with English words.`);
+      } catch (error) {
+        console.error('Debug error:', error);
+        alert('Debug failed: ' + error.message);
+      }
+    });
   }
   
   // Manual save button
