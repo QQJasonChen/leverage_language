@@ -1184,13 +1184,13 @@ function displayHistoryItems(queries) {
     const deleteButton = item.querySelector('.history-action-btn.delete');
     
     if (replayButton) {
-      replayButton.addEventListener('click', (e) => {
+      replayButton.addEventListener('click', async (e) => {
         e.stopPropagation();
         const text = replayButton.dataset.text;
         const language = replayButton.dataset.language;
         console.log('Replaying query:', { text, language });
         if (text && language) {
-          replayQuery(text, language);
+          await replayQuery(text, language);
         }
       });
     }
@@ -1220,12 +1220,12 @@ function displayHistoryItems(queries) {
     }
     
     // Make the whole item clickable (except buttons)
-    item.addEventListener('click', (e) => {
+    item.addEventListener('click', async (e) => {
       if (!e.target.classList.contains('history-action-btn')) {
         const text = query.text;
         const language = query.language;
         if (text && language) {
-          replayQuery(text, language);
+          await replayQuery(text, language);
         }
       }
     });
@@ -1235,12 +1235,40 @@ function displayHistoryItems(queries) {
 }
 
 // 重播查詢
-function replayQuery(text, language, url) {
+async function replayQuery(text, language, url) {
   console.log('Replaying query:', { text, language, url });
   
   // If no URL, create a default YouGlish URL
   if (!url) {
     url = `https://youglish.com/pronounce/${encodeURIComponent(text)}/${language}`;
+  }
+  
+  // Check for existing AI analysis first
+  let existingAnalysis = null;
+  let autoAnalysis = true;
+  
+  try {
+    if (storageManager) {
+      const reports = await storageManager.getAIReports({
+        language: language,
+        searchText: text
+      });
+      
+      // Find exact match for the text and language
+      const exactMatch = reports.find(report => 
+        report.searchText.toLowerCase() === text.toLowerCase() && 
+        report.language === language
+      );
+      
+      if (exactMatch && exactMatch.analysisData) {
+        console.log('Found existing AI analysis for replay:', exactMatch.id);
+        existingAnalysis = exactMatch.analysisData;
+        autoAnalysis = false; // Don't generate new analysis
+      }
+    }
+  } catch (error) {
+    console.error('Error checking for existing analysis:', error);
+    // Continue with new analysis on error
   }
   
   // Create query data object
@@ -1251,11 +1279,22 @@ function replayQuery(text, language, url) {
     secondaryUrl: '',
     tertiaryUrl: '',
     allUrls: { 'YouGlish': url },
-    autoAnalysis: true // Enable auto analysis for replayed queries
+    autoAnalysis: autoAnalysis
   };
+  
+  // Set current AI analysis if we found one
+  if (existingAnalysis) {
+    currentAIAnalysis = existingAnalysis;
+  }
   
   // Show the search result
   showSearchResult(queryData);
+  
+  // If we have existing analysis, show it immediately
+  if (existingAnalysis) {
+    console.log('Displaying cached AI analysis for replay');
+    showAIResult(existingAnalysis);
+  }
   
   // Switch to analysis view by default (instead of video view)
   const showAnalysisBtn = document.getElementById('showAnalysisBtn');
