@@ -1,10 +1,10 @@
 {
   "extensionName": {
-    "message": "YouGlish Quick Search",
+    "message": "LeverageLanguage - AI Language Learning",
     "description": "Extension name"
   },
   "extensionDescription": {
-    "message": "Comprehensive language learning extension: pronunciation, dictionary, contextual examples, translation, and community Q&A all in one",
+    "message": "Leverage AI to amplify your language learning: advanced error detection, pronunciation analysis, grammar insights, and contextual learning tools",
     "description": "Extension description"
   },
   "searchOnYouglish": {
@@ -13,32 +13,32 @@
   },
   
   "header_title": {
-    "message": "YouGlish Quick Search",
+    "message": "LeverageLanguage",
     "description": "Header title"
   },
   
   "welcome_title": {
-    "message": "🎯 YouGlish Quick Search",
+    "message": "🚀 LeverageLanguage - AI Language Learning",
     "description": "Welcome section title"
   },
   "welcome_description": {
-    "message": "Select text on any webpage, then:",
+    "message": "AI-powered language learning with advanced error detection:",
     "description": "Welcome description"
   },
   "welcome_step1": {
-    "message": "• Right-click and select \"Search on YouGlish\"",
+    "message": "• 🎯 Smart error detection finds and explains mistakes",
     "description": "Welcome step 1"
   },
   "welcome_step2": {
-    "message": "• Or use the keyboard shortcut",
+    "message": "• 🤖 Comprehensive AI analysis (pronunciation, grammar, culture)",
     "description": "Welcome step 2"
   },
   "welcome_step3": {
-    "message": "• Or click the extension icon to open this panel",
+    "message": "• 📚 Advanced learning tools with export and history",
     "description": "Welcome step 3"
   },
   "welcome_languages": {
-    "message": "Supports English, Japanese, Korean, Dutch",
+    "message": "Supports English, Japanese, Korean, Dutch with AI-powered insights",
     "description": "Supported languages"
   },
   "welcome_shortcut_note": {
@@ -116,7 +116,7 @@
   },
   
   "options_title": {
-    "message": "YouGlish Extension Settings",
+    "message": "LeverageLanguage Settings",
     "description": "Options page title"
   },
   "basic_settings": {
