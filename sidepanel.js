@@ -42,6 +42,87 @@ let storageManager = null;
 let learningAnalytics = null;
 let studySessionGenerator = null;
 
+// Authentication UI handlers
+let authManager = null;
+let cloudSyncManager = null;
+let analyticsManager = null;
+let subscriptionManager = null;
+
+// Authentication UI setup
+function setupAuthenticationUI() {
+  const signInBtn = document.getElementById('signInBtn');
+  const signOutBtn = document.getElementById('signOutBtn');
+  const userInfo = document.getElementById('userInfo');
+  const userAvatar = document.getElementById('userAvatar');
+  const userEmail = document.getElementById('userEmail');
+
+  // Sign In button click
+  signInBtn.addEventListener('click', () => {
+    // Open authentication popup
+    const authUrl = chrome.runtime.getURL('auth-ui.html');
+    const popup = window.open(authUrl, 'auth', 'width=500,height=700,scrollbars=yes,resizable=yes');
+    
+    // Listen for authentication success
+    window.addEventListener('message', (event) => {
+      if (event.data.type === 'auth-success') {
+        updateAuthUI(event.data.user);
+        popup.close();
+      }
+    });
+  });
+
+  // Sign Out button click
+  signOutBtn.addEventListener('click', async () => {
+    if (authManager) {
+      const result = await authManager.signOut();
+      if (result.success) {
+        updateAuthUI(null);
+      }
+    }
+  });
+
+  // Check initial auth state
+  setTimeout(() => {
+    if (authManager?.isUserAuthenticated()) {
+      updateAuthUI(authManager.getCurrentUser());
+    }
+  }, 1000);
+}
+
+// Update authentication UI based on user state
+function updateAuthUI(user) {
+  const signInBtn = document.getElementById('signInBtn');
+  const signOutBtn = document.getElementById('signOutBtn');
+  const userInfo = document.getElementById('userInfo');
+  const userAvatar = document.getElementById('userAvatar');
+  const userEmail = document.getElementById('userEmail');
+
+  if (user) {
+    // User is signed in
+    signInBtn.style.display = 'none';
+    signOutBtn.style.display = 'block';
+    userInfo.style.display = 'flex';
+    
+    userAvatar.src = user.picture || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>';
+    userEmail.textContent = user.name || user.email;
+    
+    // Update subscription status
+    const subscription = user.subscription;
+    if (subscription && subscription.tier !== 'free') {
+      signOutBtn.textContent = `👑 ${subscription.tier.charAt(0).toUpperCase() + subscription.tier.slice(1)}`;
+      signOutBtn.title = `Signed in as ${user.email} (${subscription.tier} plan)`;
+    } else {
+      signOutBtn.textContent = '👤 Sign Out';
+      signOutBtn.title = `Signed in as ${user.email} (Free plan)`;
+    }
+  } else {
+    // User is signed out
+    signInBtn.style.display = 'block';
+    signOutBtn.style.display = 'none';
+    userInfo.style.display = 'none';
+  }
+}
+
 // Initialize services when scripts load
 window.addEventListener('load', async () => {
   try {
@@ -61,6 +142,30 @@ window.addEventListener('load', async () => {
       studySessionGenerator = new StudySessionGenerator(learningAnalytics, window.flashcardManager);
       log('Study Session Generator initialized');
     }
+
+    // Initialize authentication managers
+    if (typeof window.authManager !== 'undefined') {
+      authManager = window.authManager;
+      log('Auth Manager initialized');
+    }
+    
+    if (typeof window.cloudSyncManager !== 'undefined') {
+      cloudSyncManager = window.cloudSyncManager;
+      log('Cloud Sync Manager initialized');
+    }
+    
+    if (typeof window.analyticsManager !== 'undefined') {
+      analyticsManager = window.analyticsManager;
+      log('Analytics Manager initialized');
+    }
+    
+    if (typeof window.subscriptionManager !== 'undefined') {
+      subscriptionManager = window.subscriptionManager;
+      log('Subscription Manager initialized');
+    }
+
+    // Setup authentication UI
+    setupAuthenticationUI();
     
     log('All services initialized successfully');
     

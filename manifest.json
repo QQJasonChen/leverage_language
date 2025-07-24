@@ -12,7 +12,8 @@
     "sidePanel",
     "commands",
     "tabs",
-    "declarativeNetRequest"
+    "declarativeNetRequest",
+    "identity"
   ],
   
   "host_permissions": [
@@ -23,7 +24,9 @@
     "https://api.cognitive.microsofttranslator.com/*",
     "https://api.dictionaryapi.dev/*",
     "https://www.immersionkit.com/*",
-    "https://api.notion.com/*"
+    "https://api.notion.com/*",
+    "https://www.googleapis.com/*",
+    "https://accounts.google.com/*"
   ],
   
   "background": {
@@ -60,7 +63,7 @@
   
   "web_accessible_resources": [
     {
-      "resources": ["proxy.html", "language-selector.html", "language-selector.js"],
+      "resources": ["proxy.html", "language-selector.html", "language-selector.js", "auth-ui.html"],
       "matches": ["<all_urls>"]
     }
   ]

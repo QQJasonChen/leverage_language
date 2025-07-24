@@ -129,6 +129,46 @@
         .settings-button:hover {
             background: rgba(255,255,255,0.3);
         }
+
+        .auth-button {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 8px;
+        }
+        
+        .auth-button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .auth-button.signed-in {
+            background: rgba(76, 175, 80, 0.3);
+        }
+
+        .header-buttons {
+            display: flex;
+            align-items: center;
+        }
+
+        .user-info {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 11px;
+            margin-right: 8px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .user-avatar {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
         
         .new-tab-button {
             background: #34a853;
@@ -3295,6 +3335,12 @@
     <div class="header">
         <h1 data-i18n="header_title">YouGlish Quick Search</h1>
         <div style="display: flex; gap: 8px; align-items: center;">
+            <div id="userInfo" class="user-info" style="display: none;">
+                <img id="userAvatar" class="user-avatar" src="" alt="User">
+                <span id="userEmail"></span>
+            </div>
+            <button id="signInBtn" class="auth-button">🔐 Sign In</button>
+            <button id="signOutBtn" class="auth-button signed-in" style="display: none;">👤 Sign Out</button>
             <select id="headerLanguageSelect" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;" title="Switch interface language" data-i18n-title="language_switch_tooltip">
                 <option value="auto" data-i18n="ui_language_auto">Auto</option>
                 <option value="en" data-i18n="ui_language_english">English</option>
@@ -3870,6 +3916,10 @@
     <script src="lib/learning-analytics.js"></script>
     <script src="lib/study-session-generator.js"></script>
     <script src="lib/notion-integration.js"></script>
+    <script src="lib/auth-manager.js"></script>
+    <script src="lib/cloud-sync-manager.js"></script>
+    <script src="lib/analytics-manager.js"></script>
+    <script src="lib/subscription-manager.js"></script>
     <script src="sidepanel.js"></script>
 </body>
 </html>
