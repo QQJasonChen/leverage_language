@@ -455,50 +455,9 @@ function initializeViewControls() {
         
       console.log('📹 Loading pronunciation sites for:', queryToUse.text);
       
-      // Add simple test to see if function works
-      const pronunciationOptions = document.getElementById('pronunciationOptions');
-      if (pronunciationOptions) {
-        console.log('✅ pronunciationOptions element found');
-        // Test with simple content first
-        pronunciationOptions.innerHTML = `
-          <div style="padding: 20px; background: white; border: 2px solid green; margin: 10px;">
-            <h4>🧪 DEBUG: Video Tab Working!</h4>
-            <p>queryToUse: ${JSON.stringify(queryToUse)}</p>
-            <p>Loading pronunciation sites...</p>
-          </div>
-        `;
-        
-        // Then try to load the actual sites
-        setTimeout(() => {
-          loadPronunciationSites(queryToUse);
-        }, 100);
-      } else {
-        console.error('❌ pronunciationOptions element NOT found');
-      }
+      // Load pronunciation sites
+      loadPronunciationSites(queryToUse);
       
-      // Show instruction if no real data
-      if (!currentQueryData || !currentQueryData.text) {
-        setTimeout(() => {
-          const pronunciationOptions = document.getElementById('pronunciationOptions');
-          if (pronunciationOptions) {
-            const instruction = document.createElement('div');
-            instruction.style.cssText = `
-              background: #fff3cd;
-              border: 1px solid #ffeaa7;
-              padding: 12px;
-              border-radius: 6px;
-              margin: 16px 0;
-              text-align: center;
-              color: #856404;
-            `;
-            instruction.innerHTML = `
-              <strong>💡 Demo Mode</strong><br>
-              Select text from YouTube to see sites for your specific content!
-            `;
-            pronunciationOptions.insertBefore(instruction, pronunciationOptions.firstChild);
-          }
-        }, 100);
-      }
       
       // Initialize video learning controls (but don't override pronunciation sites)
       try {
