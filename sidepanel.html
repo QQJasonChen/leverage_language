@@ -3582,6 +3582,36 @@
             
             <!-- 影片視圖 -->
             <div id="videoView" class="video-view" style="display: none;">
+                <!-- Video Learning Controls -->
+                <div class="video-learning-controls" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 16px; border-radius: 8px; margin-bottom: 16px; color: white;">
+                    <div class="video-learning-header" style="display: flex; align-items: center; justify-content: between; margin-bottom: 12px;">
+                        <h4 style="margin: 0; display: flex; align-items: center; flex: 1;">
+                            🎬 Learn While Watching
+                        </h4>
+                        <button id="videoLearningToggle" class="video-toggle-btn" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 11px;">
+                            Enable
+                        </button>
+                    </div>
+                    
+                    <div id="videoLearningStatus" class="video-status" style="font-size: 12px; opacity: 0.9; margin-bottom: 8px;">
+                        Open a video on YouTube, Netflix, Disney+, Prime Video, or Hulu to start learning!
+                    </div>
+                    
+                    <div id="videoLearningStats" class="video-stats" style="display: none; font-size: 11px; opacity: 0.8;">
+                        <div>📊 Words analyzed: <span id="wordsAnalyzed">0</span></div>
+                        <div>🎯 Platform: <span id="currentPlatform">None</span></div>
+                    </div>
+                    
+                    <div class="video-learning-actions" style="display: flex; gap: 8px; margin-top: 12px;">
+                        <button id="clearVideoCache" class="video-action-btn" style="background: rgba(255,255,255,0.15); border: none; color: white; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 10px; opacity: 0.8;">
+                            Clear Cache
+                        </button>
+                        <button id="videoAnalytics" class="video-action-btn" style="background: rgba(255,255,255,0.15); border: none; color: white; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 10px; opacity: 0.8;">
+                            Analytics
+                        </button>
+                    </div>
+                </div>
+                
                 <div class="pronunciation-sites">
                     <div class="sites-header">
                         <h4>🎯 發音資源</h4>

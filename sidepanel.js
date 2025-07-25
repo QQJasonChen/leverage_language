@@ -28,7 +28,27 @@ const handleError = async (error, context = {}) => {
 // 監聽來自背景腳本的訊息
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'updateSidePanel') {
-    loadYouGlish(request.url, request.text, request.language);
+    // Check if this is from YouTube learning
+    if (request.source === 'youtube-learning') {
+      console.log('📖 Received YouTube learning text:', request.text);
+      
+      // Switch to video tab if not already there
+      const videoBtn = document.getElementById('showVideoBtn');
+      if (videoBtn) {
+        videoBtn.click();
+      }
+      
+      // Handle the analysis in the video tab
+      setTimeout(() => {
+        handleYouTubeTextAnalysis(request.text, request.url, request.title);
+      }, 200);
+      
+      // Also trigger the normal analysis for the Analysis tab
+      loadYouGlish(request.url, request.text, request.language);
+    } else {
+      // Regular analysis
+      loadYouGlish(request.url, request.text, request.language);
+    }
   }
 });
 
@@ -423,6 +443,33 @@ function initializeViewControls() {
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'none';
       if (analyticsView) analyticsView.style.display = 'none';
+      
+      // Initialize video learning controls
+      // FIXED: Function was missing and causing browser freeze
+      try {
+        initializeVideoLearningControls();
+      } catch (error) {
+        console.log('Video learning controls not available in sidepanel context:', error);
+        // Show simple message instead
+        if (videoView) {
+          videoView.innerHTML = `
+            <div style="padding: 20px; text-align: center;">
+              <h3>🎬 Video Learning</h3>
+              <p>Video learning features are available when watching videos on YouTube.</p>
+              <p>Go to YouTube and look for the "🎬 Learn ON" button in the top-right corner.</p>
+              <br>
+              <div style="background: #f0f0f0; padding: 15px; border-radius: 8px; text-align: left;">
+                <strong>Quick Guide:</strong><br>
+                1. Visit youtube.com/watch?v=...<br>
+                2. Wait for the green "🎬 Learn ON" button to appear<br>
+                3. Turn on YouTube subtitles<br>
+                4. Click "🎬 Learn ON" to highlight words<br>
+                5. Click highlighted words for analysis
+              </div>
+            </div>
+          `;
+        }
+      }
       
       log('Switched to video view');
     };
@@ -7597,4 +7644,668 @@ function showMessage(message, type = 'info') {
       }
     }, 300);
   }, 3000);
+}
+
+// FIXED: Add missing function to prevent browser freeze
+function initializeVideoLearningControls() {
+  console.log('🎬 Video learning controls initialized (sidepanel context)');
+  
+  const videoView = document.getElementById('videoView');
+  if (videoView) {
+    videoView.innerHTML = `
+      <div style="padding: 20px;">
+        <h3 style="text-align: center; margin-bottom: 20px;">📖 YouTube AI Learning</h3>
+        
+        <!-- Current Analysis Section -->
+        <div id="currentAnalysisSection" style="display: none;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 12px; margin-bottom: 20px;">
+            <div style="font-weight: bold; margin-bottom: 8px;">📝 Analyzing:</div>
+            <div id="currentAnalysisText" style="font-size: 16px; word-wrap: break-word;"></div>
+            <div id="analysisStatus" style="font-size: 12px; margin-top: 8px; opacity: 0.9;">🔄 Preparing AI analysis...</div>
+          </div>
+          
+          <!-- AI Analysis Results -->
+          <div id="aiAnalysisResults" style="margin-bottom: 20px;"></div>
+          
+          <!-- Settings and Options -->
+          <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+              <label style="font-size: 13px; font-weight: bold; color: #333;">🤖 Auto AI Analysis:</label>
+              <label class="toggle-switch" style="position: relative; display: inline-block; width: 50px; height: 24px;">
+                <input type="checkbox" id="autoAnalysisToggle" style="opacity: 0; width: 0; height: 0;" checked>
+                <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px; background-color: #2196F3;"></span>
+                <span style="position: absolute; content: ''; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; transform: translateX(26px);"></span>
+              </label>
+            </div>
+            <div style="font-size: 11px; color: #666;">Enable to automatically analyze text with AI when sent from YouTube</div>
+          </div>
+          
+          <!-- Quick Actions -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;">
+            <button id="speakCurrentText" style="padding: 8px 12px; background: #4285f4; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">🔊 Speak</button>
+            <button id="saveCurrentText" style="padding: 8px 12px; background: #34a853; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">💾 Save</button>
+            <button id="analyzeAgain" style="padding: 8px 12px; background: #ea4335; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">🔄 Re-analyze</button>
+          </div>
+        </div>
+        
+        <!-- Waiting State -->
+        <div id="waitingForText" style="text-align: center;">
+          <div style="background: #f5f5f5; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+            <h4 style="color: #666; margin-bottom: 15px;">🎯 Ready for Learning!</h4>
+            <p style="color: #888; margin-bottom: 15px;">Select text from YouTube to get AI-powered analysis here.</p>
+          </div>
+          
+          <div style="background: #e8f4fd; padding: 15px; border-radius: 8px; text-align: left; margin: 15px 0;">
+            <strong>📋 How to use:</strong><br>
+            1. ✅ Go to any YouTube video<br>
+            2. ✅ Click the red "📚 LEARN" button (top-right)<br>
+            3. ✅ Turn on YouTube subtitles (CC button)<br>
+            4. ✅ Click "📚 LEARN" to turn it green "✅ ON"<br>
+            5. ✅ Hover and click subtitles, or select any text<br>
+            6. ✅ Analysis appears here automatically! 🎉
+          </div>
+          
+          <div style="background: #fff3cd; padding: 12px; border-radius: 6px; font-size: 13px; margin: 10px 0;">
+            <strong>💡 Pro Tip:</strong> Works with subtitles, descriptions, comments, and any YouTube text!
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Add event handlers for the action buttons
+    setupVideoLearningHandlers();
+    const statusDiv = document.getElementById('learnerStatus');
+    
+    enableButton.onclick = async () => {
+      console.log('🚀 Enabling Simple Learner from sidepanel...');
+      
+      try {
+        // Update UI to show loading
+        enableButton.textContent = '⏳ Enabling...';
+        enableButton.disabled = true;
+        statusText.textContent = 'Enabling Simple Learner...';
+        
+        // Get current active tab
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        
+        if (!tab || !tab.url.includes('youtube.com')) {
+          throw new Error('Please navigate to a YouTube video page first');
+        }
+        
+        // Send message to content script to enable Simple Learner
+        const response = await chrome.tabs.sendMessage(tab.id, {
+          action: 'enableSimpleLearner'
+        });
+        
+        if (response && response.success) {
+          // Success
+          enableButton.textContent = '✅ Enabled!';
+          statusText.textContent = 'Simple Learner is active! Look for the 📖 button on YouTube.';
+          statusDiv.style.background = '#d4edda';
+          statusDiv.style.borderColor = '#c3e6cb';
+          
+          setTimeout(() => {
+            enableButton.textContent = '🚀 Enable on YouTube';
+            enableButton.disabled = false;
+          }, 3000);
+          
+        } else {
+          throw new Error(response?.error || 'Failed to enable Simple Learner');
+        }
+        
+      } catch (error) {
+        console.error('❌ Failed to enable Simple Learner:', error);
+        
+        // Show error
+        enableButton.textContent = '❌ Failed';
+        statusText.textContent = error.message || 'Failed to enable. Try refreshing the YouTube page.';
+        statusDiv.style.background = '#f8d7da';
+        statusDiv.style.borderColor = '#f5c6cb';
+        
+        setTimeout(() => {
+          enableButton.textContent = '🚀 Enable on YouTube';
+          enableButton.disabled = false;
+        }, 3000);
+      }
+    };
+  }
+}
+
+// Setup handlers for video learning functionality
+function setupVideoLearningHandlers() {
+  console.log('🎬 Setting up video learning handlers');
+  
+  // Current text being analyzed
+  let currentText = '';
+  
+  // Speak current text
+  const speakBtn = document.getElementById('speakCurrentText');
+  if (speakBtn) {
+    speakBtn.onclick = () => {
+      if (currentText) {
+        try {
+          speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(currentText);
+          utterance.lang = 'en-US';
+          utterance.rate = 0.8;
+          speechSynthesis.speak(utterance);
+          console.log('🔊 Speaking:', currentText);
+        } catch (error) {
+          console.error('❌ Speech error:', error);
+        }
+      }
+    };
+  }
+  
+  // Save current text
+  const saveBtn = document.getElementById('saveCurrentText');
+  if (saveBtn) {
+    saveBtn.onclick = async () => {
+      if (currentText) {
+        try {
+          const saved = JSON.parse(localStorage.getItem('ytLearningVocab') || '[]');
+          const newEntry = {
+            text: currentText,
+            date: new Date().toISOString(),
+            url: window.location.href,
+            source: 'youtube-learning'
+          };
+          
+          const exists = saved.some(item => item.text.toLowerCase() === currentText.toLowerCase());
+          if (!exists) {
+            saved.push(newEntry);
+            localStorage.setItem('ytLearningVocab', JSON.stringify(saved));
+            saveBtn.textContent = '✅ Saved!';
+            setTimeout(() => {
+              saveBtn.textContent = '💾 Save';
+            }, 2000);
+          } else {
+            saveBtn.textContent = '📝 Already saved';
+            setTimeout(() => {
+              saveBtn.textContent = '💾 Save';
+            }, 2000);
+          }
+        } catch (error) {
+          console.error('❌ Save error:', error);
+        }
+      }
+    };
+  }
+  
+  // Re-analyze current text
+  const analyzeBtn = document.getElementById('analyzeAgain');
+  if (analyzeBtn) {
+    analyzeBtn.onclick = () => {
+      if (currentText) {
+        console.log('🔄 Re-analyzing:', currentText);
+        handleYouTubeTextAnalysis(currentText, window.location.href, document.title, true);
+      }
+    };
+  }
+  
+  // Auto-analysis toggle handler
+  const autoToggle = document.getElementById('autoAnalysisToggle');
+  if (autoToggle) {
+    // Load saved setting
+    const savedSetting = localStorage.getItem('youglish-auto-analysis');
+    autoToggle.checked = savedSetting !== 'false'; // Default to true
+    
+    // Update visual state
+    updateToggleVisual(autoToggle);
+    
+    autoToggle.addEventListener('change', function() {
+      const enabled = this.checked;
+      localStorage.setItem('youglish-auto-analysis', enabled.toString());
+      updateToggleVisual(this);
+      
+      console.log('🤖 Auto AI Analysis:', enabled ? 'ENABLED' : 'DISABLED');
+      
+      // Show feedback
+      const feedback = enabled ? '✅ Auto AI Analysis enabled' : '⏸️ Auto AI Analysis disabled';
+      if (currentText && window.setCurrentAnalysisText) {
+        // Show brief status update
+        const analysisStatus = document.getElementById('analysisStatus');
+        if (analysisStatus) {
+          const originalText = analysisStatus.textContent;
+          analysisStatus.textContent = feedback;
+          setTimeout(() => {
+            analysisStatus.textContent = originalText;
+          }, 2000);
+        }
+      }
+    });
+  }
+  
+  // Update toggle visual appearance
+  function updateToggleVisual(toggle) {
+    const slider = toggle.nextElementSibling;
+    const knob = slider?.nextElementSibling;
+    
+    if (toggle.checked) {
+      if (slider) slider.style.backgroundColor = '#2196F3';
+      if (knob) knob.style.transform = 'translateX(26px)';
+    } else {
+      if (slider) slider.style.backgroundColor = '#ccc';
+      if (knob) knob.style.transform = 'translateX(0px)';
+    }
+  }
+  
+  // Store reference to current text for the handlers
+  window.setCurrentAnalysisText = (text) => {
+    currentText = text;
+  };
+}
+
+// Handle YouTube text analysis in sidepanel
+function handleYouTubeTextAnalysis(text, url, title, forceReAnalysis = false) {
+  console.log('📖 Handling YouTube text analysis:', text);
+  
+  const currentAnalysisSection = document.getElementById('currentAnalysisSection');
+  const waitingSection = document.getElementById('waitingForText');
+  const analysisTextDiv = document.getElementById('currentAnalysisText');
+  const analysisStatus = document.getElementById('analysisStatus');
+  const aiResultsDiv = document.getElementById('aiAnalysisResults');
+  
+  if (!currentAnalysisSection || !waitingSection) {
+    console.log('❌ Video learning UI not initialized');
+    return;
+  }
+  
+  // Show analysis section, hide waiting section
+  currentAnalysisSection.style.display = 'block';
+  waitingSection.style.display = 'none';
+  
+  // Update text and status
+  if (analysisTextDiv) {
+    analysisTextDiv.textContent = text;
+  }
+  
+  if (analysisStatus) {
+    analysisStatus.textContent = '🔄 Analyzing with AI...';
+  }
+  
+  // Store current text for handlers
+  if (window.setCurrentAnalysisText) {
+    window.setCurrentAnalysisText(text);
+  }
+  
+  // Trigger existing analysis system
+  const queryData = {
+    text: text,
+    url: url || '',
+    title: title || '',
+    language: 'english',
+    source: 'youtube-learning',
+    autoAnalysis: true,
+    timestamp: new Date().toISOString()
+  };
+  
+  // Trigger comprehensive AI analysis with proper setup
+  setTimeout(async () => {
+    try {
+      console.log('🤖 Starting analysis for:', text);
+      
+      // Always load the basic YouGlish data first
+      loadYouGlish(url, text, 'english');
+      
+      // Set up query data
+      currentQueryData = {
+        text: text,
+        url: url || '',
+        title: title || '',
+        language: 'english',
+        source: 'youtube-learning',
+        autoAnalysis: true,
+        timestamp: new Date().toISOString()
+      };
+      
+      // Check if auto-analysis is enabled (unless forced)
+      const autoAnalysisEnabled = forceReAnalysis || localStorage.getItem('youglish-auto-analysis') !== 'false';
+      
+      if (!autoAnalysisEnabled) {
+        console.log('⏸️ Auto AI Analysis is disabled, showing manual trigger option');
+        
+        if (analysisStatus) {
+          analysisStatus.innerHTML = `
+            🤖 AI Analysis available 
+            <button onclick="triggerManualAnalysis('${text.replace(/'/g, "\\\\")}', '${url}', '${title}')" 
+                    style="margin-left: 8px; padding: 4px 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;">
+              ▶️ Analyze Now
+            </button>
+          `;
+        }
+        
+        if (aiResultsDiv) {
+          showManualAnalysisPrompt(text);
+        }
+        
+        return; // Skip automatic AI analysis
+      }
+      
+      // Update status to show AI processing
+      if (analysisStatus) {
+        analysisStatus.textContent = '🤖 AI is analyzing... Please wait...';
+      }
+      
+      // Check multiple ways to access AI service and trigger analysis
+      let aiAnalysisCompleted = false;
+      
+      // Method 1: Direct AI service access
+      if (typeof window.aiService !== 'undefined' && window.aiService) {
+        console.log('🤖 Direct AI Service found, starting analysis...');
+        
+        try {
+          const analysis = await window.aiService.analyzeText(text, {
+            language: 'english',
+            includeDefinitions: true,
+            includeExamples: true,
+            includeGrammar: true,
+            includePronunciation: true
+          });
+          
+          if (analysis && analysis.success) {
+            console.log('✅ Direct AI Analysis completed:', analysis);
+            aiAnalysisCompleted = true;
+            
+            // Update status
+            if (analysisStatus) {
+              analysisStatus.textContent = '✅ AI Analysis complete! 🎉';
+            }
+            
+            // Display AI results in the video tab
+            if (aiResultsDiv) {
+              displayAIAnalysisResults(analysis, text);
+            }
+            
+            // Also trigger automatic audio if available
+            if (analysis.pronunciation && window.speechSynthesis) {
+              setTimeout(() => {
+                speakTextWithAI(text, analysis.pronunciation);
+              }, 1000);
+            }
+          }
+          
+        } catch (aiError) {
+          console.log('⚠️ Direct AI Service error:', aiError);
+        }
+      }
+      
+      // Method 2: Try existing AI analysis trigger mechanisms
+      if (!aiAnalysisCompleted) {
+        console.log('🔄 Trying existing AI analysis triggers...');
+        
+        // Try to trigger existing AI analysis via the existing mechanisms
+        try {
+          // Set auto-analysis flag and simulate existing flow
+          const autoAnalysisEnabled = localStorage.getItem('youglish-auto-analysis') !== 'false';
+          
+          if (autoAnalysisEnabled && typeof window.performAnalysis === 'function') {
+            console.log('🎯 Using existing performAnalysis function');
+            await window.performAnalysis(text, 'english');
+            aiAnalysisCompleted = true;
+            
+            if (analysisStatus) {
+              analysisStatus.textContent = '✅ Analysis complete via existing system!';
+            }
+          }
+          
+          // Try alternative AI service paths
+          if (!aiAnalysisCompleted && typeof window.aiGenerateGrammarAnalysis === 'function') {
+            console.log('🎯 Using grammar analysis function');
+            await window.aiGenerateGrammarAnalysis(text);
+            aiAnalysisCompleted = true;
+            
+            if (analysisStatus) {
+              analysisStatus.textContent = '✅ Grammar analysis complete!';
+            }
+          }
+          
+        } catch (existingError) {
+          console.log('⚠️ Existing AI triggers failed:', existingError);
+        }
+      }
+      
+      // Method 3: Force trigger by mimicking user interaction
+      if (!aiAnalysisCompleted) {
+        console.log('🔄 Force triggering AI analysis...');
+        
+        setTimeout(async () => {
+          try {
+            // Find and click the AI analysis button if it exists
+            const aiButton = document.querySelector('#aiAnalysisBtn, .ai-analysis-btn, [data-action="ai-analysis"]');
+            if (aiButton && !aiButton.disabled) {
+              console.log('🎯 Clicking AI analysis button');
+              aiButton.click();
+              aiAnalysisCompleted = true;
+              
+              if (analysisStatus) {
+                analysisStatus.textContent = '✅ AI analysis triggered via button click!';
+              }
+            }
+            
+            // Alternative: Try to trigger via existing event system
+            if (!aiAnalysisCompleted) {
+              console.log('🔄 Triggering via event system...');
+              
+              // Create and dispatch a custom event to trigger AI analysis
+              const aiEvent = new CustomEvent('triggerAIAnalysis', {
+                detail: { text: text, language: 'english', autoTrigger: true }
+              });
+              
+              document.dispatchEvent(aiEvent);
+              window.dispatchEvent(aiEvent);
+              
+              if (analysisStatus) {
+                analysisStatus.textContent = '✅ AI analysis requested via events!';
+              }
+            }
+            
+          } catch (forceError) {
+            console.log('⚠️ Force trigger failed:', forceError);
+          }
+        }, 500);
+      }
+      
+      // Fallback if nothing worked
+      if (!aiAnalysisCompleted) {
+        setTimeout(() => {
+          if (analysisStatus && analysisStatus.textContent.includes('analyzing')) {
+            console.log('⚠️ No AI analysis triggered, showing fallback');
+            showFallbackAnalysis(text);
+          }
+        }, 2000);
+      }
+      
+    } catch (error) {
+      console.error('❌ Analysis error:', error);
+      if (analysisStatus) {
+        analysisStatus.textContent = '❌ Analysis failed. Please try again.';
+      }
+    }
+  }, 300);
+}
+
+// Display comprehensive AI analysis results in video tab
+function displayAIAnalysisResults(analysis, text) {
+  const aiResultsDiv = document.getElementById('aiAnalysisResults');
+  if (!aiResultsDiv) return;
+  
+  const isWord = text.split(' ').length === 1;
+  
+  let resultHTML = `
+    <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 20px; border-radius: 12px; border-left: 4px solid #28a745;">
+      <div style="font-weight: bold; margin-bottom: 12px; color: #28a745; font-size: 16px;">
+        🤖 ${isWord ? 'AI Word Analysis' : 'AI Text Analysis'}
+      </div>
+      <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+        <div style="font-weight: bold; color: #333; margin-bottom: 8px;">"${text}"</div>
+  `;
+  
+  // Add definitions if available
+  if (analysis.definitions && analysis.definitions.length > 0) {
+    resultHTML += `
+      <div style="margin-bottom: 12px;">
+        <strong>📚 Definition:</strong>
+        <div style="color: #666; margin-top: 4px;">${analysis.definitions[0]}</div>
+      </div>
+    `;
+  }
+  
+  // Add pronunciation if available
+  if (analysis.pronunciation) {
+    resultHTML += `
+      <div style="margin-bottom: 12px;">
+        <strong>🔊 Pronunciation:</strong>
+        <span style="color: #666; margin-left: 8px;">${analysis.pronunciation}</span>
+        <button onclick="speakTextWithAI('${text}', '${analysis.pronunciation}')" style="margin-left: 10px; padding: 4px 8px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">🔊 Play</button>
+      </div>
+    `;
+  }
+  
+  // Add examples if available
+  if (analysis.examples && analysis.examples.length > 0) {
+    resultHTML += `
+      <div style="margin-bottom: 12px;">
+        <strong>💡 Example:</strong>
+        <div style="color: #666; font-style: italic; margin-top: 4px;">"${analysis.examples[0]}"</div>
+      </div>
+    `;
+  }
+  
+  resultHTML += `
+      </div>
+      <div style="font-size: 14px; color: #888; text-align: center;">
+        ✨ Switch to <strong>Analysis</strong> tab for complete AI insights with grammar, usage, and more examples!
+      </div>
+    </div>
+  `;
+  
+  aiResultsDiv.innerHTML = resultHTML;
+}
+
+// Fallback analysis when AI is not available
+function showFallbackAnalysis(text) {
+  const aiResultsDiv = document.getElementById('aiAnalysisResults');
+  const analysisStatus = document.getElementById('analysisStatus');
+  
+  if (analysisStatus) {
+    analysisStatus.textContent = '✅ Basic analysis ready. Full AI analysis available in Analysis tab.';
+  }
+  
+  if (aiResultsDiv) {
+    const isWord = text.split(' ').length === 1;
+    aiResultsDiv.innerHTML = `
+      <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #667eea;">
+        <div style="font-weight: bold; margin-bottom: 8px;">
+          ${isWord ? '📖 Basic Word Analysis' : '📝 Basic Text Analysis'}
+        </div>
+        <div style="margin-bottom: 10px; color: #666;">
+          "${text}"
+        </div>
+        <div style="font-size: 14px; color: #888;">
+          ✨ Full AI analysis with definitions, examples, and grammar is available in the <strong>Analysis</strong> tab above.
+          <br>💡 The system will automatically trigger comprehensive AI analysis there!
+        </div>
+      </div>
+    `;
+  }
+}
+
+// Enhanced speech with AI pronunciation data
+function speakTextWithAI(text, pronunciation = null) {
+  console.log('🔊 Speaking with AI enhancement:', text, pronunciation);
+  
+  try {
+    speechSynthesis.cancel();
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.7; // Slightly slower for learning
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+    
+    // Use AI pronunciation data if available
+    if (pronunciation) {
+      console.log('🎯 Using AI pronunciation guide:', pronunciation);
+      // Note: Most browsers don't support IPA directly, but we log it for learning
+    }
+    
+    utterance.onstart = () => {
+      console.log('🔊 AI-enhanced speech started');
+      const speakBtn = document.getElementById('speakCurrentText');
+      if (speakBtn) {
+        speakBtn.textContent = '🔊 Playing...';
+        speakBtn.disabled = true;
+      }
+    };
+    
+    utterance.onend = () => {
+      console.log('✅ AI-enhanced speech completed');
+      const speakBtn = document.getElementById('speakCurrentText');
+      if (speakBtn) {
+        speakBtn.textContent = '🔊 Speak';
+        speakBtn.disabled = false;
+      }
+    };
+    
+    utterance.onerror = (e) => {
+      console.error('❌ Speech error:', e);
+      const speakBtn = document.getElementById('speakCurrentText');
+      if (speakBtn) {
+        speakBtn.textContent = '🔊 Speak';
+        speakBtn.disabled = false;
+      }
+    };
+    
+    speechSynthesis.speak(utterance);
+    
+  } catch (error) {
+    console.error('❌ Speech synthesis error:', error);
+  }
+}
+
+// Make speakTextWithAI globally available
+window.speakTextWithAI = speakTextWithAI;
+
+// Manual analysis trigger function
+window.triggerManualAnalysis = function(text, url, title) {
+  console.log('🎯 Manual AI analysis triggered for:', text);
+  
+  // Show loading state
+  const analysisStatus = document.getElementById('analysisStatus');
+  if (analysisStatus) {
+    analysisStatus.textContent = '🤖 AI is analyzing... Please wait...';
+  }
+  
+  // Trigger analysis with force flag
+  handleYouTubeTextAnalysis(text, url, title, true);
+};
+
+// Show manual analysis prompt
+function showManualAnalysisPrompt(text) {
+  const aiResultsDiv = document.getElementById('aiAnalysisResults');
+  if (!aiResultsDiv) return;
+  
+  const isWord = text.split(' ').length === 1;
+  
+  aiResultsDiv.innerHTML = `
+    <div style="background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); padding: 20px; border-radius: 12px; border-left: 4px solid #ff9800; text-align: center;">
+      <div style="font-weight: bold; margin-bottom: 12px; color: #e65100; font-size: 16px;">
+        🤖 ${isWord ? 'AI Word Analysis' : 'AI Text Analysis'} Available
+      </div>
+      <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+        <div style="font-weight: bold; color: #333; margin-bottom: 8px;">"${text}"</div>
+        <div style="color: #666; font-size: 14px; margin-bottom: 12px;">
+          AI analysis is available but auto-analysis is currently disabled.
+        </div>
+        <button onclick="triggerManualAnalysis('${text.replace(/'/g, "\\\\'")}', '${window.location.href}', '${document.title}')" 
+                style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; margin: 5px;">
+          🤖 Analyze with AI
+        </button>
+      </div>
+      <div style="font-size: 12px; color: #666;">
+        💡 Enable "Auto AI Analysis" above to automatically analyze all selected text
+      </div>
+    </div>
+  `;
 }

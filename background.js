@@ -54,12 +54,7 @@ chrome.action.onClicked.addListener(async (tab) => {
   }
 });
 
-// 處理來自內容腳本的訊息
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'searchYouGlish') {
-    searchYouGlish(request.text, sender.tab.id);
-  }
-});
+// Note: Main message handler is consolidated below at line 296 to avoid duplicate listeners
 
 // 主要搜尋函數
 async function searchYouGlish(text, tabId, source = 'selection', forcedOpenMethod = null) {
@@ -239,7 +234,7 @@ function generateLanguageUrls(text, language) {
         // 語境
         'Reverso Context': `https://context.reverso.net/translation/japanese-english/${encodedText}`,
         'Tatoeba': `https://tatoeba.org/en/sentences/search?from=jpn&to=eng&query=${encodedText}`,
-        'HiNative': `https://hinative.com/questions?utf8=✓&query=${encodedText}&commit=Search`
+        'HiNative': `https://hinative.com/questions?utf8=%E2%9C%93&query=${encodedText}&commit=Search`
       };
       break;
       
@@ -273,7 +268,7 @@ function generateLanguageUrls(text, language) {
         // 翻譯
         'Papago': `https://papago.naver.com/?sk=ko&tk=en&hn=0&st=${encodedText}`,
         // 社群
-        'HiNative': `https://hinative.com/questions?utf8=✓&query=${encodedText}&commit=Search`,
+        'HiNative': `https://hinative.com/questions?utf8=%E2%9C%93&query=${encodedText}&commit=Search`,
         'Google 搜尋': `https://www.google.com/search?q=${encodedText}+pronunciation+korean`
       };
       break;
@@ -292,8 +287,51 @@ function generateLanguageUrls(text, language) {
   return urls;
 }
 
-// 儲存設定和處理歷史記錄
+// 統一處理所有來自內容腳本和側邊欄的訊息 (合併多個監聽器以提升效能)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  // 基本搜尋功能
+  if (request.action === 'searchYouGlish') {
+    searchYouGlish(request.text, sender.tab.id);
+    return false; // 不需要異步回應
+  }
+  
+  // YouTube學習模式 - 將文字發送到側邊面板進行AI分析
+  if (request.action === 'analyzeTextInSidepanel') {
+    console.log('📨 Received text for sidepanel analysis:', request.text);
+    
+    // 準備完整的查詢數據
+    const queryData = {
+      text: request.text,
+      url: request.url || '',
+      title: request.title || '',
+      language: 'english', // 預設英文，可以之後加入語言偵測
+      source: request.source || 'youtube-learning',
+      timestamp: new Date().toISOString(),
+      autoAnalysis: true // 自動觸發AI分析
+    };
+    
+    // 開啟側邊面板並發送數據
+    chrome.sidePanel.open({ tabId: sender.tab.id }).then(() => {
+      // 稍微延遲以確保側邊面板已載入
+      setTimeout(() => {
+        chrome.runtime.sendMessage({
+          action: 'updateSidePanel',
+          ...queryData
+        });
+      }, 500);
+    }).catch(error => {
+      console.log('Side panel already open, sending update directly');
+      chrome.runtime.sendMessage({
+        action: 'updateSidePanel',
+        ...queryData
+      });
+    });
+    
+    sendResponse({ success: true, message: 'Text sent to sidepanel for analysis' });
+    return false;
+  }
+  
+  // 設定相關功能
   if (request.action === 'saveSettings') {
     chrome.storage.sync.set(request.settings, () => {
       sendResponse({ success: true });
@@ -380,6 +418,75 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // 可以在這裡添加取消的處理邏輯
     console.log('語言選擇已取消');
     sendResponse({ success: true });
+    return true;
+  }
+
+  // Video Learning Message Handlers
+  if (request.action === 'videoLearningReady') {
+    console.log('🎬 Video learning ready on:', request.platform, request.url);
+    
+    // Store video learning status for this tab
+    chrome.storage.local.get(['videoLearningTabs'], (result) => {
+      const tabs = result.videoLearningTabs || {};
+      tabs[sender.tab.id] = {
+        platform: request.platform,
+        url: request.url,
+        ready: true,
+        timestamp: Date.now()
+      };
+      
+      chrome.storage.local.set({ videoLearningTabs: tabs });
+    });
+    
+    sendResponse({ success: true });
+    return true;
+  }
+  
+  // Handle video learning word analysis requests
+  if (request.action === 'analyzeVideoWord') {
+    console.log('🔍 Analyzing video word:', request.word, 'from platform:', request.platform);
+    
+    // Track video learning analytics
+    chrome.storage.local.get(['videoLearningStats'], (result) => {
+      const stats = result.videoLearningStats || {
+        totalAnalyses: 0,
+        platformStats: {},
+        dailyStats: {}
+      };
+      
+      stats.totalAnalyses++;
+      
+      // Platform stats
+      if (!stats.platformStats[request.platform]) {
+        stats.platformStats[request.platform] = 0;
+      }
+      stats.platformStats[request.platform]++;
+      
+      // Daily stats
+      const today = new Date().toDateString();
+      if (!stats.dailyStats[today]) {
+        stats.dailyStats[today] = 0;
+      }
+      stats.dailyStats[today]++;
+      
+      chrome.storage.local.set({ videoLearningStats: stats });
+    });
+    
+    sendResponse({ success: true });
+    return true;
+  }
+  
+  // Handle video learning statistics request
+  if (request.action === 'getVideoLearningStats') {
+    chrome.storage.local.get(['videoLearningStats'], (result) => {
+      const stats = result.videoLearningStats || {
+        totalAnalyses: 0,
+        platformStats: {},
+        dailyStats: {}
+      };
+      
+      sendResponse({ success: true, stats });
+    });
     return true;
   }
 });
@@ -558,3 +665,52 @@ async function proceedWithSearch(text, tabId, language, urls, openMethod, source
     chrome.tabs.create({ url: urls.primaryUrl });
   }
 }
+
+// Clean up video learning tabs on tab close
+chrome.tabs.onRemoved.addListener((tabId) => {
+  chrome.storage.local.get(['videoLearningTabs'], (result) => {
+    const tabs = result.videoLearningTabs || {};
+    if (tabs[tabId]) {
+      delete tabs[tabId];
+      chrome.storage.local.set({ videoLearningTabs: tabs });
+    }
+  });
+});
+
+// Update video learning tab info on URL change
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.url) {
+    // Check if this is a video platform
+    const videoPatterns = [
+      /youtube\.com\/watch/,
+      /netflix\.com\/watch/,
+      /disneyplus\.com/,
+      /primevideo\.com/,
+      /hulu\.com/
+    ];
+    
+    const isVideoSite = videoPatterns.some(pattern => pattern.test(changeInfo.url));
+    
+    if (isVideoSite) {
+      chrome.storage.local.get(['videoLearningTabs'], (result) => {
+        const tabs = result.videoLearningTabs || {};
+        tabs[tabId] = {
+          ...tabs[tabId],
+          url: changeInfo.url,
+          ready: false, // Reset ready status on URL change
+          timestamp: Date.now()
+        };
+        chrome.storage.local.set({ videoLearningTabs: tabs });
+      });
+    } else {
+      // Remove from video tabs if no longer on video site
+      chrome.storage.local.get(['videoLearningTabs'], (result) => {
+        const tabs = result.videoLearningTabs || {};
+        if (tabs[tabId]) {
+          delete tabs[tabId];
+          chrome.storage.local.set({ videoLearningTabs: tabs });
+        }
+      });
+    }
+  }
+});
