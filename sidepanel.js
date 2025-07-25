@@ -479,31 +479,14 @@ function initializeViewControls() {
         }, 100);
       }
       
-      // Initialize video learning controls
-      // FIXED: Function was missing and causing browser freeze
+      // Initialize video learning controls (but don't override pronunciation sites)
       try {
-        initializeVideoLearningControls();
+        if (typeof initializeVideoLearningControls === 'function') {
+          initializeVideoLearningControls();
+        }
       } catch (error) {
         console.log('Video learning controls not available in sidepanel context:', error);
-        // Show simple message instead
-        if (videoView) {
-          videoView.innerHTML = `
-            <div style="padding: 20px; text-align: center;">
-              <h3>🎬 Video Learning</h3>
-              <p>Video learning features are available when watching videos on YouTube.</p>
-              <p>Go to YouTube and look for the "🎬 Learn ON" button in the top-right corner.</p>
-              <br>
-              <div style="background: #f0f0f0; padding: 15px; border-radius: 8px; text-align: left;">
-                <strong>Quick Guide:</strong><br>
-                1. Visit youtube.com/watch?v=...<br>
-                2. Wait for the green "🎬 Learn ON" button to appear<br>
-                3. Turn on YouTube subtitles<br>
-                4. Click "🎬 Learn ON" to highlight words<br>
-                5. Click highlighted words for analysis
-              </div>
-            </div>
-          `;
-        }
+        // Don't override the videoView content - pronunciation sites should remain visible
       }
       
       log('Switched to video view');
