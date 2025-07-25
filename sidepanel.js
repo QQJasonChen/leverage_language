@@ -454,7 +454,27 @@ function initializeViewControls() {
         { text: 'hello', language: 'english' };
         
       console.log('📹 Loading pronunciation sites for:', queryToUse.text);
-      loadPronunciationSites(queryToUse);
+      
+      // Add simple test to see if function works
+      const pronunciationOptions = document.getElementById('pronunciationOptions');
+      if (pronunciationOptions) {
+        console.log('✅ pronunciationOptions element found');
+        // Test with simple content first
+        pronunciationOptions.innerHTML = `
+          <div style="padding: 20px; background: white; border: 2px solid green; margin: 10px;">
+            <h4>🧪 DEBUG: Video Tab Working!</h4>
+            <p>queryToUse: ${JSON.stringify(queryToUse)}</p>
+            <p>Loading pronunciation sites...</p>
+          </div>
+        `;
+        
+        // Then try to load the actual sites
+        setTimeout(() => {
+          loadPronunciationSites(queryToUse);
+        }, 100);
+      } else {
+        console.error('❌ pronunciationOptions element NOT found');
+      }
       
       // Show instruction if no real data
       if (!currentQueryData || !currentQueryData.text) {
@@ -7819,12 +7839,14 @@ function loadPronunciationSites(queryData) {
   
   // Group sites by category
   const categories = {
-    'pronunciation': { name: '發音學習', sites: [] },
-    'dictionary': { name: '字典查詢', sites: [] },
-    'context': { name: '語境例句', sites: [] },
-    'translation': { name: '翻譯服務', sites: [] },
-    'examples': { name: '例句資料庫', sites: [] },
-    'search': { name: '搜尋引擎', sites: [] }
+    'pronunciation': { name: '🎯 發音學習', sites: [] },
+    'dictionary': { name: '📚 字典查詢', sites: [] },
+    'context': { name: '💭 語境例句', sites: [] },
+    'slang': { name: '🏙️ 俚語俗語', sites: [] },
+    'academic': { name: '🎓 學術寫作', sites: [] },
+    'examples': { name: '📝 例句資料庫', sites: [] },
+    'translation': { name: '🌐 翻譯服務', sites: [] },
+    'search': { name: '🔍 搜尋引擎', sites: [] }
   };
   
   // Categorize sites
@@ -7914,100 +7936,218 @@ function loadPronunciationSites(queryData) {
   });
 }
 
-// Generate URL for specific site
+// Generate URL for specific site (from main version)
 function generateUrlForSite(siteName, text, language) {
   const encodedText = encodeURIComponent(text);
-  const sites = {
+  
+  // Handle language-specific URLs
+  if (siteName === 'PlayPhrase.me') {
+    // Language-specific PlayPhrase.me URLs
+    const languageMap = {
+      'japanese': 'ja',
+      'korean': 'ko',
+      'dutch': 'nl',
+      'english': 'en'
+    };
+    
+    const langCode = languageMap[language];
+    if (langCode && langCode !== 'en') {
+      return `https://www.playphrase.me/#/search?q=${encodedText}&language=${langCode}`;
+    }
+    
+    // Default English PlayPhrase.me (no language parameter needed)
+    return `https://www.playphrase.me/#/search?q=${encodedText}`;
+  }
+  
+  if (siteName === 'Immersion Kit') {
+    // Japanese sentence examples from anime/movies
+    return `https://www.immersionkit.com/dictionary?keyword=${encodedText}`;
+  }
+  
+  if (siteName === 'Reverso Context') {
+    // Language-specific Reverso Context
+    const reverseLangMap = {
+      'english': 'english-chinese',
+      'japanese': 'japanese-chinese', 
+      'korean': 'korean-chinese',
+      'dutch': 'dutch-chinese'
+    };
+    const reverseLang = reverseLangMap[language] || 'english-chinese';
+    return `https://context.reverso.net/translation/${reverseLang}/${encodedText}`;
+  }
+  
+  if (siteName === 'Google 搜尋') {
+    // Language-specific Google search
+    const searchTerms = {
+      'english': `${encodedText}+pronunciation`,
+      'japanese': `${encodedText}+発音+読み方`,
+      'korean': `${encodedText}+발음`,
+      'dutch': `${encodedText}+uitspraak`
+    };
+    const searchTerm = searchTerms[language] || `${encodedText}+pronunciation`;
+    return `https://www.google.com/search?q=${searchTerm}`;
+  }
+  
+  // Default URL mapping
+  const urlMaps = {
     'YouGlish': `https://youglish.com/pronounce/${encodedText}/${language}`,
     'Forvo': `https://forvo.com/word/${encodedText}/`,
-    'Dictionary.com': `https://www.dictionary.com/browse/${encodedText}`,
-    'Cambridge': `https://dictionary.cambridge.org/dictionary/english/${encodedText}`,
-    'Oxford': `https://www.oxfordlearnersdictionaries.com/definition/english/${encodedText}`,
-    'Merriam-Webster': `https://www.merriam-webster.com/dictionary/${encodedText}`,
-    'Collins': `https://www.collinsdictionary.com/dictionary/english/${encodedText}`,
-    'Linguee': `https://www.linguee.com/english-chinese/search?source=english&query=${encodedText}`,
-    'Context.reverso': `https://context.reverso.net/translation/english-chinese/${encodedText}`,
+    'Cambridge Dictionary': `https://dictionary.cambridge.org/dictionary/english/${encodedText}`,
+    'Thesaurus.com': `https://www.thesaurus.com/browse/${encodedText}`,
+    'Urban Dictionary': `https://www.urbandictionary.com/define.php?term=${encodedText}`,
     'Ludwig': `https://ludwig.guru/s/${encodedText}`,
-    'Google Translate': `https://translate.google.com/?sl=en&tl=zh-TW&text=${encodedText}`,
-    'DeepL': `https://www.deepl.com/translator#en/zh/${encodedText}`,
+    'Jisho.org': `https://jisho.org/search/${encodedText}`,
     'Tatoeba': `https://tatoeba.org/en/sentences/search?query=${encodedText}`,
-    'Google Search': `https://www.google.com/search?q=${encodedText}`,
-    'Bing': `https://www.bing.com/search?q=${encodedText}`
+    'HiNative': `https://hinative.com/questions?search=${encodedText}`,
+    'Van Dale': `https://www.vandale.nl/gratis-woordenboek/nederlands/betekenis/${encodedText}`,
+    'Linguee': `https://www.linguee.com/english-dutch/search?source=dutch&query=${encodedText}`,
+    'Naver Dictionary': `https://en.dict.naver.com/#/search?query=${encodedText}`
   };
   
-  return sites[siteName] || sites['YouGlish'];
+  return urlMaps[siteName] || `https://youglish.com/pronounce/${encodedText}/${language}`;
 }
 
-// Get site configurations based on language
+// Get site configurations based on language (from main version)
 function getSiteConfigs(language) {
-  const commonSites = [
-    {
-      name: 'YouGlish',
-      displayName: 'YouGlish',
-      description: '真實語音發音',
-      longDescription: 'Real pronunciation from videos',
-      icon: '🎯',
-      category: 'pronunciation'
-    },
-    {
-      name: 'Forvo',
-      displayName: 'Forvo',
-      description: '母語者發音詞典',
-      longDescription: 'Native speaker pronunciation dictionary',
-      icon: '🔊',
-      category: 'pronunciation'
-    },
-    {
-      name: 'Cambridge',
-      displayName: 'Cambridge Dictionary',
-      description: '劍橋詞典',
-      longDescription: 'Comprehensive dictionary with pronunciation',
-      icon: '📚',
-      category: 'dictionary'
-    },
-    {
-      name: 'Oxford',
-      displayName: 'Oxford Learner\'s',
-      description: '牛津學習詞典',
-      longDescription: 'Oxford dictionary for learners',
-      icon: '🎓',
-      category: 'dictionary'
-    },
-    {
-      name: 'Context.reverso',
-      displayName: 'Reverso Context',
-      description: '語境翻譯例句',
-      longDescription: 'Translation with context examples',
-      icon: '💭',
-      category: 'context'
-    },
-    {
-      name: 'Ludwig',
-      displayName: 'Ludwig',
-      description: '語言學習搜尋',
-      longDescription: 'Linguistic search engine for better writing',
-      icon: '✍️',
-      category: 'examples'
-    },
-    {
-      name: 'Google Translate',
-      displayName: 'Google Translate',
-      description: '谷歌翻譯',
-      longDescription: 'Quick translation service',
-      icon: '🌐',
-      category: 'translation'
-    },
-    {
-      name: 'Google Search',
-      displayName: 'Google Search',
-      description: '谷歌搜尋',
-      longDescription: 'Search for more information',
-      icon: '🔍',
-      category: 'search'
-    }
-  ];
+  const configs = {
+    english: [
+      {
+        name: 'YouGlish',
+        displayName: 'YouGlish',
+        icon: '📺',
+        description: 'YouTube 影片發音範例',
+        longDescription: '基於 YouTube 影片的發音範例，涵蓋各種口音和情境',
+        category: 'pronunciation'
+      },
+      {
+        name: 'PlayPhrase.me',
+        displayName: 'PlayPhrase.me',
+        icon: '🎬',
+        description: '電影片段中的真實發音',
+        longDescription: '從電影和電視劇中提取真實的發音片段，適合學習自然語調',
+        category: 'pronunciation'
+      },
+      {
+        name: 'Forvo',
+        displayName: 'Forvo',
+        icon: '🔊',
+        description: '多國母語者發音字典',
+        longDescription: '由母語者錄製的標準發音，支援多種口音和方言',
+        category: 'pronunciation'
+      },
+      {
+        name: 'Cambridge Dictionary',
+        displayName: 'Cambridge Dictionary',
+        icon: '📖',
+        description: '權威英語字典',
+        longDescription: '劍橋大學出版的權威英語字典，包含詳細定義、例句和語法',
+        category: 'dictionary'
+      },
+      {
+        name: 'Thesaurus.com',
+        displayName: 'Thesaurus.com',
+        icon: '🔤',
+        description: '英語同義詞字典',
+        longDescription: '豐富的同義詞、反義詞和相關詞彙，幫助擴展詞彙量',
+        category: 'dictionary'
+      },
+      {
+        name: 'Reverso Context',
+        displayName: 'Reverso Context',
+        icon: '🌐',
+        description: '真實語境例句',
+        longDescription: '來自網絡和文檔的真實使用例句，了解詞彙的實際用法',
+        category: 'context'
+      },
+      {
+        name: 'Urban Dictionary',
+        displayName: 'Urban Dictionary',
+        icon: '🏙️',
+        description: '英語俚語字典',
+        longDescription: '現代英語俚語、網絡用語和非正式表達的字典',
+        category: 'slang'
+      },
+      {
+        name: 'Ludwig',
+        displayName: 'Ludwig',
+        icon: '🎓',
+        description: '學術寫作範例',
+        longDescription: '學術和專業寫作的範例，適合提高正式英語寫作水平',
+        category: 'academic'
+      }
+    ],
+    japanese: [
+      {
+        name: 'YouGlish',
+        displayName: 'YouGlish',
+        icon: '📺',
+        description: 'YouTube 日語發音範例',
+        longDescription: '基於 YouTube 影片的日語發音範例',
+        category: 'pronunciation'
+      },
+      {
+        name: 'PlayPhrase.me',
+        displayName: 'PlayPhrase.me',
+        icon: '🎬',
+        description: '影視劇日語發音',
+        longDescription: '從電影和電視劇中查找日語詞彙的真實發音和使用情境',
+        category: 'pronunciation'
+      },
+      {
+        name: 'Immersion Kit',
+        displayName: 'Immersion Kit',
+        icon: '🎌',
+        description: '日語動漫例句',
+        longDescription: '從日語動漫、電影中提取真實的日語例句和發音',
+        category: 'pronunciation'
+      },
+      {
+        name: 'Forvo',
+        displayName: 'Forvo',
+        icon: '🔊',
+        description: '日語母語者發音',
+        longDescription: '由日語母語者錄製的標準發音',
+        category: 'pronunciation'
+      },
+      {
+        name: 'Jisho.org',
+        displayName: 'Jisho.org',
+        icon: '📚',
+        description: '最佳日語字典',
+        longDescription: '最全面的線上日語字典，包含漢字、讀音、例句和語法',
+        category: 'dictionary'
+      }
+    ],
+    dutch: [
+      {
+        name: 'YouGlish',
+        displayName: 'YouGlish',
+        icon: '📺',
+        description: 'YouTube 荷蘭語範例',
+        longDescription: '基於 YouTube 影片的荷蘭語發音範例',
+        category: 'pronunciation'
+      },
+      {
+        name: 'Forvo',
+        displayName: 'Forvo',
+        icon: '🔊',
+        description: '荷蘭語母語者發音',
+        longDescription: '由荷蘭語母語者錄製的標準發音，最適合荷蘭語學習',
+        category: 'pronunciation'
+      },
+      {
+        name: 'Van Dale',
+        displayName: 'Van Dale',
+        icon: '📖',
+        description: '權威荷蘭語字典',
+        longDescription: '荷蘭最權威的字典，包含詳細定義、語法和用法',
+        category: 'dictionary'
+      }
+    ]
+  };
   
-  return commonSites;
+  // Return sites for the specified language, fallback to english
+  return configs[language] || configs.english || [];
 }
 
 // Load site in iframe
