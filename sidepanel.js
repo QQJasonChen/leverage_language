@@ -432,6 +432,8 @@ function initializeViewControls() {
   // 影片視圖按鈕
   if (showVideoBtn) {
     showVideoBtn.onclick = () => {
+      console.log('🎥 VIDEO TAB CLICKED! This should show pronunciation sites');
+      alert('🎥 Video Tab Clicked! Check if pronunciation sites appear below.');
       // Remove active from all view buttons
       document.querySelectorAll('.view-button').forEach(btn => btn.classList.remove('active'));
       showVideoBtn.classList.add('active');
