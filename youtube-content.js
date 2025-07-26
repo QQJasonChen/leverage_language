@@ -184,16 +184,38 @@ window.addEventListener('message', (event) => {
       return;
     }
     
+    // Additional check for runtime ID availability
+    try {
+      if (!chrome.runtime.id) {
+        console.error('❌ Extension runtime ID not available - context invalidated');
+        showContextInvalidatedMessage();
+        return;
+      }
+    } catch (error) {
+      console.error('❌ Cannot access chrome.runtime.id - context invalidated');
+      showContextInvalidatedMessage();
+      return;
+    }
+    
     // Send to background script with robust error handling
     try {
       chrome.runtime.sendMessage(messageToBackground, (response) => {
-        if (chrome.runtime.lastError) {
+        // Check if runtime is still valid in callback
+        if (!chrome.runtime || !chrome.runtime.lastError) {
+          // Runtime might be invalidated but no lastError - check for response
+          if (response === undefined && !chrome.runtime) {
+            console.error('❌ Extension context invalidated during message sending');
+            showContextInvalidatedMessage();
+            return;
+          }
+        }
+        
+        if (chrome.runtime && chrome.runtime.lastError) {
           const error = chrome.runtime.lastError.message;
           console.error('❌ Runtime error sending to background:', error);
           
-          if (error.includes('Extension context invalidated')) {
+          if (error.includes('Extension context invalidated') || error.includes('message port closed')) {
             console.log('🔄 Extension context invalidated - page needs reload');
-            // Show user-friendly message
             showContextInvalidatedMessage();
           } else {
             console.log('📝 Other runtime error, continuing...');
@@ -205,7 +227,9 @@ window.addEventListener('message', (event) => {
       });
     } catch (error) {
       console.error('❌ Failed to send message to background:', error);
-      if (error.message.includes('Extension context invalidated')) {
+      if (error.message.includes('Extension context invalidated') || 
+          error.message.includes('message port closed') ||
+          error.message.includes('runtime is not available')) {
         showContextInvalidatedMessage();
       }
     }
