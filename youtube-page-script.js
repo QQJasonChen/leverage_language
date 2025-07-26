@@ -353,11 +353,44 @@ function handleSubtitleClick(e) {
   // Safety check: ensure target is an Element before calling matches
   if (!target || typeof target.matches !== 'function') return;
   
-  console.log('🖱️ Click detected on:', target.tagName, target.className, target.textContent?.substring(0, 50));
+  console.log('🖱️ Click detected on:', {
+    tagName: target.tagName,
+    className: target.className,
+    id: target.id,
+    textContent: target.textContent?.substring(0, 50),
+    parentClass: target.parentElement?.className,
+    grandParentClass: target.parentElement?.parentElement?.className
+  });
   
-  // Use the exact working selectors from the full version
-  const isSubtitle = target.matches('.ytp-caption-segment, .captions-text, .ytd-transcript-segment-renderer, .segment-text, .ytd-transcript-body-renderer *') || 
-                    target.closest('.ytp-caption-segment, .captions-text, .ytd-transcript-segment-renderer, .segment-text, .ytd-transcript-body-renderer');
+  // Comprehensive subtitle selectors for different YouTube layouts
+  const subtitleSelectors = [
+    // Live captions on video
+    '.ytp-caption-segment',
+    '.captions-text', 
+    '.ytp-caption-window-container *',
+    '.ytp-caption-window-bottom *',
+    '.caption-window *',
+    
+    // Transcript panel selectors
+    '.ytd-transcript-segment-renderer',
+    '.ytd-transcript-segment-renderer *',
+    '.segment-text',
+    '.ytd-transcript-body-renderer *',
+    '.ytd-transcript-search-panel-renderer *',
+    
+    // Auto-generated captions
+    '.ytd-transcript-segment-list-renderer *',
+    '.ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-transcript"] *',
+    
+    // Additional caption containers
+    '[data-testid="transcript-segment"]',
+    '[data-testid="transcript-segment"] *',
+    '.transcript-segment',
+    '.transcript-text'
+  ];
+  
+  const selectorString = subtitleSelectors.join(', ');
+  const isSubtitle = target.matches(selectorString) || target.closest(selectorString);
   
   console.log('🔍 Subtitle detection result:', isSubtitle);
   
