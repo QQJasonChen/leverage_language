@@ -57,6 +57,37 @@ function getCurrentVideoTimestamp() {
   }
 }
 
+// Create timestamped URL for returning to exact moment
+function createTimestampedUrl(baseUrl, timestamp) {
+  try {
+    // Clean the base URL - remove any existing timestamp parameters
+    let cleanUrl = baseUrl;
+    
+    // Handle different YouTube URL formats
+    if (cleanUrl.includes('youtube.com') || cleanUrl.includes('youtu.be')) {
+      cleanUrl = cleanUrl.split('&t=')[0].split('?t=')[0].split('#t=')[0];
+      
+      const url = new URL(cleanUrl);
+      
+      // Only add timestamp if we have a valid one
+      if (timestamp !== null && timestamp >= 0 && !isNaN(timestamp)) {
+        url.searchParams.set('t', `${timestamp}s`);
+        console.log('🔗 Created timestamped URL:', url.toString(), `(timestamp: ${timestamp}s)`);
+        return url.toString();
+      } else {
+        console.log('🔗 No valid timestamp, returning clean URL:', cleanUrl);
+        return cleanUrl;
+      }
+    }
+    
+    // For non-YouTube URLs, just return as-is
+    return baseUrl;
+  } catch (error) {
+    console.warn('⚠️ Could not create timestamped URL:', error);
+    return baseUrl;
+  }
+}
+
 // Listen for messages from the injected script
 window.addEventListener('message', (event) => {
   // Only accept messages from the same origin
@@ -74,15 +105,30 @@ window.addEventListener('message', (event) => {
     const videoTimestamp = getCurrentVideoTimestamp();
     console.log('⏰ Captured video timestamp:', videoTimestamp);
     
+    // Create timestamped URL for returning to exact moment
+    const baseUrl = event.data.url || window.location.href;
+    const timestampedUrl = createTimestampedUrl(baseUrl, videoTimestamp);
+    
+    // Validate timestamp URL format (like your example: t=615s)
+    if (videoTimestamp !== null) {
+      const expectedParam = `t=${videoTimestamp}s`;
+      if (timestampedUrl.includes(expectedParam)) {
+        console.log('✅ Timestamp URL validation passed:', expectedParam);
+      } else {
+        console.warn('⚠️ Timestamp URL validation failed!', { videoTimestamp, expectedParam, timestampedUrl });
+      }
+    }
+    
     // Prepare message with all data from page script
     const messageToBackground = {
       action: 'analyzeTextInSidepanel',
       text: event.data.text,
-      url: event.data.url || window.location.href,
+      url: timestampedUrl, // Use timestamped URL instead of original
+      originalUrl: baseUrl, // Keep original URL for reference
       title: event.data.title || document.title,
       language: event.data.language || 'english',
       source: event.data.source || 'youtube-learning',
-      timestamp: videoTimestamp // ADD THE MISSING TIMESTAMP!
+      timestamp: videoTimestamp // Raw timestamp in seconds
     };
     
     console.log('🚀 Sending to background script:', messageToBackground);
