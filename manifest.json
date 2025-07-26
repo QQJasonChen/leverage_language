@@ -42,8 +42,8 @@
     },
     {
       "matches": ["https://*.youtube.com/*"],
-      "js": ["youtube-standalone-inject.js"],
-      "run_at": "document_end"
+      "js": ["youtube-content.js"],
+      "run_at": "document_start"
     }
   ],
   
@@ -72,6 +72,10 @@
     {
       "resources": ["proxy.html", "language-selector.html", "language-selector.js", "auth-ui.html"],
       "matches": ["<all_urls>"]
+    },
+    {
+      "resources": ["youtube-page-script.js"],
+      "matches": ["https://*.youtube.com/*"]
     }
   ]
 }
