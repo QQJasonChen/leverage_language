@@ -142,7 +142,13 @@ function safeCreateHistoryItem(item, historyData) {
   }
   
   // Add video source information if available
+  console.log('🔍 SecurityFixes checking video source:', {
+    hasVideoSource: !!historyData.videoSource,
+    videoSource: historyData.videoSource
+  });
+  
   if (historyData.videoSource) {
+    console.log('✅ Creating video source display for:', historyData.text);
     const videoDiv = safeCreateElement('div', '', 'history-video-source');
     videoDiv.style.marginTop = '8px';
     videoDiv.style.padding = '8px';

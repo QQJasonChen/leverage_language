@@ -658,8 +658,11 @@ async function handleYouTubeTextAnalysis(request, tabId) {
       };
       
       console.log('📹 Video source info:', videoSource);
-      await historyManager.addRecord(cleanText, language, 'youtube-learning', [], videoSource);
+      console.log('📹 Video source details:', JSON.stringify(videoSource, null, 2));
+      
+      const savedRecord = await historyManager.addRecord(cleanText, language, 'youtube-learning', [], videoSource);
       console.log('✅ YouTube learning saved to history with video source');
+      console.log('💾 Saved record details:', JSON.stringify(savedRecord, null, 2));
     } catch (error) {
       console.error('❌ Failed to save YouTube learning to history:', error);
     }

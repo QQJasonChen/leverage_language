@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Timestamp Feature</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+        .log { background: #f5f5f5; padding: 10px; border-radius: 4px; margin: 10px 0; font-family: monospace; }
+        .success { color: green; }
+        .error { color: red; }
+        .warning { color: orange; }
+        button { padding: 8px 16px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; }
+        .primary { background: #007bff; color: white; }
+        .secondary { background: #6c757d; color: white; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Debug Timestamp Feature</h1>
+    
+    <div class="test-section">
+        <h3>Step 1: Test Current Setup</h3>
+        <button class="primary" onclick="checkHistory()">Check History for Video Sources</button>
+        <button class="secondary" onclick="clearLogs()">Clear Logs</button>
+        <div id="historyResult" class="log" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 2: Manual Test</h3>
+        <ol>
+            <li>Open a YouTube video in another tab</li>
+            <li>Play the video for 30+ seconds</li>
+            <li>Click on any subtitle text</li>
+            <li>Come back here and click "Check Recent History"</li>
+        </ol>
+        <button class="primary" onclick="checkRecentHistory()">Check Recent History</button>
+        <div id="recentResult" class="log" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 3: Debug Console</h3>
+        <p>Open browser console (F12) and look for these logs when clicking YouTube subtitles:</p>
+        <ul>
+            <li><code class="success">🔍 Starting timestamp detection...</code></li>
+            <li><code class="success">🎬 Video element found: true</code></li>
+            <li><code class="success">✅ Video timestamp from video element: XX seconds</code></li>
+            <li><code class="success">📹 Video source info: {url, title, channel, videoTimestamp...}</code></li>
+        </ul>
+    </div>
+
+    <script>
+        function clearLogs() {
+            document.getElementById('historyResult').style.display = 'none';
+            document.getElementById('recentResult').style.display = 'none';
+        }
+
+        async function checkHistory() {
+            const resultDiv = document.getElementById('historyResult');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = 'Loading history...';
+
+            try {
+                const result = await new Promise((resolve) => {
+                    chrome.runtime.sendMessage({ action: 'getHistory' }, resolve);
+                });
+
+                if (result && result.success) {
+                    const history = result.history;
+                    const videoEntries = history.filter(item => item.videoSource);
+                    
+                    let html = `<div class="success">✅ Found ${history.length} total history items</div>`;
+                    html += `<div class="warning">📹 Found ${videoEntries.length} items with video sources</div>`;
+                    
+                    if (videoEntries.length > 0) {
+                        html += '<br><strong>Video Source Entries:</strong><br>';
+                        videoEntries.slice(0, 5).forEach((item, index) => {
+                            html += `<div style="margin: 10px 0; padding: 10px; background: #e7f3ff; border-radius: 4px;">
+                                <strong>${index + 1}. "${item.text}"</strong><br>
+                                Language: ${item.language}<br>
+                                Video: ${item.videoSource?.title || 'Unknown'}<br>
+                                Channel: ${item.videoSource?.channel || 'Unknown'}<br>
+                                Timestamp: ${item.videoSource?.videoTimestamp || 'No timestamp'} seconds<br>
+                                URL: ${item.videoSource?.url || 'No URL'}
+                            </div>`;
+                        });
+                    } else {
+                        html += '<div class="error">❌ No video source entries found!</div>';
+                        html += '<div>This means either:</div>';
+                        html += '<ul><li>You haven\'t clicked any YouTube subtitles yet</li>';
+                        html += '<li>The timestamp capture isn\'t working</li>';
+                        html += '<li>The data isn\'t being saved properly</li></ul>';
+                    }
+                    
+                    resultDiv.innerHTML = html;
+                } else {
+                    resultDiv.innerHTML = '<div class="error">❌ Failed to load history</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        async function checkRecentHistory() {
+            const resultDiv = document.getElementById('recentResult');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = 'Checking recent history...';
+
+            try {
+                const result = await new Promise((resolve) => {
+                    chrome.runtime.sendMessage({ action: 'getHistory' }, resolve);
+                });
+
+                if (result && result.success) {
+                    const history = result.history;
+                    const recent = history.slice(0, 10); // Last 10 items
+                    
+                    let html = `<div class="success">✅ Last 10 history items:</div><br>`;
+                    
+                    recent.forEach((item, index) => {
+                        const hasVideo = !!item.videoSource;
+                        const timestamp = item.videoSource?.videoTimestamp;
+                        const bgColor = hasVideo ? '#e7f3ff' : '#f8f8f8';
+                        
+                        html += `<div style="margin: 5px 0; padding: 8px; background: ${bgColor}; border-radius: 4px;">
+                            <strong>${index + 1}. "${item.text}"</strong> (${item.language})
+                            ${hasVideo ? 
+                                `<br>📹 Video: ${item.videoSource.title}<br>⏰ Timestamp: ${timestamp || 'None'} seconds` : 
+                                '<br>📝 Regular search (no video)'}
+                        </div>`;
+                    });
+                    
+                    resultDiv.innerHTML = html;
+                } else {
+                    resultDiv.innerHTML = '<div class="error">❌ Failed to load recent history</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

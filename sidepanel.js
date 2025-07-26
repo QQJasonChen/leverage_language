@@ -2075,6 +2075,13 @@ function displayHistoryItems(queries) {
   
   // 顯示查詢歷史
   queries.slice(0, 50).forEach(query => {
+    console.log('🔍 Processing history item:', {
+      text: query.text,
+      hasVideoSource: !!query.videoSource,
+      videoSource: query.videoSource,
+      timestamp: query.timestamp
+    });
+    
     const item = document.createElement('div');
     item.className = 'history-item';
     
