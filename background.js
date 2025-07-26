@@ -649,9 +649,11 @@ async function handleYouTubeTextAnalysis(request, tabId) {
       // 創建影片來源資訊
       const videoSource = {
         url: request.url || null,
+        originalUrl: request.originalUrl || request.url || null,
         title: request.title || '未知影片',
         channel: extractChannelFromTitle(request.title) || '未知頻道',
-        timestamp: Date.now(),
+        videoTimestamp: request.timestamp || null, // Video playback time in seconds
+        timestamp: Date.now(), // When this was learned
         learnedAt: new Date().toISOString()
       };
       

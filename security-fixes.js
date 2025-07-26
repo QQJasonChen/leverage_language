@@ -47,6 +47,23 @@ function safeUpdateStats(statsElement, text) {
   statsElement.appendChild(p);
 }
 
+// Helper function to format video timestamp
+function formatVideoTimestamp(seconds) {
+  if (seconds === null || seconds === undefined || isNaN(seconds)) {
+    return '';
+  }
+  
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  } else {
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+  }
+}
+
 // Replace history item innerHTML updates  
 function safeCreateHistoryItem(item, historyData) {
   if (!item) return;
@@ -150,11 +167,20 @@ function safeCreateHistoryItem(item, historyData) {
     videoTitle.style.color = '#1a73e8';
     videoTitle.style.marginBottom = '2px';
     
-    const videoChannel = safeCreateElement('div', historyData.videoSource.channel, 'video-channel');
-    videoChannel.style.fontSize = '12px';
-    videoChannel.style.color = '#666';
+    const videoMeta = safeCreateElement('div', '', 'video-meta');
+    videoMeta.style.fontSize = '12px';
+    videoMeta.style.color = '#666';
     
-    const returnBtn = safeCreateElement('button', '返回影片', 'video-return-btn');
+    const channelText = historyData.videoSource.channel;
+    const timestampText = formatVideoTimestamp(historyData.videoSource.videoTimestamp);
+    
+    if (timestampText) {
+      videoMeta.textContent = `${channelText} • ⏰ ${timestampText}`;
+    } else {
+      videoMeta.textContent = channelText;
+    }
+    
+    const returnBtn = safeCreateElement('button', timestampText ? '⏰ 返回片段' : '📹 返回影片', 'video-return-btn');
     returnBtn.style.padding = '4px 8px';
     returnBtn.style.fontSize = '11px';
     returnBtn.style.backgroundColor = '#ff0000';
@@ -162,10 +188,15 @@ function safeCreateHistoryItem(item, historyData) {
     returnBtn.style.border = 'none';
     returnBtn.style.borderRadius = '4px';
     returnBtn.style.cursor = 'pointer';
+    returnBtn.style.fontWeight = '500';
     returnBtn.setAttribute('data-video-url', historyData.videoSource.url || '');
     
+    if (timestampText) {
+      returnBtn.title = `返回到 ${timestampText} 的學習片段`;
+    }
+    
     videoDetails.appendChild(videoTitle);
-    videoDetails.appendChild(videoChannel);
+    videoDetails.appendChild(videoMeta);
     videoInfo.appendChild(videoIcon);
     videoInfo.appendChild(videoDetails);
     videoInfo.appendChild(returnBtn);

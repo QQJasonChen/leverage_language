@@ -2007,6 +2007,23 @@ function loadHistoryViewFallback() {
   });
 }
 
+// Helper function to format video timestamp
+function formatVideoTimestamp(seconds) {
+  if (seconds === null || seconds === undefined || isNaN(seconds)) {
+    return '';
+  }
+  
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  } else {
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+  }
+}
+
 // Extract display logic into separate function
 function displayHistoryItems(queries) {
   const historyContainer = document.getElementById('historyList');
@@ -2083,9 +2100,11 @@ function displayHistoryItems(queries) {
               <span class="video-icon" style="font-size: 16px;">📹</span>
               <div class="video-details" style="flex: 1;">
                 <div class="video-title" style="font-weight: 500; font-size: 13px; color: #1a73e8; margin-bottom: 2px;">${query.videoSource.title}</div>
-                <div class="video-channel" style="font-size: 12px; color: #666;">${query.videoSource.channel}</div>
+                <div class="video-meta" style="font-size: 12px; color: #666;">
+                  ${query.videoSource.channel}${formatVideoTimestamp(query.videoSource.videoTimestamp) ? ` • ⏰ ${formatVideoTimestamp(query.videoSource.videoTimestamp)}` : ''}
+                </div>
               </div>
-              <button class="video-return-btn" data-video-url="${query.videoSource.url || ''}" style="padding: 4px 8px; font-size: 11px; background-color: #ff0000; color: white; border: none; border-radius: 4px; cursor: pointer;">返回影片</button>
+              <button class="video-return-btn" data-video-url="${query.videoSource.url || ''}" style="padding: 4px 8px; font-size: 11px; background-color: #ff0000; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;" title="${formatVideoTimestamp(query.videoSource.videoTimestamp) ? `返回到 ${formatVideoTimestamp(query.videoSource.videoTimestamp)} 的學習片段` : '返回影片'}">${formatVideoTimestamp(query.videoSource.videoTimestamp) ? '⏰ 返回片段' : '📹 返回影片'}</button>
             </div>
           </div>
         ` : ''}

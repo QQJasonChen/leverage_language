@@ -498,6 +498,50 @@ if (window.location.href.includes('youtube.com')) {
     showBriefConfirmation(text, x, y);
   }
   
+  // Get current video timestamp
+  function getCurrentVideoTimestamp() {
+    try {
+      // Try to get the YouTube video element
+      const video = document.querySelector('video');
+      if (video && !isNaN(video.currentTime)) {
+        return Math.floor(video.currentTime); // Return timestamp in seconds
+      }
+      
+      // Fallback: try to get from URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const timeParam = urlParams.get('t');
+      if (timeParam) {
+        // Parse time parameter (could be like "123s" or "2m3s")
+        const timeMatch = timeParam.match(/(\d+)(?:m(\d+))?s?/);
+        if (timeMatch) {
+          const minutes = parseInt(timeMatch[1]) || 0;
+          const seconds = parseInt(timeMatch[2]) || 0;
+          return minutes * 60 + seconds;
+        }
+        return parseInt(timeParam) || 0;
+      }
+      
+      return null;
+    } catch (error) {
+      console.warn('⚠️ Could not get video timestamp:', error);
+      return null;
+    }
+  }
+  
+  // Create timestamped URL for returning to exact moment
+  function createTimestampedUrl(baseUrl, timestamp) {
+    try {
+      const url = new URL(baseUrl);
+      if (timestamp !== null && timestamp >= 0) {
+        url.searchParams.set('t', `${timestamp}s`);
+      }
+      return url.toString();
+    } catch (error) {
+      console.warn('⚠️ Could not create timestamped URL:', error);
+      return baseUrl;
+    }
+  }
+
   function sendToSidepanel(text) {
     console.log('📨 Attempting to send to sidepanel:', text);
     
@@ -514,13 +558,23 @@ if (window.location.href.includes('youtube.com')) {
         return;
       }
       
+      // Get current video timestamp
+      const timestamp = getCurrentVideoTimestamp();
+      const baseUrl = window.location.href.split('&t=')[0].split('?t=')[0]; // Remove existing timestamp
+      const timestampedUrl = createTimestampedUrl(baseUrl, timestamp);
+      
+      console.log('⏰ Captured video timestamp:', timestamp, 'seconds');
+      console.log('🔗 Timestamped URL:', timestampedUrl);
+      
       // Send message to background script to update sidepanel
       chrome.runtime.sendMessage({
         action: 'analyzeTextInSidepanel',
         text: text,
-        url: window.location.href,
+        url: timestampedUrl, // Use timestamped URL
+        originalUrl: window.location.href, // Keep original for reference
         title: document.title,
-        source: 'youtube-learning'
+        source: 'youtube-learning',
+        timestamp: timestamp // Include raw timestamp
       }, (response) => {
         if (chrome.runtime.lastError) {
           console.log('⚠️ Runtime error (expected):', chrome.runtime.lastError.message);
