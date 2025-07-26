@@ -3450,8 +3450,27 @@ async function loadSavedReports() {
                 <button class="report-action-btn delete-btn" data-id="${report.id}" title="刪除報告">
                   🗑️
                 </button>
+                ${report.videoSource && report.videoSource.url ? `
+                  <button class="report-action-btn video-return-btn" data-video-url="${report.videoSource.url}" title="${formatVideoTimestamp(report.videoSource.videoTimestamp) ? `返回到 ${formatVideoTimestamp(report.videoSource.videoTimestamp)} 的學習片段` : '返回影片'}">
+                    ${formatVideoTimestamp(report.videoSource.videoTimestamp) ? '⏰' : '📹'}
+                  </button>
+                ` : ''}
               </div>
             </div>
+            ${report.videoSource && report.videoSource.url ? `
+              <div class="saved-report-video-info" style="margin: 8px 0; padding: 8px; background-color: #f8f9fa; border-radius: 6px; border-left: 3px solid #ff0000;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 16px;">📹</span>
+                  <div style="flex: 1;">
+                    <div style="font-weight: 500; font-size: 13px; color: #1a73e8; margin-bottom: 2px;">${report.videoSource.title}</div>
+                    <div style="font-size: 12px; color: #666;">
+                      ${report.videoSource.channel}${formatVideoTimestamp(report.videoSource.videoTimestamp) ? ` • ⏰ ${formatVideoTimestamp(report.videoSource.videoTimestamp)}` : ''}
+                    </div>
+                  </div>
+                  <button class="video-return-btn-large" data-video-url="${report.videoSource.url}" style="padding: 6px 12px; font-size: 12px; background-color: #ff0000; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;" title="${formatVideoTimestamp(report.videoSource.videoTimestamp) ? `返回到 ${formatVideoTimestamp(report.videoSource.videoTimestamp)} 的學習片段` : '返回影片'}">${formatVideoTimestamp(report.videoSource.videoTimestamp) ? '⏰ 返回片段' : '📹 返回影片'}</button>
+                </div>
+              </div>
+            ` : ''}
             <div class="report-meta">
               <span class="report-date">📅 ${new Date(report.timestamp).toLocaleDateString('zh-TW')} ${new Date(report.timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}</span>
               <div class="report-tags-container">
@@ -3618,6 +3637,38 @@ async function loadSavedReports() {
             toggleTagEditing(reportId, item);
           });
         }
+        
+        // Video return buttons (both small and large)
+        const videoReturnBtns = item.querySelectorAll('.video-return-btn, .video-return-btn-large');
+        videoReturnBtns.forEach(btn => {
+          if (btn) {
+            btn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              const videoUrl = btn.dataset.videoUrl;
+              if (videoUrl) {
+                console.log('🎬 Opening video:', videoUrl);
+                window.open(videoUrl, '_blank');
+                
+                // Track analytics
+                if (learningAnalytics) {
+                  const report = reports.find(r => r.id === reportId);
+                  if (report) {
+                    learningAnalytics.recordVocabularyInteraction(
+                      report.searchText,
+                      report.language,
+                      'video_return',
+                      { 
+                        from: 'saved_reports',
+                        hasTimestamp: !!formatVideoTimestamp(report.videoSource?.videoTimestamp),
+                        videoUrl: videoUrl
+                      }
+                    );
+                  }
+                }
+              }
+            });
+          }
+        });
         
         // Save tags button
         const saveTagsBtn = item.querySelector('.save-tags-btn');
