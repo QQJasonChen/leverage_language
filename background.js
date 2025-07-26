@@ -591,6 +591,36 @@ async function proceedWithSearch(text, tabId, language, urls, openMethod, source
   }
 }
 
+// 從 YouTube 標題中提取頻道名稱的輔助函數
+function extractChannelFromTitle(title) {
+  if (!title) return null;
+  
+  try {
+    // YouTube 標題格式通常是: "Video Title - Channel Name - YouTube"
+    const parts = title.split(' - ');
+    if (parts.length >= 2) {
+      // 去除最後的 "YouTube" 部分，返回頻道名稱
+      const channelName = parts[parts.length - 2].trim();
+      if (channelName && channelName !== 'YouTube') {
+        return channelName;
+      }
+    }
+    
+    // 如果標準格式不匹配，嘗試其他常見格式
+    if (title.includes(' | ')) {
+      const pipeparts = title.split(' | ');
+      if (pipeparts.length >= 2) {
+        return pipeparts[pipeparts.length - 1].trim();
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error extracting channel from title:', error);
+    return null;
+  }
+}
+
 // 處理 YouTube 學習文本分析
 async function handleYouTubeTextAnalysis(request, tabId) {
   try {
@@ -612,11 +642,22 @@ async function handleYouTubeTextAnalysis(request, tabId) {
     // 生成語言學習 URLs
     const urls = generateLanguageUrls(cleanText, language);
     
-    // 保存到歷史記錄
+    // 保存到歷史記錄（包含影片來源資訊）
     try {
       console.log('💾 Saving YouTube learning to history:', cleanText, language);
-      await historyManager.addRecord(cleanText, language, 'youtube-learning');
-      console.log('✅ YouTube learning saved to history successfully');
+      
+      // 創建影片來源資訊
+      const videoSource = {
+        url: request.url || null,
+        title: request.title || '未知影片',
+        channel: extractChannelFromTitle(request.title) || '未知頻道',
+        timestamp: Date.now(),
+        learnedAt: new Date().toISOString()
+      };
+      
+      console.log('📹 Video source info:', videoSource);
+      await historyManager.addRecord(cleanText, language, 'youtube-learning', [], videoSource);
+      console.log('✅ YouTube learning saved to history with video source');
     } catch (error) {
       console.error('❌ Failed to save YouTube learning to history:', error);
     }

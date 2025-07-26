@@ -3984,21 +3984,32 @@
                     </div>
                 </div>
 
-                <!-- Top Vocabulary -->
+                <!-- Video Learning Queue -->
                 <div class="learning-section" style="background: white; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <h4 style="margin: 0; color: #333;">⭐ 常用詞彙</h4>
-                        <select id="quickVocabSort" style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
-                            <option value="frequency">使用頻率</option>
-                            <option value="recent">最近使用</option>
-                            <option value="alphabetical">字母順序</option>
-                        </select>
+                        <h4 style="margin: 0; color: #333;">📹 學習影片列表</h4>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="clearVideoQueueBtn" style="background: #ff5722; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="清除學習影片歷史">🗑️ 清除</button>
+                            <button id="refreshVideoQueueBtn" style="background: #2196F3; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="重新整理影片列表">🔄 刷新</button>
+                        </div>
                     </div>
-                    <div id="quickVocabList" style="max-height: 250px; overflow-y: auto; border: 1px solid #f0f0f0; border-radius: 4px; padding: 8px;">
-                        <div style="text-align: center; color: #999; padding: 40px 20px;">
-                            <div style="font-size: 48px; margin-bottom: 16px;">📝</div>
-                            <div style="font-size: 14px; margin-bottom: 8px;">尚無詞彙記錄</div>
-                            <div style="font-size: 12px; color: #ccc;">選擇詞彙後會在這裡顯示</div>
+                    <div id="videoLearningQueue" style="max-height: 280px; overflow-y: auto; border: 1px solid #f0f0f0; border-radius: 4px; padding: 8px;">
+                        <div style="text-align: center; color: #999; padding: 30px 20px;">
+                            <div style="font-size: 48px; margin-bottom: 16px;">🎬</div>
+                            <div style="font-size: 14px; margin-bottom: 8px; color: #666;">尚無學習影片</div>
+                            <div style="font-size: 12px; color: #ccc; margin-bottom: 16px;">在 YouTube 影片中點擊字幕開始學習</div>
+                            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px;">
+                                <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank" 
+                                   style="display: flex; align-items: center; text-decoration: none; color: #1a73e8; font-size: 12px; padding: 8px; border-radius: 4px; background: #f8f9fa; border: 1px solid #e0e0e0; transition: all 0.2s;">
+                                    <span style="margin-right: 8px;">🎓</span>
+                                    <span>推薦英語學習影片</span>
+                                </a>
+                                <a href="https://www.youtube.com/results?search_query=english+conversation+practice" target="_blank" 
+                                   style="display: flex; align-items: center; text-decoration: none; color: #1a73e8; font-size: 12px; padding: 8px; border-radius: 4px; background: #f8f9fa; border: 1px solid #e0e0e0; transition: all 0.2s;">
+                                    <span style="margin-right: 8px;">💬</span>
+                                    <span>會話練習影片</span>
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -4037,43 +4048,46 @@
                     </div>
                 </div>
 
-                <!-- Learning Insights -->
+                <!-- Quick Review & Learning Tools -->
                 <div class="learning-section" style="background: white; border-radius: 8px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <h4 style="margin: 0 0 12px 0; color: #333;">📊 學習洞察</h4>
+                    <h4 style="margin: 0 0 12px 0; color: #333;">🔄 快速複習</h4>
                     
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-                        <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; text-align: center;">
-                            <div style="font-size: 12px; color: #666; margin-bottom: 8px;">學習類型</div>
-                            <div style="font-size: 11px;">
-                                <div style="margin-bottom: 4px;">🟢 單詞: <span id="quickWordCount" style="font-weight: bold;">0</span></div>
-                                <div style="margin-bottom: 4px;">🔵 片語: <span id="quickPhraseCount" style="font-weight: bold;">0</span></div>
-                                <div>🟠 句子: <span id="quickSentenceCount" style="font-weight: bold;">0</span></div>
-                            </div>
+                    <!-- Recent Learning Items for Review -->
+                    <div style="background: #f8f9fa; border-radius: 6px; padding: 12px; margin-bottom: 16px;">
+                        <div style="display: flex; justify-content: between-between; align-items: center; margin-bottom: 8px;">
+                            <div style="font-size: 12px; color: #666; font-weight: 500;">📖 待複習項目</div>
+                            <button id="startQuickReviewBtn" style="background: #4CAF50; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="開始快速複習">▶️ 開始</button>
                         </div>
-                        
-                        <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; text-align: center;">
-                            <div style="font-size: 12px; color: #666; margin-bottom: 8px;">今日進度</div>
-                            <div style="background: #e0e0e0; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 8px;">
-                                <div id="quickProgressBar" style="background: linear-gradient(90deg, #4CAF50 0%, #45a049 100%); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
-                            </div>
-                            <div style="font-size: 11px; color: #666;">
-                                <span id="quickDailyProgress">0</span> / 20 學習目標
+                        <div id="reviewItemsList" style="max-height: 120px; overflow-y: auto;">
+                            <div style="text-align: center; color: #999; padding: 20px; font-size: 12px;">
+                                暫無待複習項目
                             </div>
                         </div>
                     </div>
 
-                    <!-- AI Insights List -->
-                    <div id="aiInsightsList" style="margin-top: 16px;"></div>
-                    
-                    <!-- Quick Actions -->
-                    <div style="border-top: 1px solid #f0f0f0; padding-top: 16px; margin-top: 16px;">
-                        <div style="font-size: 12px; color: #666; margin-bottom: 8px;">快速操作</div>
-                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                            <button id="practiceTopWords" class="quick-action-btn" style="background: #2196F3; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 11px;">🎯 練習常用詞</button>
-                            <button id="reviewRecentWords" class="quick-action-btn" style="background: #FF9800; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 11px;">📝 複習最近</button>
-                            <button id="viewDetailedStats" class="quick-action-btn" style="background: #9C27B0; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 11px;">📈 詳細統計</button>
-                            <button id="triggerVideoAI" class="quick-action-btn" style="background: #4CAF50; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 11px;">💬 實際應用</button>
+                    <!-- Learning Progress Dashboard -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                        <div style="background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%); color: white; padding: 12px; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: bold; margin-bottom: 4px;" id="todayLearningCount">0</div>
+                            <div style="font-size: 11px; opacity: 0.9;">今日學習</div>
                         </div>
+                        
+                        <div style="background: linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%); color: white; padding: 12px; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: bold; margin-bottom: 4px;" id="weekStreakCount">0</div>
+                            <div style="font-size: 11px; opacity: 0.9;">本週連續</div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions for YouTube Learning -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <button id="openYouTubeBtn" style="background: #FF0000; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px;" title="開啟 YouTube">
+                            <span>🎥</span>
+                            <span>開啟 YouTube</span>
+                        </button>
+                        <button id="practiceRecentBtn" style="background: #9C27B0; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px;" title="練習最近學習的內容">
+                            <span>🎯</span>
+                            <span>練習模式</span>
+                        </button>
                     </div>
                 </div>
             </div>

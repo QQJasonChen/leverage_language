@@ -162,6 +162,13 @@ function recordLearningSearch(text, language, url, title) {
   // Update vocabulary tracking
   updateVocabularyTracking(text, language);
   
+  // Add video to learning queue if it's a YouTube URL
+  if (url && url.includes('youtube.com')) {
+    const videoTitle = title || 'YouTube Video';
+    const channelName = extractChannelFromYouTubeUrl(url) || 'Unknown Channel';
+    addVideoToQueue(url, videoTitle, channelName);
+  }
+  
   // Save to storage
   saveLearningStats();
   
@@ -2055,7 +2062,9 @@ function displayHistoryItems(queries) {
         hasErrors: query.hasErrors,
         isCorrect: query.isCorrect,
         errorTypes: query.errorTypes,
-        errorCount: query.errorCount
+        errorCount: query.errorCount,
+        // Video source information
+        videoSource: query.videoSource
       });
     } else {
       // Fallback to innerHTML (unsafe)
@@ -2068,6 +2077,18 @@ function displayHistoryItems(queries) {
             ${query.id ? `<button class="history-action-btn delete" data-id="${query.id}">刪除</button>` : ''}
           </div>
         </div>
+        ${query.videoSource ? `
+          <div class="history-video-source" style="margin-top: 8px; padding: 8px; background-color: #f8f9fa; border-radius: 6px; border-left: 3px solid #ff0000;">
+            <div class="video-info" style="display: flex; align-items: center; gap: 8px;">
+              <span class="video-icon" style="font-size: 16px;">📹</span>
+              <div class="video-details" style="flex: 1;">
+                <div class="video-title" style="font-weight: 500; font-size: 13px; color: #1a73e8; margin-bottom: 2px;">${query.videoSource.title}</div>
+                <div class="video-channel" style="font-size: 12px; color: #666;">${query.videoSource.channel}</div>
+              </div>
+              <button class="video-return-btn" data-video-url="${query.videoSource.url || ''}" style="padding: 4px 8px; font-size: 11px; background-color: #ff0000; color: white; border: none; border-radius: 4px; cursor: pointer;">返回影片</button>
+            </div>
+          </div>
+        ` : ''}
         <div class="history-meta">
           <span class="history-language">${languageNames[query.language] || query.language || 'Unknown'}</span>
           <span class="history-date">${dateStr}</span>
@@ -2084,6 +2105,7 @@ function displayHistoryItems(queries) {
     const replayButton = item.querySelector('.history-action-btn.replay');
     const audioButton = item.querySelector('.history-action-btn.audio');
     const deleteButton = item.querySelector('.history-action-btn.delete');
+    const videoReturnButton = item.querySelector('.video-return-btn');
     
     if (replayButton) {
       replayButton.addEventListener('click', async (e) => {
@@ -2142,9 +2164,27 @@ function displayHistoryItems(queries) {
       });
     }
     
+    if (videoReturnButton) {
+      videoReturnButton.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const videoUrl = videoReturnButton.dataset.videoUrl;
+        if (videoUrl) {
+          console.log('📹 Returning to video:', videoUrl);
+          try {
+            // Open the video URL in a new tab
+            chrome.tabs.create({ url: videoUrl });
+          } catch (error) {
+            console.error('❌ Failed to open video:', error);
+            // Fallback to window.open
+            window.open(videoUrl, '_blank');
+          }
+        }
+      });
+    }
+    
     // Make the whole item clickable (except buttons)
     item.addEventListener('click', async (e) => {
-      if (!e.target.classList.contains('history-action-btn')) {
+      if (!e.target.classList.contains('history-action-btn') && !e.target.classList.contains('video-return-btn')) {
         const text = query.text;
         const language = query.language;
         if (text && language) {
@@ -5121,7 +5161,314 @@ document.addEventListener('DOMContentLoaded', async () => {
       showSavedReportsBtn.classList.add('active');
     };
   }
+  // Enhanced Video Tab Functionality
+  setupVideoTabFeatures();
 });
+
+// Enhanced Video Tab Features
+function setupVideoTabFeatures() {
+  // Video Learning Queue Management
+  const clearVideoQueueBtn = document.getElementById('clearVideoQueueBtn');
+  const refreshVideoQueueBtn = document.getElementById('refreshVideoQueueBtn');
+  const startQuickReviewBtn = document.getElementById('startQuickReviewBtn');
+  const openYouTubeBtn = document.getElementById('openYouTubeBtn');
+  const practiceRecentBtn = document.getElementById('practiceRecentBtn');
+
+  // Clear video learning queue
+  if (clearVideoQueueBtn) {
+    clearVideoQueueBtn.addEventListener('click', async () => {
+      if (confirm('確定要清除所有學習影片記錄嗎？')) {
+        try {
+          await chrome.storage.local.remove(['videoLearningQueue']);
+          refreshVideoQueue();
+          console.log('✅ Video learning queue cleared');
+        } catch (error) {
+          console.error('❌ Failed to clear video queue:', error);
+        }
+      }
+    });
+  }
+
+  // Refresh video queue
+  if (refreshVideoQueueBtn) {
+    refreshVideoQueueBtn.addEventListener('click', () => {
+      refreshVideoQueue();
+    });
+  }
+
+  // Start quick review
+  if (startQuickReviewBtn) {
+    startQuickReviewBtn.addEventListener('click', () => {
+      startQuickReview();
+    });
+  }
+
+  // Open YouTube
+  if (openYouTubeBtn) {
+    openYouTubeBtn.addEventListener('click', () => {
+      chrome.tabs.create({ url: 'https://www.youtube.com' });
+    });
+  }
+
+  // Practice recent items
+  if (practiceRecentBtn) {
+    practiceRecentBtn.addEventListener('click', () => {
+      startPracticeMode();
+    });
+  }
+
+  // Initialize video tab data
+  updateVideoTabStats();
+  refreshVideoQueue();
+  loadReviewItems();
+  
+  // Set up event delegation for manual analysis buttons
+  setupManualAnalysisButtons();
+}
+
+// Refresh video learning queue
+async function refreshVideoQueue() {
+  const queueContainer = document.getElementById('videoLearningQueue');
+  if (!queueContainer) return;
+
+  try {
+    // Get YouTube learning history from storage
+    const result = await chrome.storage.local.get(['videoLearningQueue']);
+    const videoQueue = result.videoLearningQueue || [];
+
+    if (videoQueue.length === 0) {
+      // Show empty state with helpful links
+      queueContainer.innerHTML = `
+        <div style="text-align: center; color: #999; padding: 30px 20px;">
+          <div style="font-size: 48px; margin-bottom: 16px;">🎬</div>
+          <div style="font-size: 14px; margin-bottom: 8px; color: #666;">尚無學習影片</div>
+          <div style="font-size: 12px; color: #ccc; margin-bottom: 16px;">在 YouTube 影片中點擊字幕開始學習</div>
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px;">
+            <a href="https://www.youtube.com/results?search_query=english+learning" target="_blank" 
+               style="display: flex; align-items: center; text-decoration: none; color: #1a73e8; font-size: 12px; padding: 8px; border-radius: 4px; background: #f8f9fa; border: 1px solid #e0e0e0; transition: all 0.2s;">
+              <span style="margin-right: 8px;">🎓</span>
+              <span>推薦英語學習影片</span>
+            </a>
+            <a href="https://www.youtube.com/results?search_query=english+conversation+practice" target="_blank" 
+               style="display: flex; align-items: center; text-decoration: none; color: #1a73e8; font-size: 12px; padding: 8px; border-radius: 4px; background: #f8f9fa; border: 1px solid #e0e0e0; transition: all 0.2s;">
+              <span style="margin-right: 8px;">💬</span>
+              <span>會話練習影片</span>
+            </a>
+          </div>
+        </div>
+      `;
+    } else {
+      // Display video queue
+      queueContainer.innerHTML = videoQueue.map((video, index) => `
+        <div class="video-queue-item" data-video-url="${video.url}" data-video-index="${index}" style="display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: all 0.2s;">
+          <div style="flex: 1;">
+            <div style="font-size: 12px; font-weight: 500; color: #333; margin-bottom: 4px;">${video.title}</div>
+            <div style="font-size: 11px; color: #666;">
+              ${video.channel} • ${new Date(video.timestamp).toLocaleDateString()} • ${video.wordsLearned || 0} 個詞彙
+            </div>
+          </div>
+          <div style="color: #1a73e8; font-size: 12px;">▶️</div>
+        </div>
+      `).join('');
+      
+      // Add event listeners to video queue items
+      queueContainer.querySelectorAll('.video-queue-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const videoUrl = item.dataset.videoUrl;
+          if (videoUrl) {
+            openYouTubeVideo(videoUrl);
+          }
+        });
+      });
+    }
+  } catch (error) {
+    console.error('❌ Failed to load video queue:', error);
+  }
+}
+
+// Add video to learning queue
+async function addVideoToQueue(videoUrl, videoTitle, channel) {
+  try {
+    const result = await chrome.storage.local.get(['videoLearningQueue']);
+    const queue = result.videoLearningQueue || [];
+    
+    // Check if video already exists
+    const existingIndex = queue.findIndex(v => v.url === videoUrl);
+    
+    if (existingIndex >= 0) {
+      // Update existing entry
+      queue[existingIndex].timestamp = Date.now();
+      queue[existingIndex].wordsLearned = (queue[existingIndex].wordsLearned || 0) + 1;
+    } else {
+      // Add new video
+      queue.unshift({
+        url: videoUrl,
+        title: videoTitle || 'YouTube Video',
+        channel: channel || 'Unknown Channel',
+        timestamp: Date.now(),
+        wordsLearned: 1
+      });
+    }
+    
+    // Keep only latest 10 videos
+    if (queue.length > 10) {
+      queue.splice(10);
+    }
+    
+    await chrome.storage.local.set({ videoLearningQueue: queue });
+    refreshVideoQueue();
+  } catch (error) {
+    console.error('❌ Failed to add video to queue:', error);
+  }
+}
+
+// Update video tab statistics
+async function updateVideoTabStats() {
+  try {
+    // Get learning stats
+    const result = await chrome.storage.local.get(['learningStats']);
+    const stats = result.learningStats || { totalSearches: 0, vocabularyCount: 0, todaySearches: 0 };
+    
+    // Update counters
+    const todayCount = document.getElementById('todayLearningCount');
+    const weekCount = document.getElementById('weekStreakCount');
+    
+    if (todayCount) todayCount.textContent = stats.todaySearches || 0;
+    if (weekCount) weekCount.textContent = Math.min(7, Math.floor((stats.totalSearches || 0) / 5)); // Rough calculation
+    
+  } catch (error) {
+    console.error('❌ Failed to update video tab stats:', error);
+  }
+}
+
+// Load review items
+async function loadReviewItems() {
+  const reviewContainer = document.getElementById('reviewItemsList');
+  if (!reviewContainer) return;
+
+  try {
+    // Get recent learning items that need review
+    const historyResponse = await new Promise((resolve) => {
+      chrome.runtime.sendMessage({ action: 'getHistory' }, resolve);
+    });
+
+    if (historyResponse && historyResponse.success) {
+      const recentItems = historyResponse.history
+        .filter(item => item.timestamp > Date.now() - 7 * 24 * 60 * 60 * 1000) // Last 7 days
+        .slice(0, 5); // Top 5 items
+
+      if (recentItems.length === 0) {
+        reviewContainer.innerHTML = `
+          <div style="text-align: center; color: #999; padding: 20px; font-size: 12px;">
+            暫無待複習項目
+          </div>
+        `;
+      } else {
+        reviewContainer.innerHTML = recentItems.map((item, index) => `
+          <div class="review-item" data-text="${item.text}" data-language="${item.language}" data-item-index="${index}" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-bottom: 1px solid #f0f0f0; cursor: pointer;">
+            <div style="flex: 1;">
+              <div style="font-size: 11px; font-weight: 500; color: #333;">${item.text}</div>
+              <div style="font-size: 10px; color: #666;">${languageNames[item.language] || item.language}</div>
+            </div>
+            <div style="color: #4CAF50; font-size: 10px;">▶️</div>
+          </div>
+        `).join('');
+        
+        // Add event listeners to review items
+        reviewContainer.querySelectorAll('.review-item').forEach(item => {
+          item.addEventListener('click', () => {
+            const text = item.dataset.text;
+            const language = item.dataset.language;
+            if (text && language) {
+              reviewItem(text, language);
+            }
+          });
+        });
+      }
+    }
+  } catch (error) {
+    console.error('❌ Failed to load review items:', error);
+  }
+}
+
+// Start quick review
+function startQuickReview() {
+  // Switch to analysis view and start review mode
+  const analysisBtn = document.getElementById('showAnalysisBtn');
+  if (analysisBtn) {
+    analysisBtn.click();
+    // Could add special review mode logic here
+  }
+}
+
+// Start practice mode
+function startPracticeMode() {
+  // Switch to flashcards view
+  const flashcardsBtn = document.getElementById('showFlashcardsBtn');
+  if (flashcardsBtn) {
+    flashcardsBtn.click();
+  }
+}
+
+// Review specific item
+function reviewItem(text, language) {
+  // Load the item for analysis
+  const queryData = {
+    text: text,
+    language: language,
+    primaryUrl: `https://youglish.com/pronounce/${encodeURIComponent(text)}/${language}`,
+    autoAnalysis: true
+  };
+  
+  // Switch to analysis view
+  const analysisBtn = document.getElementById('showAnalysisBtn');
+  if (analysisBtn) {
+    analysisBtn.click();
+    // Load the item
+    setTimeout(() => {
+      showSearchResult(queryData);
+    }, 200);
+  }
+}
+
+// Open YouTube video
+function openYouTubeVideo(url) {
+  chrome.tabs.create({ url: url });
+}
+
+// Set up event delegation for manual analysis buttons
+function setupManualAnalysisButtons() {
+  // Use event delegation to handle dynamically created buttons
+  document.addEventListener('click', (event) => {
+    if (event.target.classList.contains('manual-analysis-btn')) {
+      const text = event.target.dataset.text;
+      const url = event.target.dataset.url;
+      const title = event.target.dataset.title;
+      
+      if (text && typeof triggerManualAnalysis === 'function') {
+        triggerManualAnalysis(text, url, title);
+      }
+    }
+  });
+}
+
+// Extract channel name from YouTube URL (helper function)
+function extractChannelFromYouTubeUrl(url) {
+  try {
+    // This is a simple approach - in practice you might want to use YouTube API
+    // For now, we'll use document title from the page if available
+    if (typeof document !== 'undefined' && document.title) {
+      // YouTube title format is usually "Video Title - Channel Name - YouTube"
+      const parts = document.title.split(' - ');
+      if (parts.length >= 2) {
+        return parts[parts.length - 2]; // Second to last part is usually channel
+      }
+    }
+    return 'YouTube Channel';
+  } catch (error) {
+    return 'Unknown Channel';
+  }
+}
 
 // Filter saved reports based on search, language, tags, date, and favorites
 async function filterSavedReports() {
@@ -9083,7 +9430,7 @@ function handleYouTubeTextAnalysis(text, url, title, forceReAnalysis = false) {
         if (analysisStatus) {
           analysisStatus.innerHTML = `
             🤖 AI Analysis available 
-            <button onclick="triggerManualAnalysis('${text.replace(/'/g, "\\\\")}', '${url}', '${title}')" 
+            <button class="manual-analysis-btn" data-text="${text.replace(/'/g, "\\\\")}'" data-url="${url}" data-title="${title}"
                     style="margin-left: 8px; padding: 4px 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;">
               ▶️ Analyze Now
             </button>
@@ -9413,7 +9760,7 @@ function showManualAnalysisPrompt(text) {
         <div style="color: #666; font-size: 14px; margin-bottom: 12px;">
           AI analysis is available but auto-analysis is currently disabled.
         </div>
-        <button onclick="triggerManualAnalysis('${text.replace(/'/g, "\\\\'")}', '${window.location.href}', '${document.title}')" 
+        <button class="manual-analysis-btn" data-text="${text.replace(/'/g, "\\\\'")}" data-url="${window.location.href}" data-title="${document.title}"
                 style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; margin: 5px;">
           🤖 Analyze with AI
         </button>
