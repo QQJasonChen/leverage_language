@@ -40,6 +40,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       
       // Handle the analysis in the video tab
       setTimeout(() => {
+        recordLearningSearch(request.text, request.language, request.url, request.title);
+        updateLearningDashboard();
         handleYouTubeTextAnalysis(request.text, request.url, request.title);
       }, 200);
       
@@ -59,6 +61,335 @@ let lastProcessedQuery = null;
 
 // Initialize storage manager and analytics
 let storageManager = null;
+
+// Learning dashboard data
+let learningStats = {
+  totalSearches: 0,
+  vocabularyCount: 0,
+  todaySearches: 0,
+  recentActivity: [],
+  topVocabulary: [],
+  lastUpdated: new Date().toISOString()
+};
+
+// Record learning search function
+function recordLearningSearch(text, language, url, title) {
+  const searchEntry = {
+    text: text,
+    language: language,
+    url: url,
+    title: title || '',
+    timestamp: new Date().toISOString(),
+    date: new Date().toDateString()
+  };
+  
+  // Update stats
+  learningStats.totalSearches++;
+  learningStats.lastUpdated = new Date().toISOString();
+  
+  // Check if today's search
+  const today = new Date().toDateString();
+  if (searchEntry.date === today) {
+    learningStats.todaySearches++;
+  }
+  
+  // Add to recent activity (keep last 10)
+  learningStats.recentActivity.unshift(searchEntry);
+  if (learningStats.recentActivity.length > 10) {
+    learningStats.recentActivity = learningStats.recentActivity.slice(0, 10);
+  }
+  
+  // Update vocabulary tracking
+  updateVocabularyTracking(text, language);
+  
+  console.log('📚 Learning search recorded:', searchEntry);
+}
+
+// Update vocabulary tracking
+function updateVocabularyTracking(text, language) {
+  const words = text.toLowerCase().split(/\s+/).filter(word => word.length > 2);
+  
+  words.forEach(word => {
+    const existing = learningStats.topVocabulary.find(v => v.word === word);
+    if (existing) {
+      existing.count++;
+      existing.lastSeen = new Date().toISOString();
+    } else {
+      learningStats.topVocabulary.push({
+        word: word,
+        language: language,
+        count: 1,
+        firstSeen: new Date().toISOString(),
+        lastSeen: new Date().toISOString()
+      });
+    }
+  });
+  
+  // Sort by count and keep top 20
+  learningStats.topVocabulary.sort((a, b) => b.count - a.count);
+  learningStats.topVocabulary = learningStats.topVocabulary.slice(0, 20);
+  learningStats.vocabularyCount = learningStats.topVocabulary.length;
+}
+
+// Update learning dashboard function
+function updateLearningDashboard() {
+  // Update quick stats
+  const totalSearchesEl = document.querySelector('.stat-value[data-stat="searches"]');
+  const vocabularyCountEl = document.querySelector('.stat-value[data-stat="vocabulary"]');
+  const todaySearchesEl = document.querySelector('.stat-value[data-stat="today"]');
+  
+  if (totalSearchesEl) totalSearchesEl.textContent = learningStats.totalSearches;
+  if (vocabularyCountEl) vocabularyCountEl.textContent = learningStats.vocabularyCount;
+  if (todaySearchesEl) todaySearchesEl.textContent = learningStats.todaySearches;
+  
+  // Update recent activity
+  updateRecentActivity();
+  
+  // Update top vocabulary
+  updateTopVocabulary();
+  
+  // Update AI analysis insights
+  updateAIInsights();
+  
+  console.log('📊 Learning dashboard updated');
+}
+
+// Update recent activity section
+function updateRecentActivity() {
+  const activityList = document.getElementById('recentActivityList');
+  if (!activityList) return;
+  
+  activityList.innerHTML = '';
+  
+  if (learningStats.recentActivity.length === 0) {
+    activityList.innerHTML = '<div class="activity-empty">開始學習後，這裡會顯示您的學習記錄</div>';
+    return;
+  }
+  
+  learningStats.recentActivity.forEach(activity => {
+    const activityEl = document.createElement('div');
+    activityEl.className = 'activity-item';
+    activityEl.style.cssText = `
+      padding: 12px;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background-color 0.2s;
+    `;
+    
+    const timeAgo = getTimeAgo(new Date(activity.timestamp));
+    
+    activityEl.innerHTML = `
+      <div>
+        <div style="font-weight: 500; color: #333; margin-bottom: 4px;">${activity.text}</div>
+        <div style="font-size: 12px; color: #666;">${activity.language} • ${timeAgo}</div>
+      </div>
+      <button onclick="reAnalyzeFromHistory('${activity.text}', '${activity.language}')" 
+              style="background: #1a73e8; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">
+        重新分析
+      </button>
+    `;
+    
+    activityEl.addEventListener('mouseenter', () => {
+      activityEl.style.backgroundColor = '#f8f9fa';
+    });
+    
+    activityEl.addEventListener('mouseleave', () => {
+      activityEl.style.backgroundColor = '';
+    });
+    
+    activityList.appendChild(activityEl);
+  });
+}
+
+// Update top vocabulary section
+function updateTopVocabulary() {
+  const vocabularyList = document.getElementById('topVocabularyList');
+  if (!vocabularyList) return;
+  
+  vocabularyList.innerHTML = '';
+  
+  if (learningStats.topVocabulary.length === 0) {
+    vocabularyList.innerHTML = '<div class="vocabulary-empty">開始查詢詞彙後，這裡會顯示您的熱門詞彙</div>';
+    return;
+  }
+  
+  learningStats.topVocabulary.slice(0, 10).forEach((vocab, index) => {
+    const vocabEl = document.createElement('div');
+    vocabEl.className = 'vocabulary-item';
+    vocabEl.style.cssText = `
+      padding: 10px 12px;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background-color 0.2s;
+    `;
+    
+    vocabEl.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="background: #1a73e8; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500;">
+          ${index + 1}
+        </span>
+        <div>
+          <div style="font-weight: 500; color: #333;">${vocab.word}</div>
+          <div style="font-size: 12px; color: #666;">${vocab.language}</div>
+        </div>
+      </div>
+      <div style="text-align: right;">
+        <div style="font-weight: 500; color: #1a73e8;">${vocab.count}次</div>
+        <div style="font-size: 12px; color: #666;">${getTimeAgo(new Date(vocab.lastSeen))}</div>
+      </div>
+    `;
+    
+    vocabEl.addEventListener('mouseenter', () => {
+      vocabEl.style.backgroundColor = '#f8f9fa';
+    });
+    
+    vocabEl.addEventListener('mouseleave', () => {
+      vocabEl.style.backgroundColor = '';
+    });
+    
+    vocabEl.addEventListener('click', () => {
+      // Quick analyze this vocabulary
+      reAnalyzeFromHistory(vocab.word, vocab.language);
+    });
+    
+    vocabularyList.appendChild(vocabEl);
+  });
+}
+
+// Update AI insights section
+function updateAIInsights() {
+  const insightsList = document.getElementById('aiInsightsList');
+  if (!insightsList) return;
+  
+  const insights = generateLearningInsights();
+  insightsList.innerHTML = '';
+  
+  insights.forEach(insight => {
+    const insightEl = document.createElement('div');
+    insightEl.className = 'insight-item';
+    insightEl.style.cssText = `
+      padding: 12px;
+      background: ${insight.color};
+      border-radius: 8px;
+      margin-bottom: 8px;
+      border-left: 4px solid ${insight.borderColor};
+    `;
+    
+    insightEl.innerHTML = `
+      <div style="font-weight: 500; color: #333; margin-bottom: 4px;">${insight.title}</div>
+      <div style="font-size: 13px; color: #666; line-height: 1.4;">${insight.description}</div>
+      <div style="margin-top: 8px;">
+        <div style="background: #fff; height: 4px; border-radius: 2px; overflow: hidden;">
+          <div style="background: ${insight.borderColor}; height: 100%; width: ${insight.progress}%; transition: width 0.3s;"></div>
+        </div>
+        <div style="font-size: 11px; color: #666; margin-top: 4px;">${insight.progress}% 完成</div>
+      </div>
+    `;
+    
+    insightsList.appendChild(insightEl);
+  });
+}
+
+// Generate learning insights
+function generateLearningInsights() {
+  const insights = [];
+  
+  // Daily learning progress
+  const todayProgress = Math.min((learningStats.todaySearches / 10) * 100, 100);
+  insights.push({
+    title: '今日學習進度',
+    description: `今天已完成 ${learningStats.todaySearches} 次查詢，繼續保持！`,
+    progress: todayProgress,
+    color: '#e8f5e8',
+    borderColor: '#4caf50'
+  });
+  
+  // Vocabulary mastery
+  const vocabularyProgress = Math.min((learningStats.vocabularyCount / 50) * 100, 100);
+  insights.push({
+    title: '詞彙掌握度',
+    description: `已掌握 ${learningStats.vocabularyCount} 個詞彙，距離下一個里程碑還需 ${Math.max(0, 50 - learningStats.vocabularyCount)} 個`,
+    progress: vocabularyProgress,
+    color: '#e3f2fd',
+    borderColor: '#2196f3'
+  });
+  
+  // Learning consistency
+  const consistencyProgress = Math.min((learningStats.totalSearches / 100) * 100, 100);
+  insights.push({
+    title: '學習一致性',
+    description: `總共完成 ${learningStats.totalSearches} 次學習，保持規律學習很重要！`,
+    progress: consistencyProgress,
+    color: '#fff3e0',
+    borderColor: '#ff9800'
+  });
+  
+  return insights;
+}
+
+// Helper function to get time ago
+function getTimeAgo(date) {
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  if (diffMins < 1) return '剛剛';
+  if (diffMins < 60) return `${diffMins}分鐘前`;
+  if (diffHours < 24) return `${diffHours}小時前`;
+  if (diffDays < 7) return `${diffDays}天前`;
+  return date.toLocaleDateString('zh-TW');
+}
+
+// Re-analyze from history
+function reAnalyzeFromHistory(text, language) {
+  console.log('🔄 Re-analyzing from history:', text, language);
+  
+  // Switch to analysis tab
+  const analysisBtn = document.getElementById('showAnalysisBtn');
+  if (analysisBtn) analysisBtn.click();
+  
+  // Perform analysis
+  setTimeout(() => {
+    loadYouGlish('', text, language);
+  }, 100);
+}
+
+// Quick action functions
+function startPracticeSession() {
+  console.log('🎯 Starting practice session');
+  // Switch to vocabulary/flashcard tab if available
+  const websiteBtn = document.getElementById('showWebsiteBtn');
+  if (websiteBtn) websiteBtn.click();
+}
+
+function reviewVocabulary() {
+  console.log('📚 Reviewing vocabulary');
+  // Focus on top vocabulary
+  updateTopVocabulary();
+}
+
+function exportLearningData() {
+  console.log('💾 Exporting learning data');
+  const dataToExport = {
+    stats: learningStats,
+    exportDate: new Date().toISOString(),
+    version: '1.0'
+  };
+  
+  const blob = new Blob([JSON.stringify(dataToExport, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `youglish-learning-data-${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 let learningAnalytics = null;
 let studySessionGenerator = null;
 
@@ -449,21 +780,13 @@ function initializeViewControls() {
       if (flashcardsView) flashcardsView.style.display = 'none';
       if (analyticsView) analyticsView.style.display = 'none';
       
-      // Load pronunciation sites for current query
-      console.log('📹 Video tab clicked. currentQueryData:', currentQueryData);
+      // Initialize learning dashboard for video tab
+      console.log('📹 Video tab clicked - Initializing learning dashboard');
       
-      // Always load pronunciation sites (with current data or demo data)
-      const queryToUse = (currentQueryData && currentQueryData.text) ? 
-        currentQueryData : 
-        { text: 'hello', language: 'english' };
-        
-      console.log('📹 Loading pronunciation sites for:', queryToUse.text);
+      // Update learning dashboard with current stats
+      updateLearningDashboard();
       
-      // Load pronunciation sites
-      loadPronunciationSites(queryToUse);
-      
-      
-      // Initialize video learning controls (but don't override pronunciation sites)
+      // Initialize video learning controls
       try {
         if (typeof initializeVideoLearningControls === 'function') {
           initializeVideoLearningControls();
