@@ -499,6 +499,14 @@ if (window.location.href.includes('youtube.com')) {
   }
   
   function sendToSidepanel(text) {
+    console.log('📨 Attempting to send to sidepanel:', text);
+    
+    // Check if chrome.runtime is available
+    if (typeof chrome === 'undefined' || !chrome.runtime) {
+      console.error('❌ Chrome runtime not available');
+      return;
+    }
+    
     try {
       // Send message to background script to update sidepanel
       chrome.runtime.sendMessage({
@@ -509,6 +517,7 @@ if (window.location.href.includes('youtube.com')) {
         source: 'youtube-learning'
       }, (response) => {
         if (chrome.runtime.lastError) {
+          console.log('⚠️ Runtime error (expected):', chrome.runtime.lastError.message);
           console.log('📨 Message sent via content script communication');
         } else {
           console.log('✅ Text sent to sidepanel successfully:', response);

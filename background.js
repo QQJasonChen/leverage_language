@@ -58,6 +58,10 @@ chrome.action.onClicked.addListener(async (tab) => {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'searchYouGlish') {
     searchYouGlish(request.text, sender.tab.id);
+  } else if (request.action === 'analyzeTextInSidepanel') {
+    // Handle YouTube learning text analysis
+    handleYouTubeTextAnalysis(request, sender.tab.id);
+    sendResponse({ success: true, message: 'Text sent to sidepanel for analysis' });
   }
 });
 
@@ -556,5 +560,48 @@ async function proceedWithSearch(text, tabId, language, urls, openMethod, source
   } else {
     // 新標籤頁方式
     chrome.tabs.create({ url: urls.primaryUrl });
+  }
+}
+
+// 處理 YouTube 學習文本分析
+async function handleYouTubeTextAnalysis(request, tabId) {
+  try {
+    console.log('🎬 Processing YouTube learning text:', request.text);
+    
+    const cleanText = request.text.trim();
+    if (!cleanText) return;
+    
+    // 獲取語言設定
+    const result = await chrome.storage.sync.get(['defaultLanguage', 'preferredLanguage']);
+    const defaultLang = result.defaultLanguage || 'auto';
+    const preferredLang = result.preferredLanguage || 'none';
+    
+    // 偵測語言
+    const detectionResult = detectLanguage(cleanText, preferredLang);
+    const language = typeof detectionResult === 'string' ? detectionResult : 
+                    (detectionResult.language !== 'uncertain' ? detectionResult.language : 'english');
+    
+    // 生成語言學習 URLs
+    const urls = generateLanguageUrls(cleanText, language);
+    
+    // 發送到 sidepanel 進行分析
+    chrome.runtime.sendMessage({
+      action: 'updateSidePanel',
+      url: urls.primaryUrl,
+      text: cleanText,
+      language: language,
+      source: request.source || 'youtube-learning',
+      title: request.title || 'YouTube Learning',
+      originalUrl: request.url,
+      allUrls: urls.allUrls
+    });
+    
+    // 開啟 Side Panel
+    await chrome.sidePanel.open({ tabId });
+    
+    console.log('✅ YouTube text sent to sidepanel successfully');
+    
+  } catch (error) {
+    console.error('❌ Error handling YouTube text analysis:', error);
   }
 }
