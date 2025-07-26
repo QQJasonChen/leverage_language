@@ -398,6 +398,7 @@ function showSearchResult(queryData) {
 function initializeViewControls() {
   const showAnalysisBtn = document.getElementById('showAnalysisBtn');
   const showVideoBtn = document.getElementById('showVideoBtn');
+  const showWebsitesBtn = document.getElementById('showWebsitesBtn');
   const showHistoryBtn = document.getElementById('showHistoryBtn');
   const showSavedReportsBtn = document.getElementById('showSavedReportsBtn');
   const showFlashcardsBtn = document.getElementById('showFlashcardsBtn');
@@ -405,6 +406,7 @@ function initializeViewControls() {
   const openNewTabBtn = document.getElementById('openNewTabBtn');
   const analysisView = document.getElementById('analysisView');
   const videoView = document.getElementById('videoView');
+  const websitesView = document.getElementById('websitesView');
   const historyView = document.getElementById('historyView');
   const savedReportsView = document.getElementById('savedReportsView');
   const flashcardsView = document.getElementById('flashcardsView');
@@ -420,6 +422,7 @@ function initializeViewControls() {
       // Show analysis view, hide all others
       if (analysisView) analysisView.style.display = 'block';
       if (videoView) videoView.style.display = 'none';
+      if (websitesView) websitesView.style.display = 'none';
       if (historyView) historyView.style.display = 'none';
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'none';
@@ -440,6 +443,7 @@ function initializeViewControls() {
       // Show video view, hide all others
       if (analysisView) analysisView.style.display = 'none';
       if (videoView) videoView.style.display = 'block';
+      if (websitesView) websitesView.style.display = 'none';
       if (historyView) historyView.style.display = 'none';
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'none';
@@ -473,6 +477,39 @@ function initializeViewControls() {
     };
   }
   
+  // 網站視圖按鈕
+  if (showWebsitesBtn) {
+    showWebsitesBtn.onclick = () => {
+      console.log('🌐 WEBSITES TAB CLICKED! Loading pronunciation sites');
+      // Remove active from all view buttons
+      document.querySelectorAll('.view-button').forEach(btn => btn.classList.remove('active'));
+      showWebsitesBtn.classList.add('active');
+      
+      // Show websites view, hide all others
+      if (analysisView) analysisView.style.display = 'none';
+      if (videoView) videoView.style.display = 'none';
+      if (websitesView) websitesView.style.display = 'block';
+      if (historyView) historyView.style.display = 'none';
+      if (savedReportsView) savedReportsView.style.display = 'none';
+      if (flashcardsView) flashcardsView.style.display = 'none';
+      if (analyticsView) analyticsView.style.display = 'none';
+      
+      // Load pronunciation sites for current query
+      console.log('🌐 Website tab clicked. currentQueryData:', currentQueryData);
+      
+      const queryToUse = (currentQueryData && currentQueryData.text) ? 
+        currentQueryData : 
+        { text: 'hello', language: 'english' };
+        
+      console.log('🌐 Loading pronunciation sites for:', queryToUse.text);
+      
+      // Load pronunciation sites for websites view
+      loadWebsitePronunciationSites(queryToUse);
+      
+      log('Switched to websites view');
+    };
+  }
+  
   // 歷史記錄視圖按鈕
   if (showHistoryBtn) {
     showHistoryBtn.onclick = () => {
@@ -483,6 +520,7 @@ function initializeViewControls() {
       // Show history view, hide all others
       if (analysisView) analysisView.style.display = 'none';
       if (videoView) videoView.style.display = 'none';
+      if (websitesView) websitesView.style.display = 'none';
       if (historyView) historyView.style.display = 'block';
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'none';
@@ -503,6 +541,7 @@ function initializeViewControls() {
       // Show saved reports view, hide all others
       if (analysisView) analysisView.style.display = 'none';
       if (videoView) videoView.style.display = 'none';
+      if (websitesView) websitesView.style.display = 'none';
       if (historyView) historyView.style.display = 'none';
       if (savedReportsView) savedReportsView.style.display = 'block';
       if (flashcardsView) flashcardsView.style.display = 'none';
@@ -523,6 +562,7 @@ function initializeViewControls() {
       // Show flashcards view, hide all others
       if (analysisView) analysisView.style.display = 'none';
       if (videoView) videoView.style.display = 'none';
+      if (websitesView) websitesView.style.display = 'none';
       if (historyView) historyView.style.display = 'none';
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (analyticsView) analyticsView.style.display = 'none';
@@ -543,6 +583,7 @@ function initializeViewControls() {
       // Show analytics view, hide all others
       if (analysisView) analysisView.style.display = 'none';
       if (videoView) videoView.style.display = 'none';
+      if (websitesView) websitesView.style.display = 'none';
       if (historyView) historyView.style.display = 'none';
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'none';
@@ -588,30 +629,41 @@ function loadPronunciationSites(queryData) {
   
   // 按類別分組網站
   const categories = {
-    'pronunciation': { name: '發音學習', sites: [] },
-    'dictionary': { name: '字典查詢', sites: [] },
-    'context': { name: '語境例句', sites: [] },
-    'translation': { name: '翻譯服務', sites: [] },
-    'examples': { name: '例句資料庫', sites: [] },
-    'community': { name: '社群問答', sites: [] },
-    'academic': { name: '學術寫作', sites: [] },
-    'slang': { name: '俚語俗語', sites: [] },
-    'search': { name: '搜尋引擎', sites: [] }
+    'pronunciation': { name: '🎯 發音學習', sites: [] },
+    'dictionary': { name: '📚 字典查詢', sites: [] },
+    'context': { name: '💭 語境例句', sites: [] },
+    'translation': { name: '🌐 翻譯服務', sites: [] },
+    'examples': { name: '📝 例句資料庫', sites: [] },
+    'community': { name: '👥 社群問答', sites: [] },
+    'academic': { name: '🎓 學術寫作', sites: [] },
+    'slang': { name: '🏙️ 俚語俗語', sites: [] },
+    'search': { name: '🔍 搜尋引擎', sites: [] }
   };
   
-  // 分類網站
+  // 分類網站 with priority assignments
   siteConfigs.forEach((config, index) => {
     const category = config.category || 'pronunciation';
     const url = queryData.allUrls && queryData.allUrls[config.name] ? 
                 queryData.allUrls[config.name] : 
                 generateUrlForSite(config.name, queryData.text, queryData.language);
     
+    // Assign priority based on site name and category
+    let priority = 'recommended';
+    if (config.name === 'YouGlish' || (config.category === 'pronunciation' && index === 0)) {
+      priority = 'primary';
+    } else if (config.name === 'PlayPhrase.me' || (config.category === 'pronunciation' && index === 1)) {
+      priority = 'secondary';
+    } else if ((config.category === 'pronunciation' && index === 2) || config.name === 'Forvo') {
+      priority = 'tertiary';
+    }
+    
     categories[category].sites.push({
       ...config,
       url: url,
-      isPrimary: index === 0,
-      isSecondary: index === 1,
-      isTertiary: index === 2
+      isPrimary: priority === 'primary',
+      isSecondary: priority === 'secondary',
+      isTertiary: priority === 'tertiary',
+      priority: priority
     });
   });
   
@@ -643,18 +695,25 @@ function loadPronunciationSites(queryData) {
       const option = document.createElement('div');
       option.className = `pronunciation-option ${site.isPrimary ? 'primary' : ''}`;
       
-      let badgeText = '推薦';
+      let badgeText = '推薦開啟';
       let badgeClass = 'recommended';
       
-      if (site.isPrimary) {
-        badgeText = '主要';
-        badgeClass = 'primary';
-      } else if (site.isSecondary) {
-        badgeText = '備選';
-        badgeClass = 'secondary';
-      } else if (site.isTertiary) {
-        badgeText = '其他';
-        badgeClass = 'tertiary';
+      switch(site.priority) {
+        case 'primary':
+          badgeText = '主要開啟';
+          badgeClass = 'primary';
+          break;
+        case 'secondary':
+          badgeText = '備選開啟';
+          badgeClass = 'secondary';
+          break;
+        case 'tertiary':
+          badgeText = '其他開啟';
+          badgeClass = 'tertiary';
+          break;
+        default:
+          badgeText = '推薦開啟';
+          badgeClass = 'recommended';
       }
       
       // Use SecurityUtils for safe DOM manipulation
@@ -672,13 +731,10 @@ function loadPronunciationSites(queryData) {
         infoDiv.appendChild(iconSpan);
         infoDiv.appendChild(detailsDiv);
         
-        const actionDiv = window.SecurityFixes.safeCreateElement('div', '');
+        const actionDiv = window.SecurityFixes.safeCreateElement('div', '', 'option-actions');
         const badgeSpan = window.SecurityFixes.safeCreateElement('span', badgeText, `option-badge ${badgeClass}`);
-        const button = window.SecurityFixes.safeCreateElement('button', '開啟', 'option-button');
-        button.setAttribute('data-url', site.url);
         
         actionDiv.appendChild(badgeSpan);
-        actionDiv.appendChild(button);
         option.appendChild(infoDiv);
         option.appendChild(actionDiv);
       } else {
@@ -690,26 +746,24 @@ function loadPronunciationSites(queryData) {
               <p>${site.description}</p>
             </div>
           </div>
-          <div>
+          <div class="option-actions">
             <span class="option-badge ${badgeClass}">${badgeText}</span>
-            <button class="option-button" data-url="${site.url}">開啟</button>
           </div>
         `;
       }
       
+      // Add click handler for the entire option
+      option.addEventListener('click', () => {
+        chrome.tabs.create({ url: site.url });
+        // Add visual feedback
+        option.style.backgroundColor = '#e3f2fd';
+        setTimeout(() => {
+          option.style.backgroundColor = '';
+        }, 300);
+      });
+
       if (pronunciationOptions) {
         pronunciationOptions.appendChild(option);
-        
-        // Add event listener for the option button
-        const optionButton = option.querySelector('.option-button');
-        if (optionButton) {
-          optionButton.addEventListener('click', () => {
-            const url = optionButton.dataset.url;
-            if (url) {
-              chrome.tabs.create({ url: url });
-            }
-          });
-        }
       }
     });
   });
@@ -1048,6 +1102,161 @@ function generateUrlForSite(siteName, text, language) {
   };
   
   return urlMaps[siteName] || `https://youglish.com/pronounce/${encodedText}/${language}`;
+}
+
+// 載入網站視圖的發音網站選項
+function loadWebsitePronunciationSites(queryData) {
+  const pronunciationOptions = document.getElementById('websitePronunciationOptions');
+  const siteDescriptions = document.getElementById('websiteSiteDescriptions');
+  
+  // Clear existing content safely
+  if (pronunciationOptions) {
+    while (pronunciationOptions.firstChild) {
+      pronunciationOptions.removeChild(pronunciationOptions.firstChild);
+    }
+  }
+  
+  if (siteDescriptions) {
+    while (siteDescriptions.firstChild) {
+      siteDescriptions.removeChild(siteDescriptions.firstChild);
+    }
+  }
+  
+  // Get site configurations based on language
+  const siteConfigs = getSiteConfigs(queryData.language);
+  
+  // Group sites by category
+  const categories = {
+    'pronunciation': { name: '🎯 發音學習', sites: [] },
+    'dictionary': { name: '📚 字典查詢', sites: [] },
+    'context': { name: '💭 語境例句', sites: [] },
+    'slang': { name: '🏙️ 俚語俗語', sites: [] },
+    'academic': { name: '🎓 學術寫作', sites: [] },
+    'examples': { name: '📝 例句資料庫', sites: [] },
+    'translation': { name: '🌐 翻譯服務', sites: [] },
+    'search': { name: '🔍 搜尋引擎', sites: [] }
+  };
+  
+  // Categorize sites with priority assignments
+  siteConfigs.forEach((config, index) => {
+    const category = config.category || 'pronunciation';
+    const url = queryData.allUrls && queryData.allUrls[config.name] ? 
+                queryData.allUrls[config.name] : 
+                generateUrlForSite(config.name, queryData.text, queryData.language);
+    
+    // Assign priority based on site name and category
+    let priority = 'recommended';
+    if (config.name === 'YouGlish' || (config.category === 'pronunciation' && index === 0)) {
+      priority = 'primary';
+    } else if (config.name === 'PlayPhrase.me' || (config.category === 'pronunciation' && index === 1)) {
+      priority = 'secondary';
+    } else if ((config.category === 'pronunciation' && index === 2) || config.name === 'Forvo') {
+      priority = 'tertiary';
+    }
+    
+    categories[category].sites.push({
+      ...config,
+      url: url,
+      index: index,
+      priority: priority
+    });
+  });
+  
+  // Generate category sections
+  Object.entries(categories).forEach(([categoryKey, category]) => {
+    if (category.sites.length === 0) return;
+    
+    // Create category header with count
+    const categoryHeader = document.createElement('div');
+    categoryHeader.className = 'category-header';
+    categoryHeader.innerHTML = `
+      <h4>${category.name}</h4>
+      <span class="category-count">${category.sites.length} 個網站</span>
+    `;
+    
+    if (pronunciationOptions) pronunciationOptions.appendChild(categoryHeader);
+    
+    // Create site options for this category
+    category.sites.forEach(site => {
+      const option = document.createElement('div');
+      option.className = `pronunciation-option ${site.priority === 'primary' ? 'primary' : ''}`;
+      
+      // Determine badge text and class
+      let badgeText = '推薦開啟';
+      let badgeClass = 'recommended';
+      
+      switch(site.priority) {
+        case 'primary':
+          badgeText = '主要開啟';
+          badgeClass = 'primary';
+          break;
+        case 'secondary':
+          badgeText = '備選開啟';
+          badgeClass = 'secondary';
+          break;
+        case 'tertiary':
+          badgeText = '其他開啟';
+          badgeClass = 'tertiary';
+          break;
+        default:
+          badgeText = '推薦開啟';
+          badgeClass = 'recommended';
+      }
+      
+      option.innerHTML = `
+        <div class="option-info">
+          <span class="option-icon">${site.icon}</span>
+          <div class="option-details">
+            <h5>${site.name}</h5>
+            <p>${site.description}</p>
+          </div>
+        </div>
+        <div class="option-actions">
+          <span class="option-badge ${badgeClass}">${badgeText}</span>
+        </div>
+      `;
+      
+      option.addEventListener('click', () => {
+        loadWebsiteInFrame(site.url, site.name);
+        // Add visual feedback
+        option.style.backgroundColor = '#e3f2fd';
+        setTimeout(() => {
+          option.style.backgroundColor = '';
+        }, 300);
+      });
+      
+      if (pronunciationOptions) {
+        pronunciationOptions.appendChild(option);
+      }
+      
+      // Add to descriptions
+      if (siteDescriptions) {
+        const descItem = document.createElement('li');
+        descItem.innerHTML = `<strong>${site.name}:</strong> ${site.longDescription || site.description}`;
+        siteDescriptions.appendChild(descItem);
+      }
+    });
+  });
+}
+
+// 在網站框架中載入網站
+function loadWebsiteInFrame(url, siteName) {
+  const frame = document.getElementById('websiteFrame');
+  const loading = document.getElementById('websiteLoading');
+  
+  if (loading) loading.style.display = 'block';
+  
+  if (frame) {
+    frame.src = url;
+    frame.onload = () => {
+      if (loading) loading.style.display = 'none';
+      console.log(`Loaded ${siteName}: ${url}`);
+    };
+    frame.onerror = () => {
+      if (loading) loading.style.display = 'none';
+      console.error(`Failed to load ${siteName}`);
+    };
+  }
 }
 
 // 載入 YouGlish
