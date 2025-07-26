@@ -2479,8 +2479,40 @@ function openCurrentInNewTab() {
 
 // AI Analysis Functions (missing functions)
 async function generateAIAnalysis(forceRefresh = false) {
-  if (!currentQueryData.text || !currentQueryData.language) {
-    showAIError('沒有可分析的文本');
+  // Try to get text and language from currentQueryData first
+  let text = currentQueryData.text;
+  let language = currentQueryData.language;
+  
+  // If currentQueryData is empty, try to get from UI elements
+  if (!text || !language) {
+    const searchTermElement = document.getElementById('searchTerm');
+    const searchLanguageElement = document.getElementById('searchLanguage');
+    
+    if (searchTermElement && searchTermElement.textContent.trim()) {
+      text = searchTermElement.textContent.trim();
+    }
+    
+    if (searchLanguageElement && searchLanguageElement.textContent.trim()) {
+      const languageText = searchLanguageElement.textContent.trim();
+      // Convert display language back to code
+      const languageMap = {
+        '英文': 'english',
+        '日文': 'japanese', 
+        '韓文': 'korean',
+        '荷蘭文': 'dutch'
+      };
+      language = languageMap[languageText] || 'english';
+    }
+    
+    // Update currentQueryData with recovered values
+    if (text && language) {
+      currentQueryData = { text, language };
+      console.log('🔄 Recovered query data from UI:', { text, language });
+    }
+  }
+  
+  if (!text || !language) {
+    showAIError('沒有可分析的文本 - 請先搜索一個詞或句子');
     return;
   }
 
@@ -2492,7 +2524,7 @@ async function generateAIAnalysis(forceRefresh = false) {
 
   try {
     // 立即顯示快速搜索結果
-    await showQuickSearchResults(currentQueryData.text, currentQueryData.language);
+    await showQuickSearchResults(text, language);
     
     // 顯示載入狀態
     showAILoading();
@@ -2507,7 +2539,7 @@ async function generateAIAnalysis(forceRefresh = false) {
     }
 
     // 生成分析
-    const analysis = await aiService.generateAnalysis(currentQueryData.text, currentQueryData.language);
+    const analysis = await aiService.generateAnalysis(text, language);
     currentAIAnalysis = analysis;
     
     // 顯示結果
@@ -2517,7 +2549,7 @@ async function generateAIAnalysis(forceRefresh = false) {
     if (autoSaveEnabled && storageManager && typeof storageManager.saveAIReport === 'function') {
       try {
         // Get cached audio data if available
-        const cachedAudio = getCachedAudio(currentQueryData.text, currentQueryData.language);
+        const cachedAudio = getCachedAudio(text, language);
         const audioData = cachedAudio ? {
           audioUrl: cachedAudio.audioUrl,
           size: cachedAudio.size,
@@ -2525,8 +2557,8 @@ async function generateAIAnalysis(forceRefresh = false) {
         } : null;
         
         await storageManager.saveAIReport(
-          currentQueryData.text,
-          currentQueryData.language,
+          text,
+          language,
           analysis,
           audioData // Include cached audio data
         );
@@ -2549,7 +2581,7 @@ async function generateAIAnalysis(forceRefresh = false) {
       operation: 'ai_analysis',
       context: 'generate_analysis',
       retry: () => generateAIAnalysis(forceRefresh),
-      cacheKey: `ai_analysis_${currentQueryData.text}_${currentQueryData.language}`
+      cacheKey: `ai_analysis_${text}_${language}`
     });
     
     if (result.success && result.data) {
