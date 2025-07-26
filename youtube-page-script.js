@@ -16,7 +16,7 @@ function createYouTubeLearningButton() {
   const button = document.createElement('div');
   button.id = 'yt-learning-btn';
   button.innerHTML = '📚 LEARN';
-  button.title = 'Click to enable text selection learning';
+  button.title = 'YouTube Learning: Click=Copy | Shift+Click=Word Analysis | Alt+Click=Sentence Analysis';
   
   button.style.cssText = `
     position: fixed !important;
@@ -90,8 +90,10 @@ function sendToExtension(text) {
   console.log('📡 Posting message to content script:', message);
   window.postMessage(message, window.location.origin);
   
-  // Show confirmation
-  showConfirmation(text);
+  // Show confirmation - determine type based on text length
+  const words = text.split(/\s+/).filter(w => w.length > 0);
+  const confirmationType = words.length === 1 ? 'word-analyzed' : 'sentence-analyzed';
+  showConfirmation(text, confirmationType);
 }
 
 
@@ -138,6 +140,7 @@ function fallbackCopyToClipboard(text) {
 // Add help tooltip to subtitles
 function addHelpTooltip(subtitleElement) {
   const helpIcon = document.createElement('span');
+  helpIcon.className = 'yt-help-icon';
   helpIcon.innerHTML = ' ❓';
   helpIcon.style.cssText = `
     cursor: help !important;
@@ -145,17 +148,22 @@ function addHelpTooltip(subtitleElement) {
     font-size: 12px !important;
     margin-left: 4px !important;
   `;
-  helpIcon.title = `Mouse Shortcuts:
-• Click word = Send word to AI
-• Alt + Click = Send sentence  
-• Ctrl/Cmd + Click = Send full subtitle
-• Shift + Click = Copy to clipboard
+  helpIcon.title = `YouTube Learning Controls:
 
-Keyboard Shortcuts:
-• Ctrl/Cmd + L = Toggle learning mode
-• Shift + S = Send current subtitle
-• Shift + C = Copy current subtitle  
-• Shift + A = Send selection/subtitle`;
+Click Actions:
+• Simple Click = Copy to clipboard (blue flash)
+• Shift + Click = Send word to AI analysis (green flash)  
+• Alt + Click = Send full sentence to AI analysis (orange flash)
+
+Visual Feedback:
+🔵 Blue = Copied to clipboard
+🟢 Green = Word sent to AI
+🟠 Orange = Sentence sent to AI
+
+Tips:
+• Enable subtitles/captions for best results
+• Click the learning button to toggle mode
+• Works with transcript panel too`;
   
   subtitleElement.appendChild(helpIcon);
 }
@@ -167,12 +175,16 @@ function showConfirmation(text, type = 'sent') {
   const messages = {
     'sent': `📤 Sent to AI: "${text.length > 30 ? text.substring(0, 30) + '...' : text}"`,
     'copied': `📋 Copied: "${text.length > 30 ? text.substring(0, 30) + '...' : text}"`,
+    'word-analyzed': `🔍 Word Analysis: "${text.length > 20 ? text.substring(0, 20) + '...' : text}"`,
+    'sentence-analyzed': `📝 Sentence Analysis: "${text.length > 25 ? text.substring(0, 25) + '...' : text}"`,
     'error': `❌ ${text}`
   };
   
   const colors = {
     'sent': '#4CAF50',
     'copied': '#2196F3', 
+    'word-analyzed': '#4CAF50',
+    'sentence-analyzed': '#FF9800',
     'error': '#f44336'
   };
   
@@ -347,9 +359,12 @@ function handleSubtitleClick(e) {
       let selectedText = fullText; // Default to full text
       let selectionType = 'sentence';
       
-      // Check for Shift+Click for word selection
+      let actionType = 'copy'; // Default action
+      
+      // Determine action and selection based on modifier keys
       if (e.shiftKey) {
-        console.log('🔍 Shift+Click detected! Attempting word selection...');
+        // Shift + Click: Select word and send to AI analysis
+        console.log('🔍 Shift+Click detected! Word selection for AI analysis...');
         try {
           const rect = subtitleElement.getBoundingClientRect();
           const clickX = e.clientX - rect.left;
@@ -361,27 +376,46 @@ function handleSubtitleClick(e) {
           if (selectedWord && selectedWord.trim().length > 0) {
             selectedText = selectedWord.trim();
             selectionType = 'word';
-            console.log('✅ Word selected (Shift+Click):', selectedText);
+            actionType = 'analyze';
+            console.log('✅ Word selected for AI analysis (Shift+Click):', selectedText);
           } else {
-            console.log('❌ Word detection failed, using full subtitle:', selectedText);
+            console.log('❌ Word detection failed, using full subtitle for analysis:', selectedText);
+            actionType = 'analyze';
           }
         } catch (error) {
-          console.log('❌ Word detection error:', error, 'using full subtitle:', selectedText);
+          console.log('❌ Word detection error:', error, 'using full subtitle for analysis:', selectedText);
+          actionType = 'analyze';
         }
+      } else if (e.altKey) {
+        // Alt + Click: Full sentence to AI analysis
+        console.log('📺 Alt+Click detected! Full sentence for AI analysis:', selectedText);
+        selectionType = 'sentence';
+        actionType = 'analyze';
       } else {
-        console.log('📺 Full sentence selected (Click):', selectedText);
+        // Simple Click: Copy to clipboard
+        console.log('📋 Simple click detected! Copying to clipboard:', selectedText);
+        selectionType = 'copy';
+        actionType = 'copy';
       }
       
       e.preventDefault();
       e.stopPropagation();
       
-      // Visual feedback
-      if (selectionType === 'word') {
-        subtitleElement.style.backgroundColor = 'rgba(76, 175, 80, 0.7)'; // Green for word
-        subtitleElement.style.boxShadow = '0 0 10px rgba(76, 175, 80, 0.5)';
-      } else {
-        subtitleElement.style.backgroundColor = 'rgba(255, 152, 0, 0.7)'; // Orange for sentence
-        subtitleElement.style.boxShadow = '0 0 10px rgba(255, 152, 0, 0.5)';
+      // Visual feedback based on action type
+      if (actionType === 'copy') {
+        // Blue for copy action
+        subtitleElement.style.backgroundColor = 'rgba(33, 150, 243, 0.7)';
+        subtitleElement.style.boxShadow = '0 0 10px rgba(33, 150, 243, 0.5)';
+      } else if (actionType === 'analyze') {
+        if (selectionType === 'word') {
+          // Green for word analysis
+          subtitleElement.style.backgroundColor = 'rgba(76, 175, 80, 0.7)';
+          subtitleElement.style.boxShadow = '0 0 10px rgba(76, 175, 80, 0.5)';
+        } else {
+          // Orange for sentence analysis
+          subtitleElement.style.backgroundColor = 'rgba(255, 152, 0, 0.7)';
+          subtitleElement.style.boxShadow = '0 0 10px rgba(255, 152, 0, 0.5)';
+        }
       }
       
       setTimeout(() => {
@@ -389,9 +423,15 @@ function handleSubtitleClick(e) {
         subtitleElement.style.boxShadow = '';
       }, 800);
       
-      // Send to sidepanel
-      console.log('📨 Sending text to sidepanel:', selectedText);
-      sendToExtension(selectedText);
+      // Perform the action
+      if (actionType === 'copy') {
+        console.log('📋 Copying to clipboard:', selectedText);
+        copyToClipboard(selectedText);
+        showConfirmation(selectedText, 'copied');
+      } else if (actionType === 'analyze') {
+        console.log('📨 Sending to AI analysis:', selectedText);
+        sendToExtension(selectedText);
+      }
     }
   }
 }
@@ -440,100 +480,12 @@ function getWordAtPosition(element, clickX) {
   }
 }
 
-// Enhance subtitle for word selection
-function enhanceSubtitle(subtitleElement) {
-  const text = subtitleElement.textContent.trim();
-  if (!text || subtitleElement.dataset.enhanced) return;
-  
-  console.log('🔧 Enhancing subtitle:', text);
-  subtitleElement.dataset.enhanced = 'true';
-  
-  // Store original text
-  subtitleElement.dataset.originalText = text;
-  
-  // Split into sentences, then words
-  const sentences = text.split(/[.!?]+/).filter(s => s.trim());
-  subtitleElement.innerHTML = '';
-  
-  sentences.forEach((sentence, sentenceIndex) => {
-    const words = sentence.trim().split(/\s+/).filter(w => w);
-    
-    const sentenceContainer = document.createElement('span');
-    sentenceContainer.className = 'yt-sentence-container';
-    sentenceContainer.dataset.sentenceText = sentence.trim();
-    
-    words.forEach((word, wordIndex) => {
-      const wordSpan = document.createElement('span');
-      wordSpan.className = 'yt-word-selectable';
-      wordSpan.textContent = word;
-      wordSpan.dataset.fullText = text;
-      wordSpan.dataset.sentenceText = sentence.trim();
-      wordSpan.dataset.wordText = word;
-      
-      wordSpan.addEventListener('click', function(e) {
-        e.stopPropagation();
-        e.preventDefault();
-        
-        let textToSend;
-        let actionType;
-        
-        if (e.shiftKey) {
-          // Shift + Click: Copy to clipboard
-          textToSend = e.ctrlKey || e.metaKey ? this.dataset.fullText : 
-                      e.altKey ? this.dataset.sentenceText : word;
-          copyToClipboard(textToSend);
-          actionType = 'copied';
-        } else if (e.ctrlKey || e.metaKey) {
-          // Ctrl/Cmd + Click: Send full subtitle
-          textToSend = this.dataset.fullText;
-          actionType = 'sent-full';
-        } else if (e.altKey) {
-          // Alt + Click: Send sentence
-          textToSend = this.dataset.sentenceText;
-          actionType = 'sent-sentence';
-        } else {
-          // Normal click: Send word
-          textToSend = word;
-          actionType = 'sent-word';
-        }
-        
-        if (!e.shiftKey) {
-          console.log('📖 Text selected:', textToSend, '(', actionType, ')');
-          sendToExtension(textToSend);
-        }
-        
-        // Visual feedback with different colors for different actions
-        const colors = {
-          'copied': 'rgba(33, 150, 243, 0.8)', // Blue for copy
-          'sent-full': 'rgba(156, 39, 176, 0.8)', // Purple for full text
-          'sent-sentence': 'rgba(255, 152, 0, 0.8)', // Orange for sentence
-          'sent-word': 'rgba(76, 175, 80, 0.8)' // Green for word
-        };
-        
-        this.style.backgroundColor = colors[actionType] || colors['sent-word'];
-        setTimeout(() => {
-          this.style.backgroundColor = '';
-        }, 500);
-      });
-      
-      sentenceContainer.appendChild(wordSpan);
-      if (wordIndex < words.length - 1) {
-        sentenceContainer.appendChild(document.createTextNode(' '));
-      }
-    });
-    
-    subtitleElement.appendChild(sentenceContainer);
-    if (sentenceIndex < sentences.length - 1) {
-      // Add punctuation back
-      const punctuation = text.match(/[.!?]+/g);
-      if (punctuation && punctuation[sentenceIndex]) {
-        subtitleElement.appendChild(document.createTextNode(punctuation[sentenceIndex] + ' '));
-      }
-    }
-  });
-  
-  // Add help tooltip
-  addHelpTooltip(subtitleElement);
+// Add help tooltip to enhanced subtitles
+function addHelpTooltipIfNeeded(subtitleElement) {
+  // Only add help tooltip once per element
+  if (!subtitleElement.querySelector('.yt-help-icon')) {
+    addHelpTooltip(subtitleElement);
+  }
 }
 
 
