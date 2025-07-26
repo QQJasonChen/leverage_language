@@ -3450,7 +3450,8 @@ async function loadSavedReports() {
       // Debug: Check video source data in saved reports
       const reportsWithVideo = reports.filter(r => r.videoSource && r.videoSource.url);
       const reportsWithTimestamp = reports.filter(r => r.videoSource && r.videoSource.url && r.videoSource.videoTimestamp);
-      console.log(`📊 Saved Reports Debug:`, {
+      
+      console.log(`📊 SAVED TAB - Video Return Button Debug:`, {
         total: reports.length,
         withVideo: reportsWithVideo.length,
         withTimestamp: reportsWithTimestamp.length,
@@ -3458,9 +3459,21 @@ async function loadSavedReports() {
           text: r.searchText,
           hasUrl: !!r.videoSource.url,
           hasTimestamp: !!r.videoSource.videoTimestamp,
-          timestamp: r.videoSource.videoTimestamp
+          timestamp: r.videoSource.videoTimestamp,
+          url: r.videoSource.url?.substring(0, 50) + '...'
         }))
       });
+      
+      // Show in UI if no video data found
+      if (reportsWithVideo.length === 0 && reports.length > 0) {
+        console.warn(`⚠️ NO VIDEO DATA FOUND in ${reports.length} saved reports!`);
+        console.log(`💡 To get "返回片段" buttons:
+        1. Go to YouTube
+        2. Click "📚 LEARN" button 
+        3. Alt+Click on subtitle text (not video)
+        4. Generate analysis with auto-save ON
+        5. Check saved tab for red video buttons`);
+      }
       
       reportsList.innerHTML = reports.map(report => {
         const truncatedAnalysis = typeof report.analysisData === 'string' 
