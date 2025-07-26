@@ -5180,6 +5180,12 @@ function applyHistoryFilter(filterType, historyData) {
     case 'unanalyzed':
       filteredData = historyData.filter(item => item.hasErrors === null);
       break;
+    case 'youtube':
+      filteredData = historyData.filter(item => 
+        (item.videoSource && item.videoSource.url && item.videoSource.url.includes('youtube.com')) ||
+        (item.url && item.url.includes('youtube.com'))
+      );
+      break;
     default:
       filteredData = historyData;
   }
@@ -5224,6 +5230,12 @@ function applySavedReportsFilter(filterType, reports) {
       break;
     case 'unanalyzed':
       filteredReports = reports.filter(report => report.hasErrors === null);
+      break;
+    case 'youtube':
+      filteredReports = reports.filter(report => 
+        (report.videoSource && report.videoSource.url && report.videoSource.url.includes('youtube.com')) ||
+        (report.originalUrl && report.originalUrl.includes('youtube.com'))
+      );
       break;
     default:
       filteredReports = reports;
@@ -5462,6 +5474,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadErrorDetectionSetting();
     
     errorDetectionToggleBtn.addEventListener('click', () => toggleErrorDetection());
+  }
+  
+  // Save audio toggle button
+  const saveAudioToggleBtn = document.getElementById('saveAudioToggleBtn');
+  if (saveAudioToggleBtn) {
+    // Load current save audio setting
+    loadSaveAudioSetting();
+    
+    saveAudioToggleBtn.addEventListener('click', () => toggleSaveAudio());
   }
   
   // Re-analyze reports button
@@ -6478,6 +6499,30 @@ async function filterSavedReports() {
       }
     }
     
+    // Apply error status filter (check active filter button)
+    const activeFilterBtn = document.querySelector('[id^="reportsFilter"].active');
+    if (activeFilterBtn) {
+      const filterType = activeFilterBtn.getAttribute('data-filter');
+      switch (filterType) {
+        case 'correct':
+          reports = reports.filter(report => report.isCorrect === true);
+          break;
+        case 'error':
+          reports = reports.filter(report => report.hasErrors === true);
+          break;
+        case 'unanalyzed':
+          reports = reports.filter(report => report.hasErrors === null);
+          break;
+        case 'youtube':
+          reports = reports.filter(report => 
+            (report.videoSource && report.videoSource.url && report.videoSource.url.includes('youtube.com')) ||
+            (report.originalUrl && report.originalUrl.includes('youtube.com'))
+          );
+          break;
+        // 'all' case - no additional filtering needed
+      }
+    }
+    
     // Update the display with filtered results
     const reportsList = document.getElementById('savedReportsList');
     const reportsEmpty = document.getElementById('savedReportsEmpty');
@@ -7381,6 +7426,30 @@ async function filterHistoryView() {
           history = history.filter(item => item.language === languageFilter);
         }
         
+        // Apply error status filter (check active filter button)
+        const activeFilterBtn = document.querySelector('.history-filters .filter-btn.active');
+        if (activeFilterBtn) {
+          const filterType = activeFilterBtn.getAttribute('data-filter');
+          switch (filterType) {
+            case 'correct':
+              history = history.filter(item => item.isCorrect === true);
+              break;
+            case 'error':
+              history = history.filter(item => item.hasErrors === true);
+              break;
+            case 'unanalyzed':
+              history = history.filter(item => item.hasErrors === null);
+              break;
+            case 'youtube':
+              history = history.filter(item => 
+                (item.videoSource && item.videoSource.url && item.videoSource.url.includes('youtube.com')) ||
+                (item.url && item.url.includes('youtube.com'))
+              );
+              break;
+            // 'all' case - no additional filtering needed
+          }
+        }
+        
         displayHistoryItems(history);
       }
     }
@@ -7813,6 +7882,70 @@ async function generatePersonalizedStudyPlan() {
 
 // Initialize flashcard manager
 let currentStudySession = null;
+
+// Save Audio Setting Management
+let saveAudioEnabled = true; // Default to enabled with IndexedDB
+
+async function loadSaveAudioSetting() {
+  try {
+    if (storageManager && typeof storageManager.getUserSettings === 'function') {
+      const settings = await storageManager.getUserSettings();
+      saveAudioEnabled = settings.saveAudio !== false; // Default to true
+    }
+    updateSaveAudioButtonUI();
+  } catch (error) {
+    console.error('Failed to load save audio setting:', error);
+    saveAudioEnabled = true; // Default to enabled
+    updateSaveAudioButtonUI();
+  }
+}
+
+async function toggleSaveAudio() {
+  try {
+    if (!storageManager || typeof storageManager.updateUserSettings !== 'function') {
+      console.error('Storage manager not available');
+      return;
+    }
+    
+    saveAudioEnabled = !saveAudioEnabled;
+    
+    // Update storage manager settings
+    await storageManager.updateUserSettings({ saveAudio: saveAudioEnabled });
+    
+    updateSaveAudioButtonUI();
+    console.log('Save audio toggled:', saveAudioEnabled ? 'ON' : 'OFF');
+    
+    // Show feedback
+    showMessage(
+      saveAudioEnabled ? '語音儲存已啟用 🔊' : '語音儲存已停用 🔇', 
+      'info'
+    );
+    
+  } catch (error) {
+    console.error('Failed to toggle save audio:', error);
+    // Revert on error
+    saveAudioEnabled = !saveAudioEnabled;
+    updateSaveAudioButtonUI();
+    showMessage('設定更新失敗', 'error');
+  }
+}
+
+function updateSaveAudioButtonUI() {
+  const saveAudioBtn = document.getElementById('saveAudioToggleBtn');
+  if (!saveAudioBtn) return;
+  
+  if (saveAudioEnabled) {
+    saveAudioBtn.classList.add('active');
+    saveAudioBtn.classList.remove('inactive');
+    saveAudioBtn.textContent = '🔊 儲存語音';
+    saveAudioBtn.title = '語音會自動儲存到報告中（點擊關閉）';
+  } else {
+    saveAudioBtn.classList.remove('active');
+    saveAudioBtn.classList.add('inactive');
+    saveAudioBtn.textContent = '🔇 不存語音';
+    saveAudioBtn.title = '語音不會儲存（點擊開啟）';
+  }
+}
 
 // Initialize flashcard system
 window.addEventListener('load', async () => {
