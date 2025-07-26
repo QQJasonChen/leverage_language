@@ -701,7 +701,8 @@ async function handleYouTubeTextAnalysis(request, tabId) {
         title: request.title || 'YouTube Learning',
         originalUrl: request.url,
         allUrls: urls.allUrls,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        videoTimestamp: request.timestamp || null // Include video playback timestamp
       }
     });
     

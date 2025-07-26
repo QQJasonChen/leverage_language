@@ -2556,11 +2556,36 @@ async function generateAIAnalysis(forceRefresh = false) {
           voice: cachedAudio.voice || 'OpenAI TTS'
         } : null;
         
+        // Get video source data from recent YouTube analysis
+        let videoSource = null;
+        try {
+          const result = await chrome.storage.local.get('youtubeAnalysis');
+          if (result.youtubeAnalysis) {
+            const ytData = result.youtubeAnalysis;
+            // Check if this is recent data (within last 2 minutes) and matches current text
+            if (Date.now() - ytData.timestamp < 2 * 60 * 1000 && ytData.text === text) {
+              videoSource = {
+                url: ytData.url,
+                originalUrl: ytData.originalUrl,
+                title: ytData.title,
+                channel: ytData.title ? ytData.title.split(' - ')[0] : '未知頻道',
+                videoTimestamp: ytData.videoTimestamp, // Use correct field for video playback time
+                timestamp: Date.now(),
+                learnedAt: new Date().toISOString()
+              };
+              console.log('🎬 Found video source data for auto-save:', videoSource);
+            }
+          }
+        } catch (error) {
+          console.log('⚠️ Could not get video source data:', error);
+        }
+        
         await storageManager.saveAIReport(
           text,
           language,
           analysis,
-          audioData // Include cached audio data
+          audioData, // Include cached audio data
+          videoSource // Include video source data
         );
         
         if (audioData) {
@@ -4259,11 +4284,36 @@ async function manualSaveReport() {
         voice: cachedAudio.voice || 'OpenAI TTS'
       } : null;
       
+      // Get video source data for manual save
+      let videoSource = null;
+      try {
+        const result = await chrome.storage.local.get('youtubeAnalysis');
+        if (result.youtubeAnalysis) {
+          const ytData = result.youtubeAnalysis;
+          // Check if this is recent data and matches current text
+          if (Date.now() - ytData.timestamp < 2 * 60 * 1000 && ytData.text === currentQueryData.text) {
+            videoSource = {
+              url: ytData.url,
+              originalUrl: ytData.originalUrl,
+              title: ytData.title,
+              channel: ytData.title ? ytData.title.split(' - ')[0] : '未知頻道',
+              videoTimestamp: ytData.videoTimestamp, // Use correct field for video playback time
+              timestamp: Date.now(),
+              learnedAt: new Date().toISOString()
+            };
+            console.log('🎬 Found video source data for manual save:', videoSource);
+          }
+        }
+      } catch (error) {
+        console.log('⚠️ Could not get video source data for manual save:', error);
+      }
+      
       await storageManager.saveAIReport(
         currentQueryData.text,
         currentQueryData.language,
         currentAIAnalysis,
-        audioData // Include cached audio data
+        audioData, // Include cached audio data
+        videoSource // Include video source data
       );
       
       if (audioData) {
