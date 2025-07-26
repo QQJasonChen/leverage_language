@@ -694,16 +694,24 @@ async function handleYouTubeTextAnalysis(request, tabId) {
     // 儲存到 local storage 供 sidepanel 使用
     await chrome.storage.local.set({
       youtubeAnalysis: {
-        url: urls.primaryUrl,
+        url: urls.primaryUrl, // YouGlish URL for search
         text: cleanText,
         language: language,
         source: request.source || 'youtube-learning',
         title: request.title || 'YouTube Learning',
-        originalUrl: request.url,
+        originalUrl: request.url, // YouTube URL with timestamp
+        youtubeUrl: request.url, // Explicit YouTube URL field  
         allUrls: urls.allUrls,
         timestamp: Date.now(),
         videoTimestamp: request.timestamp || null // Include video playback timestamp
       }
+    });
+    
+    console.log('🔗 URL mapping debug:', {
+      youglishUrl: urls.primaryUrl,
+      youtubeUrl: request.url,
+      originalUrl: request.originalUrl,
+      timestamp: request.timestamp
     });
     
     // 開啟 sidepanel (如果尚未開啟)

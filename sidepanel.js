@@ -2564,9 +2564,10 @@ async function generateAIAnalysis(forceRefresh = false) {
             const ytData = result.youtubeAnalysis;
             // Check if this is recent data (within last 2 minutes) and matches current text
             if (Date.now() - ytData.timestamp < 2 * 60 * 1000 && ytData.text === text) {
+              const youtubeUrl = ytData.youtubeUrl || ytData.originalUrl; // Prefer explicit youtubeUrl
               videoSource = {
-                url: ytData.url,
-                originalUrl: ytData.originalUrl,
+                url: youtubeUrl, // Use YouTube URL (with timestamp)
+                originalUrl: youtubeUrl,
                 title: ytData.title,
                 channel: ytData.title ? ytData.title.split(' - ')[0] : '未知頻道',
                 videoTimestamp: ytData.videoTimestamp, // Use correct field for video playback time
@@ -2574,6 +2575,12 @@ async function generateAIAnalysis(forceRefresh = false) {
                 learnedAt: new Date().toISOString()
               };
               console.log('🎬 Found video source data for auto-save:', videoSource);
+              console.log('🔗 YouTube URL vs YouGlish URL:', {
+                youtubeUrl: youtubeUrl,
+                youglishUrl: ytData.url,
+                usingUrl: videoSource.url,
+                availableFields: Object.keys(ytData)
+              });
             }
           }
         } catch (error) {
@@ -4292,9 +4299,10 @@ async function manualSaveReport() {
           const ytData = result.youtubeAnalysis;
           // Check if this is recent data and matches current text
           if (Date.now() - ytData.timestamp < 2 * 60 * 1000 && ytData.text === currentQueryData.text) {
+            const youtubeUrl = ytData.youtubeUrl || ytData.originalUrl; // Prefer explicit youtubeUrl
             videoSource = {
-              url: ytData.url,
-              originalUrl: ytData.originalUrl,
+              url: youtubeUrl, // Use YouTube URL (with timestamp)
+              originalUrl: youtubeUrl,
               title: ytData.title,
               channel: ytData.title ? ytData.title.split(' - ')[0] : '未知頻道',
               videoTimestamp: ytData.videoTimestamp, // Use correct field for video playback time
@@ -4302,6 +4310,12 @@ async function manualSaveReport() {
               learnedAt: new Date().toISOString()
             };
             console.log('🎬 Found video source data for manual save:', videoSource);
+            console.log('🔗 Manual save - YouTube URL vs YouGlish URL:', {
+              youtubeUrl: youtubeUrl,
+              youglishUrl: ytData.url,
+              usingUrl: videoSource.url,
+              availableFields: Object.keys(ytData)
+            });
           }
         }
       } catch (error) {
