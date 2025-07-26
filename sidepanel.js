@@ -295,10 +295,12 @@ async function updateStorageDisplay() {
     
     // Display simple, user-friendly info
     if (audioDataInfo) {
+      const availableSpace = stats.indexedDB?.availableSpace || '檢查中...';
+      
       if (totalAudioFiles > 0) {
         audioDataInfo.innerHTML = `
           <div style="font-weight: 500; margin-bottom: 4px;">🎵 已儲存 ${totalAudioFiles} 個音檔</div>
-          <div style="font-size: 12px; opacity: 0.8;">剩餘空間：${stats.indexedDB?.availableSpace || '555+ GB'} （無限制）</div>
+          <div style="font-size: 12px; opacity: 0.8;">可用空間：${availableSpace}</div>
         `;
         
         // Show management actions if there are audio files
@@ -308,7 +310,7 @@ async function updateStorageDisplay() {
       } else {
         audioDataInfo.innerHTML = `
           <div style="font-weight: 500; margin-bottom: 4px;">📂 尚未儲存音檔</div>
-          <div style="font-size: 12px; opacity: 0.8;">可用空間：${stats.indexedDB?.availableSpace || '555+ GB'} （無限制）</div>
+          <div style="font-size: 12px; opacity: 0.8;">可用空間：${availableSpace}</div>
         `;
         
         // Hide management actions if no audio files
