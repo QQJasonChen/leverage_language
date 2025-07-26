@@ -3447,6 +3447,21 @@ async function loadSavedReports() {
     
     // Generate reports HTML with improved design and buttons
     if (reportsList) {
+      // Debug: Check video source data in saved reports
+      const reportsWithVideo = reports.filter(r => r.videoSource && r.videoSource.url);
+      const reportsWithTimestamp = reports.filter(r => r.videoSource && r.videoSource.url && r.videoSource.videoTimestamp);
+      console.log(`📊 Saved Reports Debug:`, {
+        total: reports.length,
+        withVideo: reportsWithVideo.length,
+        withTimestamp: reportsWithTimestamp.length,
+        reportsWithVideoDetails: reportsWithVideo.map(r => ({
+          text: r.searchText,
+          hasUrl: !!r.videoSource.url,
+          hasTimestamp: !!r.videoSource.videoTimestamp,
+          timestamp: r.videoSource.videoTimestamp
+        }))
+      });
+      
       reportsList.innerHTML = reports.map(report => {
         const truncatedAnalysis = typeof report.analysisData === 'string' 
           ? report.analysisData.substring(0, 150) + (report.analysisData.length > 150 ? '...' : '')
@@ -3483,10 +3498,10 @@ async function loadSavedReports() {
                   🗑️
                 </button>
                 ${report.videoSource && report.videoSource.url ? `
-                  <button class="report-action-btn video-return-btn" data-video-url="${report.videoSource.url}" title="${formatVideoTimestamp(report.videoSource.videoTimestamp) ? `返回到 ${formatVideoTimestamp(report.videoSource.videoTimestamp)} 的學習片段` : '返回影片'}">
+                  <button class="report-action-btn video-return-btn" data-video-url="${report.videoSource.url}" title="${formatVideoTimestamp(report.videoSource.videoTimestamp) ? `返回到 ${formatVideoTimestamp(report.videoSource.videoTimestamp)} 的學習片段` : '返回影片'}" style="background-color: #ff0000; color: white;">
                     ${formatVideoTimestamp(report.videoSource.videoTimestamp) ? '⏰' : '📹'}
                   </button>
-                ` : ''}
+                ` : `<!-- No video source: ${JSON.stringify(report.videoSource || {})} -->`}
               </div>
             </div>
             ${report.videoSource && report.videoSource.url ? `
@@ -3499,7 +3514,7 @@ async function loadSavedReports() {
                       ${report.videoSource.channel}${formatVideoTimestamp(report.videoSource.videoTimestamp) ? ` • ⏰ ${formatVideoTimestamp(report.videoSource.videoTimestamp)}` : ''}
                     </div>
                   </div>
-                  <button class="video-return-btn-large" data-video-url="${report.videoSource.url}" style="padding: 6px 12px; font-size: 12px; background-color: #ff0000; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;" title="${formatVideoTimestamp(report.videoSource.videoTimestamp) ? `返回到 ${formatVideoTimestamp(report.videoSource.videoTimestamp)} 的學習片段` : '返回影片'}">${formatVideoTimestamp(report.videoSource.videoTimestamp) ? '⏰ 返回片段' : '📹 返回影片'}</button>
+                  <button class="video-return-btn-large" data-video-url="${report.videoSource.url}" style="padding: 8px 16px; font-size: 13px; background-color: #ff0000; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; box-shadow: 0 2px 4px rgba(255,0,0,0.3); transition: all 0.2s;" title="${formatVideoTimestamp(report.videoSource.videoTimestamp) ? `返回到 ${formatVideoTimestamp(report.videoSource.videoTimestamp)} 的學習片段` : '返回影片'}" onmouseover="this.style.backgroundColor='#e60000'; this.style.transform='translateY(-1px)'" onmouseout="this.style.backgroundColor='#ff0000'; this.style.transform='translateY(0)'">${formatVideoTimestamp(report.videoSource.videoTimestamp) ? '⏰ 返回片段' : '📹 返回影片'}</button>
                 </div>
               </div>
             ` : ''}
