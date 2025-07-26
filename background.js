@@ -612,6 +612,15 @@ async function handleYouTubeTextAnalysis(request, tabId) {
     // 生成語言學習 URLs
     const urls = generateLanguageUrls(cleanText, language);
     
+    // 保存到歷史記錄
+    try {
+      console.log('💾 Saving YouTube learning to history:', cleanText, language);
+      await historyManager.addRecord(cleanText, language, 'youtube-learning');
+      console.log('✅ YouTube learning saved to history successfully');
+    } catch (error) {
+      console.error('❌ Failed to save YouTube learning to history:', error);
+    }
+    
     // 儲存到 local storage 供 sidepanel 使用
     await chrome.storage.local.set({
       youtubeAnalysis: {

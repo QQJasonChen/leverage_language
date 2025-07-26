@@ -1752,7 +1752,8 @@ function loadYouGlish(url, text, language) {
     primaryUrl: url,
     secondaryUrl: '',
     tertiaryUrl: '',
-    allUrls: { 'YouGlish': url }
+    allUrls: { 'YouGlish': url },
+    autoAnalysis: true // Enable auto-analysis for YouTube learning
   };
   
   showSearchResult(queryData);
