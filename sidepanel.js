@@ -266,76 +266,61 @@ async function checkAudioData() {
 // Update storage display in UI
 async function updateStorageDisplay() {
   try {
-    const storageUsageDisplay = document.getElementById('storageUsageDisplay');
-    const storageProgress = document.getElementById('storageProgress');
     const audioDataInfo = document.getElementById('audioDataInfo');
+    const audioManagementActions = document.getElementById('audioManagementActions');
     
     if (!storageManager) {
-      if (storageUsageDisplay) storageUsageDisplay.textContent = '儲存管理器未載入';
+      if (audioDataInfo) audioDataInfo.textContent = '儲存管理器未載入';
       return;
     }
     
     // Get storage stats with IndexedDB info
     const stats = await storageManager.getStorageStatsWithIndexedDB();
     if (!stats) {
-      if (storageUsageDisplay) storageUsageDisplay.textContent = '無法取得儲存資訊';
+      if (audioDataInfo) audioDataInfo.textContent = '無法取得儲存資訊';
       return;
-    }
-    
-    // Update usage display
-    const usagePercent = parseFloat(stats.usagePercentage) || 0;
-    const isNearLimit = usagePercent > 80;
-    
-    if (storageUsageDisplay) {
-      storageUsageDisplay.textContent = `${usagePercent.toFixed(1)}% 已使用 (${stats.storageUsed})`;
-      storageUsageDisplay.style.color = isNearLimit ? '#f44336' : '#666';
-    }
-    
-    if (storageProgress) {
-      storageProgress.style.width = `${usagePercent}%`;
-      storageProgress.style.background = isNearLimit ? '#f44336' : '#ff9800';
     }
     
     // Check audio data
     const audioResult = await checkAudioData();
+    let totalAudioFiles = 0;
+    
+    // Count total audio files
+    if (audioResult && audioResult.success && audioResult.totalFiles > 0) {
+      totalAudioFiles += audioResult.totalFiles;
+    }
+    if (stats.indexedDB && stats.indexedDB.available && stats.indexedDB.audioCount > 0) {
+      totalAudioFiles += stats.indexedDB.audioCount;
+    }
+    
+    // Display simple, user-friendly info
     if (audioDataInfo) {
-      let audioInfoParts = [];
-      let totalAudioFiles = 0;
-      
-      // Chrome Storage audio info
-      if (audioResult && audioResult.success && audioResult.totalFiles > 0) {
-        audioInfoParts.push(`Chrome Storage: ${audioResult.totalFiles} 個檔案`);
-        totalAudioFiles += audioResult.totalFiles;
-      }
-      
-      // IndexedDB audio info
-      if (stats.indexedDB && stats.indexedDB.available && stats.indexedDB.audioCount > 0) {
-        audioInfoParts.push(`IndexedDB: ${stats.indexedDB.audioCount} 個檔案`);
-        totalAudioFiles += stats.indexedDB.audioCount;
-      }
-      
-      // Display info
       if (totalAudioFiles > 0) {
         audioDataInfo.innerHTML = `
-          <div>🎵 音檔總數：${totalAudioFiles} 個</div>
-          ${audioInfoParts.length > 0 ? `<div style="font-size: 10px; opacity: 0.8; margin-top: 2px;">${audioInfoParts.join(' • ')}</div>` : ''}
-          <div style="font-size: 10px; opacity: 0.8; margin-top: 2px;">可用空間：${stats.indexedDB?.availableSpace || '檢查中'}</div>
+          <div style="font-weight: 500; margin-bottom: 4px;">🎵 已儲存 ${totalAudioFiles} 個音檔</div>
+          <div style="font-size: 12px; opacity: 0.8;">剩餘空間：${stats.indexedDB?.availableSpace || '555+ GB'} （無限制）</div>
         `;
+        
+        // Show management actions if there are audio files
+        if (audioManagementActions) {
+          audioManagementActions.style.display = 'block';
+        }
       } else {
         audioDataInfo.innerHTML = `
-          <div>目前沒有儲存音檔</div>
-          <div style="font-size: 10px; opacity: 0.8; margin-top: 2px;">可用空間：${stats.indexedDB?.availableSpace || '檢查中'}</div>
+          <div style="font-weight: 500; margin-bottom: 4px;">📂 尚未儲存音檔</div>
+          <div style="font-size: 12px; opacity: 0.8;">可用空間：${stats.indexedDB?.availableSpace || '555+ GB'} （無限制）</div>
         `;
+        
+        // Hide management actions if no audio files
+        if (audioManagementActions) {
+          audioManagementActions.style.display = 'none';
+        }
       }
-      
-      audioDataInfo.style.color = '#555';
     }
     
     console.log('📊 Storage display updated:', {
-      usage: `${usagePercent}%`,
-      chromeAudioFiles: audioResult?.totalFiles || 0,
-      indexedDBAudioFiles: stats.indexedDB?.audioCount || 0,
-      isNearLimit
+      totalAudioFiles,
+      availableSpace: stats.indexedDB?.availableSpace || 'Unknown'
     });
     
   } catch (error) {

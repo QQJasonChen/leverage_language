@@ -4250,40 +4250,28 @@
                     <!-- 保存報告統計信息 -->
                 </div>
                 
-                <!-- Storage Management Section -->
-                <div class="storage-management-section" style="background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                        <h4 style="margin: 0; color: #1976d2; font-size: 14px;">💾 儲存空間狀態</h4>
+                <!-- Storage Info Section -->
+                <div class="storage-info-section" style="background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4 style="margin: 0; color: #1976d2; font-size: 14px;">💾 儲存空間</h4>
                         <button id="checkStorageBtn" style="background: transparent; border: 1px solid #1976d2; color: #1976d2; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="重新檢查">
                             🔄 更新
                         </button>
                     </div>
                     
-                    <!-- Chrome Storage Status -->
-                    <div style="margin-bottom: 12px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                            <span style="font-size: 12px; color: #666;">Chrome Storage (5MB 限制)</span>
-                            <span id="storageUsageDisplay" style="font-size: 12px; font-weight: 500;">檢查中...</span>
-                        </div>
-                        <div id="storageProgressBar" style="background: #e0e0e0; border-radius: 4px; height: 8px; overflow: hidden;">
-                            <div id="storageProgress" style="background: #ff9800; height: 100%; border-radius: 4px; width: 0%; transition: width 0.3s;"></div>
-                        </div>
+                    <!-- Main Storage Info -->
+                    <div style="padding: 12px; background: #e8f5e9; border-radius: 6px; margin-bottom: 12px;">
+                        <div id="audioDataInfo" style="font-size: 13px; color: #2e7d32; line-height: 1.4;"></div>
                     </div>
                     
-                    <!-- IndexedDB Status -->
-                    <div style="margin-bottom: 16px; padding: 12px; background: #e8f5e9; border-radius: 6px;">
-                        <div style="font-size: 12px; color: #2e7d32; font-weight: 500; margin-bottom: 4px;">✅ IndexedDB 已啟用（無限容量）</div>
-                        <div id="audioDataInfo" style="font-size: 11px; color: #555;"></div>
-                    </div>
-                    
-                    <!-- Quick Actions -->
-                    <div style="border-top: 1px solid #e0e0e0; padding-top: 12px;">
-                        <div style="font-size: 11px; color: #666; margin-bottom: 8px;">音檔管理選項：</div>
+                    <!-- Management Actions (only show if there are audio files) -->
+                    <div id="audioManagementActions" style="display: none; border-top: 1px solid #e0e0e0; padding-top: 12px;">
+                        <div style="font-size: 11px; color: #666; margin-bottom: 8px;">音檔管理：</div>
                         <div style="display: flex; gap: 8px;">
-                            <button id="exportAudioBtn" style="flex: 1; background: #4CAF50; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="下載所有音檔後清理空間">
+                            <button id="exportAudioBtn" style="flex: 1; background: #4CAF50; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="下載所有音檔備份">
                                 📥 匯出音檔
                             </button>
-                            <button id="emergencyCleanBtn" style="flex: 1; background: #f44336; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="直接刪除所有音檔">
+                            <button id="emergencyCleanBtn" style="flex: 1; background: #f44336; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="刪除所有音檔">
                                 🗑️ 清除音檔
                             </button>
                         </div>
