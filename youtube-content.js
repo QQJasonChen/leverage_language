@@ -94,15 +94,53 @@ function createTimestampedUrl(baseUrl, timestamp) {
   }
 }
 
+// Show user-friendly message when extension context is invalidated
+function showContextInvalidatedMessage() {
+  // Create a temporary notification
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    background: #ff9800 !important;
+    color: white !important;
+    padding: 12px 20px !important;
+    border-radius: 8px !important;
+    font-size: 14px !important;
+    font-weight: bold !important;
+    z-index: 9999999 !important;
+    font-family: Arial, sans-serif !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+  `;
+  notification.textContent = '📚 Extension updated! Please refresh the page to continue learning.';
+  document.body.appendChild(notification);
+  
+  // Remove after 5 seconds
+  setTimeout(() => {
+    if (notification.parentNode) {
+      notification.parentNode.removeChild(notification);
+    }
+  }, 5000);
+}
+
 // Listen for messages from the injected script
 window.addEventListener('message', (event) => {
   // Only accept messages from the same origin
   if (event.origin !== window.location.origin) {
-    console.log('🚫 Ignoring message from different origin:', event.origin);
-    return;
+    return; // Silently ignore other origins
   }
   
-  console.log('🔔 Content script received message:', event.data);
+  // Filter out noise from other extensions and services
+  if (!event.data || !event.data.type) {
+    return; // Silently ignore messages without proper structure
+  }
+  
+  // Only log our own messages to reduce console noise
+  if (event.data.type === 'YOUTUBE_LEARNING_TEXT') {
+    console.log('🔔 Content script received YouTube learning message:', event.data.text);
+  } else {
+    return; // Silently ignore non-learning messages
+  }
   
   if (event.data && event.data.type === 'YOUTUBE_LEARNING_TEXT') {
     console.log('📨 Processing YouTube learning text:', event.data.text);
@@ -139,20 +177,38 @@ window.addEventListener('message', (event) => {
     
     console.log('🚀 Sending to background script:', messageToBackground);
     
-    // Send to background script
-    chrome.runtime.sendMessage(messageToBackground, (response) => {
-      if (chrome.runtime.lastError) {
-        console.error('❌ Runtime error sending to background:', chrome.runtime.lastError.message);
-        
-        // Show user feedback on error
-        console.log('📝 Showing error feedback to user');
-      } else {
-        console.log('✅ Successfully sent to background script:', response);
-        
-        // Optional: Send success confirmation back to page
-        console.log('📝 Message processed successfully');
+    // Check if extension context is still valid
+    if (!chrome.runtime || !chrome.runtime.sendMessage) {
+      console.error('❌ Extension context invalid - chrome.runtime not available');
+      showContextInvalidatedMessage();
+      return;
+    }
+    
+    // Send to background script with robust error handling
+    try {
+      chrome.runtime.sendMessage(messageToBackground, (response) => {
+        if (chrome.runtime.lastError) {
+          const error = chrome.runtime.lastError.message;
+          console.error('❌ Runtime error sending to background:', error);
+          
+          if (error.includes('Extension context invalidated')) {
+            console.log('🔄 Extension context invalidated - page needs reload');
+            // Show user-friendly message
+            showContextInvalidatedMessage();
+          } else {
+            console.log('📝 Other runtime error, continuing...');
+          }
+        } else {
+          console.log('✅ Successfully sent to background script:', response);
+          console.log('📝 Message processed successfully');
+        }
+      });
+    } catch (error) {
+      console.error('❌ Failed to send message to background:', error);
+      if (error.message.includes('Extension context invalidated')) {
+        showContextInvalidatedMessage();
       }
-    });
+    }
   } else {
     console.log('🤷 Unknown message type or missing data:', event.data);
   }
