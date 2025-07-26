@@ -4251,36 +4251,42 @@
                 </div>
                 
                 <!-- Storage Management Section -->
-                <div class="storage-management-section" style="background: #fff3e0; border: 1px solid #ffb74d; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <h4 style="margin: 0; color: #f57c00; font-size: 14px;">💾 儲存空間管理</h4>
-                        <span id="storageUsageDisplay" style="font-size: 12px; color: #666;">檢查中...</span>
+                <div class="storage-management-section" style="background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h4 style="margin: 0; color: #1976d2; font-size: 14px;">💾 儲存空間狀態</h4>
+                        <button id="checkStorageBtn" style="background: transparent; border: 1px solid #1976d2; color: #1976d2; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="重新檢查">
+                            🔄 更新
+                        </button>
                     </div>
                     
+                    <!-- Chrome Storage Status -->
                     <div style="margin-bottom: 12px;">
-                        <div style="font-size: 12px; color: #666; margin-bottom: 8px;">Chrome 擴充功能儲存限制：5MB（無法增加）</div>
-                        <div id="storageProgressBar" style="background: #e0e0e0; border-radius: 4px; height: 6px; margin-bottom: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span style="font-size: 12px; color: #666;">Chrome Storage (5MB 限制)</span>
+                            <span id="storageUsageDisplay" style="font-size: 12px; font-weight: 500;">檢查中...</span>
+                        </div>
+                        <div id="storageProgressBar" style="background: #e0e0e0; border-radius: 4px; height: 8px; overflow: hidden;">
                             <div id="storageProgress" style="background: #ff9800; height: 100%; border-radius: 4px; width: 0%; transition: width 0.3s;"></div>
                         </div>
-                        <div id="audioDataInfo" style="font-size: 11px; color: #666;"></div>
                     </div>
                     
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                        <button id="checkStorageBtn" style="background: #2196F3; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="檢查儲存使用情況">
-                            📊 檢查使用量
-                        </button>
-                        <button id="exportAudioBtn" style="background: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="匯出音檔備份並清理">
-                            📦 匯出音檔
-                        </button>
+                    <!-- IndexedDB Status -->
+                    <div style="margin-bottom: 16px; padding: 12px; background: #e8f5e9; border-radius: 6px;">
+                        <div style="font-size: 12px; color: #2e7d32; font-weight: 500; margin-bottom: 4px;">✅ IndexedDB 已啟用（無限容量）</div>
+                        <div id="audioDataInfo" style="font-size: 11px; color: #555;"></div>
                     </div>
                     
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
-                        <button id="emergencyCleanBtn" style="background: #ff5722; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="緊急清理（僅移除音檔）">
-                            🚨 緊急清理
-                        </button>
-                        <button id="indexedDbSolutionBtn" style="background: #9c27b0; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="了解 IndexedDB 解決方案">
-                            🔧 升級方案
-                        </button>
+                    <!-- Quick Actions -->
+                    <div style="border-top: 1px solid #e0e0e0; padding-top: 12px;">
+                        <div style="font-size: 11px; color: #666; margin-bottom: 8px;">音檔管理選項：</div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="exportAudioBtn" style="flex: 1; background: #4CAF50; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="下載所有音檔後清理空間">
+                                📥 匯出音檔
+                            </button>
+                            <button id="emergencyCleanBtn" style="flex: 1; background: #f44336; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="直接刪除所有音檔">
+                                🗑️ 清除音檔
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
@@ -4475,6 +4481,7 @@
     
     <script src="lib/i18n-helper.js"></script>
     <script src="lib/ai-service.js"></script>
+    <script src="lib/indexeddb-manager.js"></script>
     <script src="lib/storage-manager.js"></script>
     <script src="lib/history-manager.js"></script>
     <script src="lib/lang-detect.js"></script>

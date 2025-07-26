@@ -275,8 +275,8 @@ async function updateStorageDisplay() {
       return;
     }
     
-    // Get storage stats
-    const stats = await storageManager.getStorageStats();
+    // Get storage stats with IndexedDB info
+    const stats = await storageManager.getStorageStatsWithIndexedDB();
     if (!stats) {
       if (storageUsageDisplay) storageUsageDisplay.textContent = '無法取得儲存資訊';
       return;
@@ -299,18 +299,42 @@ async function updateStorageDisplay() {
     // Check audio data
     const audioResult = await checkAudioData();
     if (audioDataInfo) {
-      if (audioResult && audioResult.success) {
-        audioDataInfo.textContent = `🎵 音檔：${audioResult.totalFiles} 個檔案 (${audioResult.totalSize})`;
-        audioDataInfo.style.color = '#ff9800';
-      } else {
-        audioDataInfo.textContent = '🎵 沒有音檔數據';
-        audioDataInfo.style.color = '#666';
+      let audioInfoParts = [];
+      let totalAudioFiles = 0;
+      
+      // Chrome Storage audio info
+      if (audioResult && audioResult.success && audioResult.totalFiles > 0) {
+        audioInfoParts.push(`Chrome Storage: ${audioResult.totalFiles} 個檔案`);
+        totalAudioFiles += audioResult.totalFiles;
       }
+      
+      // IndexedDB audio info
+      if (stats.indexedDB && stats.indexedDB.available && stats.indexedDB.audioCount > 0) {
+        audioInfoParts.push(`IndexedDB: ${stats.indexedDB.audioCount} 個檔案`);
+        totalAudioFiles += stats.indexedDB.audioCount;
+      }
+      
+      // Display info
+      if (totalAudioFiles > 0) {
+        audioDataInfo.innerHTML = `
+          <div>🎵 音檔總數：${totalAudioFiles} 個</div>
+          ${audioInfoParts.length > 0 ? `<div style="font-size: 10px; opacity: 0.8; margin-top: 2px;">${audioInfoParts.join(' • ')}</div>` : ''}
+          <div style="font-size: 10px; opacity: 0.8; margin-top: 2px;">可用空間：${stats.indexedDB?.availableSpace || '檢查中'}</div>
+        `;
+      } else {
+        audioDataInfo.innerHTML = `
+          <div>目前沒有儲存音檔</div>
+          <div style="font-size: 10px; opacity: 0.8; margin-top: 2px;">可用空間：${stats.indexedDB?.availableSpace || '檢查中'}</div>
+        `;
+      }
+      
+      audioDataInfo.style.color = '#555';
     }
     
     console.log('📊 Storage display updated:', {
       usage: `${usagePercent}%`,
-      audioFiles: audioResult?.totalFiles || 0,
+      chromeAudioFiles: audioResult?.totalFiles || 0,
+      indexedDBAudioFiles: stats.indexedDB?.audioCount || 0,
       isNearLimit
     });
     
@@ -2594,6 +2618,28 @@ async function replayQuery(text, language, url) {
           
           window.audioCache.set(cacheKey, cachedAudioData);
           console.log('🎯 Restored cached audio for replay:', text, 'from saved report');
+        } else if (exactMatch.audioInIndexedDB && exactMatch.audioId && storageManager) {
+          // Load audio from IndexedDB
+          try {
+            const reportWithAudio = await storageManager.getReportWithAudio(exactMatch);
+            if (reportWithAudio && reportWithAudio.audioData) {
+              const cacheKey = `${text.toLowerCase()}_${language}`;
+              const cachedAudioData = {
+                text: text,
+                language: language,
+                audioUrl: reportWithAudio.audioData,
+                blobUrl: reportWithAudio.audioData,
+                size: 0,
+                voice: 'OpenAI TTS',
+                timestamp: Date.now()
+              };
+              
+              window.audioCache.set(cacheKey, cachedAudioData);
+              console.log('🎯 Restored cached audio from IndexedDB for replay:', text);
+            }
+          } catch (error) {
+            console.error('Failed to load audio from IndexedDB:', error);
+          }
         }
       }
     }
@@ -3858,7 +3904,7 @@ async function loadSavedReports() {
                 <div class="report-badges">
                   <span class="report-language">${languageNames[report.language] || report.language.toUpperCase()}</span>
                   ${report.favorite ? '<span class="favorite-badge">⭐ 最愛</span>' : ''}
-                  ${report.audioData ? `<span class="audio-badge" data-report-id="${report.id}" style="cursor: pointer;" title="點擊播放語音">🔊 語音</span>` : ''}
+                  ${report.audioData || report.audioInIndexedDB ? `<span class="audio-badge" data-report-id="${report.id}" style="cursor: pointer;" title="點擊播放語音">🔊 語音</span>` : ''}
                   ${report.hasErrors ? 
                     `<span class="error-badge" title="檢測到錯誤：${report.errorTypes ? report.errorTypes.join(', ') : ''}">❌ 有錯誤</span>` : 
                     report.isCorrect === true ? '<span class="correct-badge" title="語法正確">✅ 正確</span>' : ''
@@ -4917,16 +4963,28 @@ function showAudioError(message) {
 async function playReportAudio(reportId) {
   try {
     const reports = await storageManager.getAIReports();
-    const report = reports.find(r => r.id === reportId);
+    let report = reports.find(r => r.id === reportId);
     
-    if (!report || !report.audioData || !report.audioData.audioUrl) {
+    if (!report) {
+      showMessage('找不到報告', 'error');
+      return;
+    }
+    
+    // Get audio from IndexedDB if needed
+    if (report.audioInIndexedDB && !report.audioData) {
+      report = await storageManager.getReportWithAudio(report);
+    }
+    
+    if (!report || !report.audioData || (typeof report.audioData === 'object' && !report.audioData.audioUrl)) {
       showMessage('此報告沒有語音數據', 'warning');
       return;
     }
     
     console.log('🔊 Playing audio from saved report:', report.searchText);
     
-    const audio = new Audio(report.audioData.audioUrl);
+    // Handle different audio data structures
+    const audioUrl = typeof report.audioData === 'string' ? report.audioData : report.audioData.audioUrl;
+    const audio = new Audio(audioUrl);
     
     // Show feedback
     const audioBadge = document.querySelector(`span[data-report-id="${reportId}"]`);
@@ -5214,7 +5272,7 @@ function displayFilteredSavedReports(reports) {
             <div class="report-badges">
               <span class="report-language">${languageNames[report.language] || report.language.toUpperCase()}</span>
               ${report.favorite ? '<span class="favorite-badge">⭐ 最愛</span>' : ''}
-              ${report.audioData ? `<span class="audio-badge" data-report-id="${report.id}" style="cursor: pointer;" title="點擊播放語音">🔊 語音</span>` : ''}
+              ${report.audioData || report.audioInIndexedDB ? `<span class="audio-badge" data-report-id="${report.id}" style="cursor: pointer;" title="點擊播放語音">🔊 語音</span>` : ''}
               ${report.hasErrors ? 
                 `<span class="error-badge" title="檢測到錯誤：${report.errorTypes ? report.errorTypes.join(', ') : ''}">❌ 有錯誤</span>` : 
                 report.isCorrect === true ? '<span class="correct-badge" title="語法正確">✅ 正確</span>' : ''
@@ -5350,7 +5408,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const checkStorageBtn = document.getElementById('checkStorageBtn');
   const exportAudioBtn = document.getElementById('exportAudioBtn');
   const emergencyCleanBtn = document.getElementById('emergencyCleanBtn');
-  const indexedDbSolutionBtn = document.getElementById('indexedDbSolutionBtn');
   
   if (checkStorageBtn) {
     checkStorageBtn.addEventListener('click', async () => {
@@ -5363,40 +5420,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     exportAudioBtn.addEventListener('click', async () => {
       console.log('📦 Exporting audio data...');
       const result = await exportAndClearAudio();
-      if (result) {
-        showMessage(`音檔匯出完成：${result.exportedFiles} 個檔案已匯出，${result.clearedReports} 個報告已清理`, 'success');
+      if (result && result.success) {
+        showMessage(`匯出完成：${result.exportedFiles} 個音檔已下載，空間已釋放`, 'success');
         await updateStorageDisplay();
+      } else {
+        showMessage('沒有音檔需要匯出', 'info');
       }
     });
   }
   
   if (emergencyCleanBtn) {
     emergencyCleanBtn.addEventListener('click', async () => {
-      if (confirm('⚠️ 緊急清理將立即移除所有音檔數據，無法復原。確定要繼續嗎？')) {
-        console.log('🚨 Emergency cleanup...');
+      if (confirm('⚠️ 確定要刪除所有音檔嗎？此操作無法復原！')) {
+        console.log('🗑️ Clearing all audio...');
         const result = await fixStorageIssue();
-        if (result) {
-          showMessage(`緊急清理完成：已移除 ${result.removedAudio} 個音檔`, 'success');
+        if (result && result.removedAudio > 0) {
+          showMessage(`已清除 ${result.removedAudio} 個音檔`, 'success');
           await updateStorageDisplay();
+        } else {
+          showMessage('沒有音檔需要清除', 'info');
         }
-      }
-    });
-  }
-  
-  if (indexedDbSolutionBtn) {
-    indexedDbSolutionBtn.addEventListener('click', () => {
-      const message = `🔧 IndexedDB 升級方案\n\n` +
-        `目前問題：Chrome 擴充功能儲存限制 5MB\n` +
-        `解決方案：升級到 IndexedDB\n\n` +
-        `IndexedDB 優勢：\n` +
-        `• 儲存容量：高達可用磁碟空間的 50%（GB 級別）\n` +
-        `• 適合：大型音檔、影片數據\n` +
-        `• 離線：完全本地儲存\n\n` +
-        `是否需要我實作 IndexedDB 升級？`;
-      
-      if (confirm(message)) {
-        showMessage('📝 我會為您實作 IndexedDB 升級方案！請稍候...', 'info');
-        console.log('🔧 User requested IndexedDB implementation');
       }
     });
   }
@@ -6494,7 +6537,7 @@ function displayFilteredReports(reports) {
             <div class="report-badges">
               <span class="report-language">${languageNames[report.language] || report.language.toUpperCase()}</span>
               ${report.favorite ? '<span class="favorite-badge">⭐ 最愛</span>' : ''}
-              ${report.audioData ? `<span class="audio-badge" data-report-id="${report.id}" style="cursor: pointer;" title="點擊播放語音">🔊 語音</span>` : ''}
+              ${report.audioData || report.audioInIndexedDB ? `<span class="audio-badge" data-report-id="${report.id}" style="cursor: pointer;" title="點擊播放語音">🔊 語音</span>` : ''}
             </div>
           </div>
           <div class="report-actions">
