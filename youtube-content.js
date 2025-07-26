@@ -19,9 +19,12 @@ function getCurrentVideoTimestamp() {
       });
       
       if (!isNaN(video.currentTime) && video.currentTime >= 0) {
-        const timestamp = Math.floor(video.currentTime);
-        console.log('✅ Video timestamp from video element:', timestamp, 'seconds');
-        return timestamp;
+        const rawTimestamp = Math.floor(video.currentTime);
+        // Subtract 2 seconds to catch sentence beginning (but not below 0)
+        const adjustedTimestamp = Math.max(0, rawTimestamp - 2);
+        console.log('✅ Video timestamp from video element:', rawTimestamp, 'seconds');
+        console.log('🎯 Adjusted timestamp (minus 2s for sentence start):', adjustedTimestamp, 'seconds');
+        return adjustedTimestamp;
       } else {
         console.log('⚠️ Video currentTime is invalid:', video.currentTime);
       }
@@ -43,9 +46,12 @@ function getCurrentVideoTimestamp() {
       const altVideo = document.querySelector(selector);
       console.log(`🔍 Checking selector ${selector}:`, !!altVideo);
       if (altVideo && !isNaN(altVideo.currentTime) && altVideo.currentTime >= 0) {
-        const timestamp = Math.floor(altVideo.currentTime);
-        console.log(`✅ Video timestamp from ${selector}:`, timestamp, 'seconds');
-        return timestamp;
+        const rawTimestamp = Math.floor(altVideo.currentTime);
+        // Subtract 2 seconds to catch sentence beginning (but not below 0)
+        const adjustedTimestamp = Math.max(0, rawTimestamp - 2);
+        console.log(`✅ Video timestamp from ${selector}:`, rawTimestamp, 'seconds');
+        console.log('🎯 Adjusted timestamp (minus 2s for sentence start):', adjustedTimestamp, 'seconds');
+        return adjustedTimestamp;
       }
     }
     
@@ -113,7 +119,7 @@ window.addEventListener('message', (event) => {
     if (videoTimestamp !== null) {
       const expectedParam = `t=${videoTimestamp}s`;
       if (timestampedUrl.includes(expectedParam)) {
-        console.log('✅ Timestamp URL validation passed:', expectedParam);
+        console.log('✅ Timestamp URL validation passed:', expectedParam, '(adjusted for sentence start)');
       } else {
         console.warn('⚠️ Timestamp URL validation failed!', { videoTimestamp, expectedParam, timestampedUrl });
       }
