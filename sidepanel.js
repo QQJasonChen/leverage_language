@@ -192,11 +192,18 @@ function updateRecentActivity() {
     `;
     
     activityEl.addEventListener('mouseenter', () => {
-      activityEl.style.backgroundColor = '#f8f9fa';
+      activityEl.style.backgroundColor = '#f8f9ff';
+      activityEl.style.transform = 'translateX(4px) scale(1.01)';
+      activityEl.style.boxShadow = '0 2px 12px rgba(26, 115, 232, 0.1)';
+      activityEl.style.borderLeft = '3px solid #1a73e8';
+      activityEl.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
     });
     
     activityEl.addEventListener('mouseleave', () => {
       activityEl.style.backgroundColor = '';
+      activityEl.style.transform = '';
+      activityEl.style.boxShadow = '';
+      activityEl.style.borderLeft = '';
     });
     
     activityList.appendChild(activityEl);
@@ -244,11 +251,32 @@ function updateTopVocabulary() {
     `;
     
     vocabEl.addEventListener('mouseenter', () => {
-      vocabEl.style.backgroundColor = '#f8f9fa';
+      vocabEl.style.backgroundColor = '#f0f8ff';
+      vocabEl.style.transform = 'translateX(6px) scale(1.02)';
+      vocabEl.style.boxShadow = '0 3px 15px rgba(26, 115, 232, 0.15)';
+      vocabEl.style.borderLeft = '4px solid #1a73e8';
+      vocabEl.style.borderRadius = '0 8px 8px 0';
+      vocabEl.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+      
+      // Add pulse effect to the rank number
+      const rankSpan = vocabEl.querySelector('span');
+      if (rankSpan) {
+        rankSpan.style.animation = 'pulse 1s ease-in-out';
+      }
     });
     
     vocabEl.addEventListener('mouseleave', () => {
       vocabEl.style.backgroundColor = '';
+      vocabEl.style.transform = '';
+      vocabEl.style.boxShadow = '';
+      vocabEl.style.borderLeft = '';
+      vocabEl.style.borderRadius = '';
+      
+      // Remove pulse effect
+      const rankSpan = vocabEl.querySelector('span');
+      if (rankSpan) {
+        rankSpan.style.animation = '';
+      }
     });
     
     vocabEl.addEventListener('click', () => {
