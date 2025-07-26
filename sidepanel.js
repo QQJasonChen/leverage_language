@@ -2216,7 +2216,13 @@ function displayHistoryItems(queries) {
         e.stopPropagation();
         const videoUrl = videoReturnButton.dataset.videoUrl;
         if (videoUrl) {
-          console.log('📹 Returning to video:', videoUrl);
+          console.log('📹 HISTORY TAB - Returning to video:', videoUrl);
+          console.log('🔍 HISTORY TAB - URL analysis:', {
+            isYouTube: videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be'),
+            isYouGlish: videoUrl.includes('youglish.com'),
+            hasTimestamp: videoUrl.includes('&t=') || videoUrl.includes('?t='),
+            fullUrl: videoUrl
+          });
           try {
             // Open the video URL in a new tab
             chrome.tabs.create({ url: videoUrl });
@@ -3562,6 +3568,7 @@ async function loadSavedReports() {
                   <button class="report-action-btn video-return-btn" data-video-url="${report.videoSource.url}" title="${formatVideoTimestamp(report.videoSource.videoTimestamp) ? `返回到 ${formatVideoTimestamp(report.videoSource.videoTimestamp)} 的學習片段` : '返回影片'}" style="background-color: #ff0000; color: white;">
                     ${formatVideoTimestamp(report.videoSource.videoTimestamp) ? '⏰' : '📹'}
                   </button>
+                  <!-- DEBUG: URL=${report.videoSource.url.substring(0, 50)}... -->
                 ` : `
                   <button class="report-action-btn video-return-btn-disabled" disabled title="此報告沒有影片來源數據 - 請從 YouTube 字幕學習以獲得返回片段功能" style="background-color: #ccc; color: #666; cursor: not-allowed;">
                     🚫
@@ -3580,6 +3587,7 @@ async function loadSavedReports() {
                     </div>
                   </div>
                   <button class="video-return-btn-large" data-video-url="${report.videoSource.url}" style="padding: 8px 16px; font-size: 13px; background-color: #ff0000; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; box-shadow: 0 2px 4px rgba(255,0,0,0.3); transition: all 0.2s;" title="${formatVideoTimestamp(report.videoSource.videoTimestamp) ? `返回到 ${formatVideoTimestamp(report.videoSource.videoTimestamp)} 的學習片段` : '返回影片'}" onmouseover="this.style.backgroundColor='#e60000'; this.style.transform='translateY(-1px)'" onmouseout="this.style.backgroundColor='#ff0000'; this.style.transform='translateY(0)'">${formatVideoTimestamp(report.videoSource.videoTimestamp) ? '⏰ 返回片段' : '📹 返回影片'}</button>
+                  <!-- DEBUG LARGE: URL=${report.videoSource.url.substring(0, 50)}... -->
                 </div>
               </div>
             ` : ''}
@@ -3758,7 +3766,13 @@ async function loadSavedReports() {
               e.stopPropagation();
               const videoUrl = btn.dataset.videoUrl;
               if (videoUrl) {
-                console.log('🎬 Opening video:', videoUrl);
+                console.log('🎬 SAVED TAB - Opening video:', videoUrl);
+                console.log('🔍 SAVED TAB - URL analysis:', {
+                  isYouTube: videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be'),
+                  isYouGlish: videoUrl.includes('youglish.com'),
+                  hasTimestamp: videoUrl.includes('&t=') || videoUrl.includes('?t='),
+                  fullUrl: videoUrl
+                });
                 window.open(videoUrl, '_blank');
                 
                 // Track analytics
