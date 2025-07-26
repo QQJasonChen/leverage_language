@@ -1564,17 +1564,57 @@ function loadWebsitePronunciationSites(queryData) {
         </div>
         <div class="option-actions">
           <span class="option-badge ${badgeClass}">${badgeText}</span>
+          <button class="open-new-tab-btn" title="在新標籤頁開啟" style="background: none; border: none; cursor: pointer; padding: 4px; margin-left: 8px; color: #666;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
+            </svg>
+          </button>
         </div>
       `;
       
-      option.addEventListener('click', () => {
+      // Handle click on the main option
+      option.addEventListener('click', (e) => {
+        // Don't trigger if clicking the new tab button
+        if (e.target.closest('.open-new-tab-btn')) return;
+        
+        console.log(`🌐 Opening ${site.name}: ${site.url}`);
         loadWebsiteInFrame(site.url, site.name);
+        
         // Add visual feedback
         option.style.backgroundColor = '#e3f2fd';
+        option.style.transform = 'scale(0.98)';
+        option.style.transition = 'all 0.2s';
+        
+        // Show active state
+        document.querySelectorAll('.pronunciation-option').forEach(opt => {
+          opt.classList.remove('active');
+          opt.style.borderColor = '';
+        });
+        option.classList.add('active');
+        option.style.borderColor = '#1a73e8';
+        option.style.borderWidth = '2px';
+        
         setTimeout(() => {
           option.style.backgroundColor = '';
+          option.style.transform = '';
         }, 300);
       });
+      
+      // Handle new tab button click
+      const newTabBtn = option.querySelector('.open-new-tab-btn');
+      if (newTabBtn) {
+        newTabBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          console.log(`🚀 Opening ${site.name} in new tab`);
+          window.open(site.url, '_blank');
+          
+          // Visual feedback
+          newTabBtn.style.color = '#1a73e8';
+          setTimeout(() => {
+            newTabBtn.style.color = '#666';
+          }, 300);
+        });
+      }
       
       if (pronunciationOptions) {
         pronunciationOptions.appendChild(option);
@@ -1594,18 +1634,49 @@ function loadWebsitePronunciationSites(queryData) {
 function loadWebsiteInFrame(url, siteName) {
   const frame = document.getElementById('websiteFrame');
   const loading = document.getElementById('websiteLoading');
+  const error = document.getElementById('websiteError');
+  const frameContainer = document.getElementById('websiteIframeContainer');
   
+  // Show loading state
   if (loading) loading.style.display = 'block';
+  if (error) error.style.display = 'none';
+  if (frameContainer) frameContainer.style.display = 'block';
   
   if (frame) {
-    frame.src = url;
+    // Clear previous content
+    frame.src = 'about:blank';
+    
+    // Set new source
+    setTimeout(() => {
+      frame.src = url;
+      console.log(`🚀 Loading ${siteName}: ${url}`);
+    }, 100);
+    
     frame.onload = () => {
       if (loading) loading.style.display = 'none';
-      console.log(`Loaded ${siteName}: ${url}`);
+      console.log(`✅ Successfully loaded ${siteName}`);
+      
+      // Update the current site display
+      const currentSiteEl = document.getElementById('currentWebsiteName');
+      if (currentSiteEl) {
+        currentSiteEl.textContent = `當前網站: ${siteName}`;
+        currentSiteEl.style.display = 'block';
+      }
     };
+    
     frame.onerror = () => {
       if (loading) loading.style.display = 'none';
-      console.error(`Failed to load ${siteName}`);
+      if (error) {
+        error.style.display = 'block';
+        error.innerHTML = `
+          <div>❌ 無法載入 ${siteName}</div>
+          <div style="font-size: 12px; margin-top: 8px;">請檢查網絡連接或嘗試其他網站</div>
+          <button onclick="loadWebsiteInFrame('${url}', '${siteName}')" style="margin-top: 8px; padding: 4px 12px; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            重試
+          </button>
+        `;
+      }
+      console.error(`❌ Failed to load ${siteName}`);
     };
   }
 }
