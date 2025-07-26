@@ -501,13 +501,28 @@ if (window.location.href.includes('youtube.com')) {
   // Get current video timestamp
   function getCurrentVideoTimestamp() {
     try {
-      // Try to get the YouTube video element
+      // Method 1: Try to get the YouTube video element (most reliable)
       const video = document.querySelector('video');
-      if (video && !isNaN(video.currentTime)) {
-        return Math.floor(video.currentTime); // Return timestamp in seconds
+      if (video && !isNaN(video.currentTime) && video.currentTime > 0) {
+        const timestamp = Math.floor(video.currentTime);
+        console.log('🎬 Video timestamp from video element:', timestamp, 'seconds');
+        return timestamp;
       }
       
-      // Fallback: try to get from URL parameters
+      // Method 2: Try YouTube player API if available
+      if (typeof window.ytplayer !== 'undefined' && window.ytplayer && window.ytplayer.getCurrentTime) {
+        try {
+          const timestamp = Math.floor(window.ytplayer.getCurrentTime());
+          if (timestamp > 0) {
+            console.log('🎬 Video timestamp from YouTube API:', timestamp, 'seconds');
+            return timestamp;
+          }
+        } catch (e) {
+          console.log('YouTube API method failed:', e);
+        }
+      }
+      
+      // Method 3: Try to get from URL parameters (fallback)
       const urlParams = new URLSearchParams(window.location.search);
       const timeParam = urlParams.get('t');
       if (timeParam) {
@@ -516,11 +531,18 @@ if (window.location.href.includes('youtube.com')) {
         if (timeMatch) {
           const minutes = parseInt(timeMatch[1]) || 0;
           const seconds = parseInt(timeMatch[2]) || 0;
-          return minutes * 60 + seconds;
+          const timestamp = minutes * 60 + seconds;
+          console.log('🎬 Video timestamp from URL params:', timestamp, 'seconds');
+          return timestamp;
         }
-        return parseInt(timeParam) || 0;
+        const directSeconds = parseInt(timeParam);
+        if (!isNaN(directSeconds)) {
+          console.log('🎬 Video timestamp from URL (direct):', directSeconds, 'seconds');
+          return directSeconds;
+        }
       }
       
+      console.log('🎬 No video timestamp could be determined');
       return null;
     } catch (error) {
       console.warn('⚠️ Could not get video timestamp:', error);
@@ -531,11 +553,28 @@ if (window.location.href.includes('youtube.com')) {
   // Create timestamped URL for returning to exact moment
   function createTimestampedUrl(baseUrl, timestamp) {
     try {
-      const url = new URL(baseUrl);
-      if (timestamp !== null && timestamp >= 0) {
-        url.searchParams.set('t', `${timestamp}s`);
+      // Clean the base URL - remove any existing timestamp parameters
+      let cleanUrl = baseUrl;
+      
+      // Handle different YouTube URL formats
+      if (cleanUrl.includes('youtube.com') || cleanUrl.includes('youtu.be')) {
+        cleanUrl = cleanUrl.split('&t=')[0].split('?t=')[0].split('#t=')[0];
+        
+        const url = new URL(cleanUrl);
+        
+        // Only add timestamp if we have a valid one
+        if (timestamp !== null && timestamp >= 0 && !isNaN(timestamp)) {
+          url.searchParams.set('t', `${timestamp}s`);
+          console.log('🔗 Created timestamped URL:', url.toString(), `(timestamp: ${timestamp}s)`);
+          return url.toString();
+        } else {
+          console.log('🔗 No valid timestamp, returning clean URL:', cleanUrl);
+          return cleanUrl;
+        }
       }
-      return url.toString();
+      
+      // For non-YouTube URLs, just return as-is
+      return baseUrl;
     } catch (error) {
       console.warn('⚠️ Could not create timestamped URL:', error);
       return baseUrl;
@@ -560,11 +599,22 @@ if (window.location.href.includes('youtube.com')) {
       
       // Get current video timestamp
       const timestamp = getCurrentVideoTimestamp();
-      const baseUrl = window.location.href.split('&t=')[0].split('?t=')[0]; // Remove existing timestamp
+      const baseUrl = window.location.href; // Use full current URL as base
       const timestampedUrl = createTimestampedUrl(baseUrl, timestamp);
       
       console.log('⏰ Captured video timestamp:', timestamp, 'seconds');
-      console.log('🔗 Timestamped URL:', timestampedUrl);
+      console.log('🔗 Base URL:', baseUrl);
+      console.log('🔗 Final timestamped URL:', timestampedUrl);
+      
+      // Add validation
+      if (timestamp !== null) {
+        const expectedParam = `t=${timestamp}s`;
+        if (!timestampedUrl.includes(expectedParam)) {
+          console.warn('⚠️ Timestamp parameter missing from URL!', { timestamp, expectedParam, url: timestampedUrl });
+        } else {
+          console.log('✅ Timestamp successfully added to URL');
+        }
+      }
       
       // Send message to background script to update sidepanel
       chrome.runtime.sendMessage({

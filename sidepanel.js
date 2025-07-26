@@ -262,11 +262,22 @@ function updateRecentActivity() {
         <div style="font-weight: 500; color: #333; margin-bottom: 4px;">${activity.text}</div>
         <div style="font-size: 12px; color: #666;">${activity.language} • ${timeAgo}</div>
       </div>
-      <button onclick="reAnalyzeFromHistory('${activity.text}', '${activity.language}')" 
+      <button class="reanalyze-btn" data-text="${activity.text}" data-language="${activity.language}"
               style="background: #1a73e8; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">
         重新分析
       </button>
     `;
+    
+    // Add event listener for the reanalyze button
+    const reanalyzeBtn = activityEl.querySelector('.reanalyze-btn');
+    if (reanalyzeBtn) {
+      reanalyzeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const text = reanalyzeBtn.dataset.text;
+        const language = reanalyzeBtn.dataset.language;
+        reAnalyzeFromHistory(text, language);
+      });
+    }
     
     activityEl.addEventListener('mouseenter', () => {
       activityEl.style.backgroundColor = '#f8f9ff';
@@ -1741,10 +1752,20 @@ function loadWebsiteInFrame(url, siteName) {
         error.innerHTML = `
           <div>❌ 無法載入 ${siteName}</div>
           <div style="font-size: 12px; margin-top: 8px;">請檢查網絡連接或嘗試其他網站</div>
-          <button onclick="loadWebsiteInFrame('${url}', '${siteName}')" style="margin-top: 8px; padding: 4px 12px; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer;">
+          <button class="retry-load-btn" data-url="${url}" data-site-name="${siteName}" style="margin-top: 8px; padding: 4px 12px; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer;">
             重試
           </button>
         `;
+        
+        // Add event listener for retry button
+        const retryBtn = error.querySelector('.retry-load-btn');
+        if (retryBtn) {
+          retryBtn.addEventListener('click', () => {
+            const retryUrl = retryBtn.dataset.url;
+            const retrySiteName = retryBtn.dataset.siteName;
+            loadWebsiteInFrame(retryUrl, retrySiteName);
+          });
+        }
       }
       console.error(`❌ Failed to load ${siteName}`);
     };
@@ -3018,11 +3039,27 @@ async function getQuickDefinition(text, language) {
 // Get definition from Free Dictionary API
 async function getFreeDictionaryDefinition(word) {
   try {
-    // Use the free dictionary API
-    const url = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`;
+    // Validate input
+    if (!word || typeof word !== 'string' || word.trim().length === 0) {
+      return null;
+    }
     
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Dictionary API failed');
+    const cleanWord = word.trim().toLowerCase();
+    
+    // Use the free dictionary API
+    const url = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(cleanWord)}`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      console.warn(`Dictionary API returned ${response.status} for word: ${cleanWord}`);
+      return null;
+    }
     
     const data = await response.json();
     
@@ -3046,7 +3083,8 @@ async function getFreeDictionaryDefinition(word) {
     
     return null;
   } catch (error) {
-    console.error('Free dictionary lookup failed:', error);
+    console.warn('Free dictionary lookup failed:', error.message || error);
+    // Don't treat this as a critical error - just return null for graceful fallback
     return null;
   }
 }
@@ -9638,7 +9676,7 @@ function displayAIAnalysisResults(analysis, text) {
       <div style="margin-bottom: 12px;">
         <strong>🔊 Pronunciation:</strong>
         <span style="color: #666; margin-left: 8px;">${analysis.pronunciation}</span>
-        <button onclick="speakTextWithAI('${text}', '${analysis.pronunciation}')" style="margin-left: 10px; padding: 4px 8px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">🔊 Play</button>
+        <button class="speak-ai-btn" data-text="${text}" data-pronunciation="${analysis.pronunciation}" style="margin-left: 10px; padding: 4px 8px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">🔊 Play</button>
       </div>
     `;
   }
@@ -9662,6 +9700,16 @@ function displayAIAnalysisResults(analysis, text) {
   `;
   
   aiResultsDiv.innerHTML = resultHTML;
+  
+  // Add event listeners for speak AI buttons (after innerHTML is set)
+  const speakBtns = aiResultsDiv.querySelectorAll('.speak-ai-btn');
+  speakBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const text = btn.dataset.text;
+      const pronunciation = btn.dataset.pronunciation;
+      speakTextWithAI(text, pronunciation);
+    });
+  });
 }
 
 // Fallback analysis when AI is not available
