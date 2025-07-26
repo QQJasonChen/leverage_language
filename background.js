@@ -56,13 +56,23 @@ chrome.action.onClicked.addListener(async (tab) => {
 
 // 處理來自內容腳本的訊息
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('🔔 Background script received message:', request.action, 'from tab:', sender.tab?.id);
+  
   if (request.action === 'searchYouGlish') {
+    console.log('🔍 Processing YouGlish search for:', request.text);
     searchYouGlish(request.text, sender.tab.id);
+    sendResponse({ success: true, message: 'YouGlish search initiated' });
   } else if (request.action === 'analyzeTextInSidepanel') {
+    console.log('📖 Processing YouTube learning text analysis for:', request.text);
     // Handle YouTube learning text analysis
     handleYouTubeTextAnalysis(request, sender.tab.id);
     sendResponse({ success: true, message: 'Text sent to sidepanel for analysis' });
+  } else {
+    console.log('❓ Unknown action:', request.action);
+    sendResponse({ success: false, error: 'Unknown action' });
   }
+  
+  return true; // Keep message channel open for async response
 });
 
 // 主要搜尋函數
@@ -598,30 +608,44 @@ async function handleYouTubeTextAnalysis(request, tabId) {
       }
     });
     
-    // 嘗試發送消息到已開啟的 sidepanel
+    // 開啟 sidepanel (如果尚未開啟)
     try {
-      await chrome.runtime.sendMessage({
-        action: 'updateSidePanel',
-        url: urls.primaryUrl,
-        text: cleanText,
-        language: language,
-        source: request.source || 'youtube-learning',
-        title: request.title || 'YouTube Learning',
-        originalUrl: request.url,
-        allUrls: urls.allUrls
-      });
-      console.log('✅ YouTube text sent to sidepanel successfully');
-    } catch (messageError) {
-      console.log('📝 Sidepanel not open, data saved for later');
-      // Show a notification to user
-      chrome.notifications.create({
-        type: 'basic',
-        iconUrl: 'icons/icon128.png',
-        title: 'YouTube Learning',
-        message: `"${cleanText}" saved. Click extension icon to analyze.`,
-        priority: 1
-      });
+      await chrome.sidePanel.open({ tabId });
+      console.log('📱 Sidepanel opened for YouTube learning');
+    } catch (error) {
+      console.log('📱 Sidepanel might already be open:', error.message);
     }
+
+    // 等待一點時間讓 sidepanel 初始化
+    setTimeout(async () => {
+      // 嘗試發送消息到已開啟的 sidepanel
+      try {
+        console.log('🚀 Sending message to sidepanel:', cleanText);
+        const response = await chrome.runtime.sendMessage({
+          action: 'updateSidePanel',
+          url: urls.primaryUrl,
+          text: cleanText,
+          language: language,
+          source: request.source || 'youtube-learning',
+          title: request.title || 'YouTube Learning',
+          originalUrl: request.url,
+          allUrls: urls.allUrls
+        });
+        console.log('✅ YouTube text sent to sidepanel successfully:', response);
+      } catch (messageError) {
+        console.log('📝 Sidepanel message failed:', messageError.message);
+        // The sidepanel should pick up data from storage when it opens
+        console.log('💾 Data saved to storage for sidepanel to read');
+        // Show a notification to user
+        chrome.notifications.create({
+          type: 'basic',
+          iconUrl: 'icons/icon128.png',
+          title: 'YouTube Learning',
+          message: `"${cleanText}" saved. Click extension icon to analyze.`,
+          priority: 1
+        });
+      }
+    }, 1000);
     
   } catch (error) {
     console.error('❌ Error handling YouTube text analysis:', error);

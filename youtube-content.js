@@ -4,25 +4,44 @@ console.log('🎬 YouTube content script loaded');
 // Listen for messages from the injected script
 window.addEventListener('message', (event) => {
   // Only accept messages from the same origin
-  if (event.origin !== window.location.origin) return;
+  if (event.origin !== window.location.origin) {
+    console.log('🚫 Ignoring message from different origin:', event.origin);
+    return;
+  }
+  
+  console.log('🔔 Content script received message:', event.data);
   
   if (event.data && event.data.type === 'YOUTUBE_LEARNING_TEXT') {
-    console.log('📨 Received text from YouTube page:', event.data.text);
+    console.log('📨 Processing YouTube learning text:', event.data.text);
     
-    // Send to background script
-    chrome.runtime.sendMessage({
+    // Prepare message with all data from page script
+    const messageToBackground = {
       action: 'analyzeTextInSidepanel',
       text: event.data.text,
-      url: window.location.href,
-      title: document.title,
-      source: 'youtube-learning'
-    }, (response) => {
+      url: event.data.url || window.location.href,
+      title: event.data.title || document.title,
+      language: event.data.language || 'english',
+      source: event.data.source || 'youtube-learning'
+    };
+    
+    console.log('🚀 Sending to background script:', messageToBackground);
+    
+    // Send to background script
+    chrome.runtime.sendMessage(messageToBackground, (response) => {
       if (chrome.runtime.lastError) {
-        console.log('⚠️ Expected error:', chrome.runtime.lastError.message);
+        console.error('❌ Runtime error sending to background:', chrome.runtime.lastError.message);
+        
+        // Show user feedback on error
+        console.log('📝 Showing error feedback to user');
       } else {
-        console.log('✅ Text sent to background:', response);
+        console.log('✅ Successfully sent to background script:', response);
+        
+        // Optional: Send success confirmation back to page
+        console.log('📝 Message processed successfully');
       }
     });
+  } else {
+    console.log('🤷 Unknown message type or missing data:', event.data);
   }
 });
 

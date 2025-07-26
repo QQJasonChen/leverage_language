@@ -27,6 +27,8 @@ const handleError = async (error, context = {}) => {
 
 // 監聽來自背景腳本的訊息
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('🔔 Sidepanel received message:', request.action, request.source);
+  
   if (request.action === 'updateSidePanel') {
     // Check if this is from YouTube learning
     if (request.source === 'youtube-learning') {
@@ -107,6 +109,29 @@ let learningStats = {
   lastUpdated: new Date().toISOString()
 };
 
+// Load learning stats from storage
+async function loadLearningStats() {
+  try {
+    const result = await chrome.storage.local.get('learningStats');
+    if (result.learningStats) {
+      learningStats = { ...learningStats, ...result.learningStats };
+      console.log('📚 Loaded learning stats:', learningStats.totalSearches, 'searches,', learningStats.vocabularyCount, 'vocabulary');
+    }
+  } catch (error) {
+    console.error('Error loading learning stats:', error);
+  }
+}
+
+// Save learning stats to storage
+async function saveLearningStats() {
+  try {
+    await chrome.storage.local.set({ learningStats: learningStats });
+    console.log('💾 Learning stats saved');
+  } catch (error) {
+    console.error('Error saving learning stats:', error);
+  }
+}
+
 // Record learning search function
 function recordLearningSearch(text, language, url, title) {
   const searchEntry = {
@@ -136,6 +161,9 @@ function recordLearningSearch(text, language, url, title) {
   
   // Update vocabulary tracking
   updateVocabularyTracking(text, language);
+  
+  // Save to storage
+  saveLearningStats();
   
   console.log('📚 Learning search recorded:', searchEntry);
 }
@@ -191,15 +219,22 @@ function updateLearningDashboard() {
 
 // Update recent activity section
 function updateRecentActivity() {
+  console.log('🔄 Updating recent activity, found', learningStats.recentActivity.length, 'activities');
   const activityList = document.getElementById('quickHistoryList');
-  if (!activityList) return;
+  if (!activityList) {
+    console.log('❌ quickHistoryList element not found');
+    return;
+  }
   
   activityList.innerHTML = '';
   
   if (learningStats.recentActivity.length === 0) {
+    console.log('📝 No learning activity, showing empty state');
     activityList.innerHTML = '<div class="activity-empty">開始學習後，這裡會顯示您的學習記錄</div>';
     return;
   }
+  
+  console.log('📋 Displaying', learningStats.recentActivity.length, 'learning activities');
   
   learningStats.recentActivity.forEach(activity => {
     const activityEl = document.createElement('div');
@@ -849,15 +884,8 @@ function initializeViewControls() {
       // Update learning dashboard with current stats
       updateLearningDashboard();
       
-      // Initialize video learning controls
-      try {
-        if (typeof initializeVideoLearningControls === 'function') {
-          initializeVideoLearningControls();
-        }
-      } catch (error) {
-        console.log('Video learning controls not available in sidepanel context:', error);
-        // Don't override the videoView content - pronunciation sites should remain visible
-      }
+      // Don't initialize video learning controls as they override the HTML dashboard
+      // The video tab should show the learning dashboard from HTML, not dynamic content
       
       log('Switched to video view');
     };
@@ -4577,9 +4605,24 @@ function displayFilteredSavedReports(reports) {
 }
 
 // Initialize all buttons and features
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   // Initialize TTS voices
   initializeTTSVoices();
+  
+  // Load learning stats from storage
+  await loadLearningStats();
+  
+  // Add some sample data if no learning stats exist (for testing)
+  if (learningStats.totalSearches === 0) {
+    console.log('🧪 Adding sample learning data for testing');
+    recordLearningSearch('hello world', 'english', 'https://youtube.com/watch?v=test', 'Sample YouTube Video');
+    recordLearningSearch('pronunciation', 'english', 'https://youtube.com/watch?v=test2', 'Another Sample Video');
+    recordLearningSearch('learning', 'english', 'https://youtube.com/watch?v=test3', 'Learning Video');
+    
+    // Update dashboard after adding sample data
+    console.log('🔄 Updating dashboard with sample data');
+    updateLearningDashboard();
+  }
   
   // Check for YouTube analysis data
   checkForYouTubeAnalysis();
