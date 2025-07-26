@@ -35,25 +35,26 @@ if (window.location.href.includes('youtube.com')) {
     // Apply strong styling
     button.style.cssText = `
       position: fixed !important;
-      top: 10px !important;
-      right: 10px !important;
-      width: 80px !important;
-      height: 40px !important;
+      bottom: 20px !important;
+      right: 20px !important;
+      width: 90px !important;
+      height: 45px !important;
       background-color: #ff4444 !important;
       color: white !important;
       border: 3px solid white !important;
-      border-radius: 8px !important;
+      border-radius: 25px !important;
       cursor: pointer !important;
       z-index: 2147483647 !important;
       display: flex !important;
       align-items: center !important;
       justify-content: center !important;
-      font-size: 12px !important;
+      font-size: 14px !important;
       font-weight: bold !important;
       font-family: Arial, sans-serif !important;
       box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important;
       user-select: none !important;
       pointer-events: auto !important;
+      transition: all 0.2s ease !important;
     `;
     
     // Button click handler
