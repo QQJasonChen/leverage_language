@@ -1825,9 +1825,18 @@ async function loadHistoryView() {
   
   try {
     // Get both history and AI reports to match error status
+    console.log('🔍 Requesting history from background script...');
     const [historyResponse, reportsResponse] = await Promise.all([
-      new Promise((resolve) => {
-        chrome.runtime.sendMessage({ action: 'getHistory' }, resolve);
+      new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({ action: 'getHistory' }, (response) => {
+          if (chrome.runtime.lastError) {
+            console.error('❌ Chrome runtime error:', chrome.runtime.lastError);
+            reject(chrome.runtime.lastError);
+          } else {
+            console.log('📚 History response received:', response);
+            resolve(response);
+          }
+        });
       }),
       storageManager ? storageManager.getAIReports() : Promise.resolve([])
     ]);
@@ -2105,15 +2114,24 @@ function displayHistoryItems(queries) {
         const id = deleteButton.dataset.id;
         if (id && confirm('確定要刪除這個搜尋記錄嗎？')) {
           try {
-            const response = await new Promise((resolve) => {
-              chrome.runtime.sendMessage({ action: 'deleteHistoryRecord', id }, resolve);
+            console.log('🗑️ Deleting history record:', id);
+            const response = await new Promise((resolve, reject) => {
+              chrome.runtime.sendMessage({ action: 'deleteHistoryRecord', id }, (response) => {
+                if (chrome.runtime.lastError) {
+                  console.error('❌ Chrome runtime error during delete:', chrome.runtime.lastError);
+                  reject(chrome.runtime.lastError);
+                } else {
+                  console.log('🗑️ Delete response:', response);
+                  resolve(response);
+                }
+              });
             });
             if (response && response.success) {
-              console.log('History record deleted:', id);
+              console.log('✅ History record deleted successfully:', id);
               loadHistoryView(); // Reload the view
             } else {
-              console.error('Failed to delete history record:', response?.error);
-              alert('刪除失敗');
+              console.error('❌ Failed to delete history record:', response?.error);
+              alert('刪除失敗: ' + (response?.error || '未知錯誤'));
             }
           } catch (error) {
             console.error('Error deleting history record:', error);
@@ -4833,15 +4851,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     clearHistoryBtn.addEventListener('click', async () => {
       if (confirm('確定要清空所有搜尋歷史嗎？這個操作無法復原。')) {
         try {
-          const response = await new Promise((resolve) => {
-            chrome.runtime.sendMessage({ action: 'clearHistory' }, resolve);
+          console.log('🧹 Clearing all history...');
+          const response = await new Promise((resolve, reject) => {
+            chrome.runtime.sendMessage({ action: 'clearHistory' }, (response) => {
+              if (chrome.runtime.lastError) {
+                console.error('❌ Chrome runtime error during clear:', chrome.runtime.lastError);
+                reject(chrome.runtime.lastError);
+              } else {
+                console.log('🧹 Clear response:', response);
+                resolve(response);
+              }
+            });
           });
           if (response && response.success) {
-            console.log('History cleared successfully');
+            console.log('✅ History cleared successfully');
             loadHistoryView(); // Reload the view
           } else {
-            console.error('Failed to clear history:', response?.error);
-            alert('清空失敗');
+            console.error('❌ Failed to clear history:', response?.error);
+            alert('清空失敗: ' + (response?.error || '未知錯誤'));
           }
         } catch (error) {
           console.error('Error clearing history:', error);

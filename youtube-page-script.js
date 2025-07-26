@@ -509,11 +509,7 @@ function disableTextLearning() {
   });
 }
 
-// Test communication function
-function testCommunication() {
-  console.log('🧪 Testing communication...');
-  sendToExtension('test message from YouTube learning');
-}
+// Test communication function removed to avoid unwanted search messages
 
 // Debug subtitle structure
 function debugSubtitleStructure() {
@@ -568,11 +564,7 @@ function debugSubtitleStructure() {
 function initializeYouTubeLearning() {
   console.log('🚀 Initializing YouTube learning...');
   
-  // Test communication after 3 seconds
-  setTimeout(() => {
-    console.log('🧪 Running communication test...');
-    testCommunication();
-  }, 3000);
+  // Test communication removed to avoid unwanted search messages
   
   // Debug subtitle structure after 5 seconds to let YouTube load
   setTimeout(() => {
