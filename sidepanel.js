@@ -3473,6 +3473,22 @@ async function loadSavedReports() {
         3. Alt+Click on subtitle text (not video)
         4. Generate analysis with auto-save ON
         5. Check saved tab for red video buttons`);
+        
+        // Add visual notification in the UI
+        const notificationHtml = `
+          <div style="margin: 10px 0; padding: 12px; background: linear-gradient(135deg, #fff3cd, #ffeaa7); border: 1px solid #ffc107; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <span style="font-size: 18px;">ℹ️</span>
+              <strong style="color: #856404;">為什麼我看不到 "⏰ 返回片段" 按鈕？</strong>
+            </div>
+            <div style="font-size: 13px; color: #856404; line-height: 1.4;">
+              您的 ${reports.length} 個已保存報告都沒有影片數據。<br>
+              <strong>要獲得 "返回片段" 功能：</strong><br>
+              1. 前往 YouTube 影片 → 2. 點擊 "📚 LEARN" → 3. Alt+點擊字幕文字 → 4. 生成分析
+            </div>
+          </div>
+        `;
+        reportsList.innerHTML = notificationHtml + reportsList.innerHTML;
       }
       
       reportsList.innerHTML = reports.map(report => {
@@ -3514,7 +3530,11 @@ async function loadSavedReports() {
                   <button class="report-action-btn video-return-btn" data-video-url="${report.videoSource.url}" title="${formatVideoTimestamp(report.videoSource.videoTimestamp) ? `返回到 ${formatVideoTimestamp(report.videoSource.videoTimestamp)} 的學習片段` : '返回影片'}" style="background-color: #ff0000; color: white;">
                     ${formatVideoTimestamp(report.videoSource.videoTimestamp) ? '⏰' : '📹'}
                   </button>
-                ` : `<!-- No video source: ${JSON.stringify(report.videoSource || {})} -->`}
+                ` : `
+                  <button class="report-action-btn video-return-btn-disabled" disabled title="此報告沒有影片來源數據 - 請從 YouTube 字幕學習以獲得返回片段功能" style="background-color: #ccc; color: #666; cursor: not-allowed;">
+                    🚫
+                  </button>
+                `}
               </div>
             </div>
             ${report.videoSource && report.videoSource.url ? `
