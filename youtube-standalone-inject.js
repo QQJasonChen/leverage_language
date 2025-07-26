@@ -499,7 +499,7 @@ if (window.location.href.includes('youtube.com')) {
   }
   
   // Get current video timestamp
-  function getCurrentVideoTimestamp() {
+  async function getCurrentVideoTimestamp() {
     try {
       console.log('🔍 Starting timestamp detection...');
       
@@ -578,18 +578,55 @@ if (window.location.href.includes('youtube.com')) {
       console.log('🔍 Trying alternative video selectors...');
       const videoSelectors = [
         'video.html5-main-video',
-        'video.video-stream',
+        'video.video-stream', 
         '#movie_player video',
-        '.html5-video-player video'
+        '.html5-video-player video',
+        '.ytp-html5-video',
+        '#player video'
       ];
       
       for (const selector of videoSelectors) {
         const altVideo = document.querySelector(selector);
-        if (altVideo && !isNaN(altVideo.currentTime) && altVideo.currentTime > 0) {
-          const timestamp = Math.floor(altVideo.currentTime);
-          console.log(`✅ Video timestamp from ${selector}:`, timestamp, 'seconds');
-          return timestamp;
+        console.log(`🔍 Checking selector ${selector}:`, !!altVideo);
+        if (altVideo) {
+          console.log(`  ${selector} details:`, {
+            currentTime: altVideo.currentTime,
+            duration: altVideo.duration,
+            paused: altVideo.paused
+          });
+          if (!isNaN(altVideo.currentTime) && altVideo.currentTime >= 0) {
+            const timestamp = Math.floor(altVideo.currentTime);
+            console.log(`✅ Video timestamp from ${selector}:`, timestamp, 'seconds');
+            return timestamp;
+          }
         }
+      }
+      
+      // Method 5: Try to wait for video element if none found
+      console.log('🔍 No video found, attempting to wait for video element...');
+      const waitForVideo = () => {
+        return new Promise((resolve) => {
+          let attempts = 0;
+          const checkVideo = () => {
+            attempts++;
+            const video = document.querySelector('video');
+            if (video && !isNaN(video.currentTime)) {
+              console.log(`✅ Video found after ${attempts} attempts`);
+              resolve(Math.floor(video.currentTime));
+            } else if (attempts < 10) {
+              setTimeout(checkVideo, 100);
+            } else {
+              console.log('❌ Video not found after 10 attempts');
+              resolve(null);
+            }
+          };
+          checkVideo();
+        });
+      };
+      
+      const delayedTimestamp = await waitForVideo();
+      if (delayedTimestamp !== null) {
+        return delayedTimestamp;
       }
       
       console.log('❌ No video timestamp could be determined from any method');
@@ -648,13 +685,13 @@ if (window.location.href.includes('youtube.com')) {
       }
       
       // Get current video timestamp with retry logic
-      let timestamp = getCurrentVideoTimestamp();
+      let timestamp = await getCurrentVideoTimestamp();
       
       // If no timestamp on first try, wait and retry once
       if (timestamp === null) {
         console.log('🔄 No timestamp on first try, waiting 500ms and retrying...');
         await new Promise(resolve => setTimeout(resolve, 500));
-        timestamp = getCurrentVideoTimestamp();
+        timestamp = await getCurrentVideoTimestamp();
       }
       
       const baseUrl = window.location.href; // Use full current URL as base
