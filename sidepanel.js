@@ -3417,7 +3417,7 @@ async function loadSavedReports() {
     
     if (storageManager && typeof storageManager.getAIReports === 'function') {
       reports = await storageManager.getAIReports();
-      console.log('Loaded reports from storage manager:', reports);
+      console.log('Loaded reports from storage manager:', reports.length, 'reports');
       
       // Check if we need to re-analyze reports (detect reports with missing error analysis)
       const needsReAnalysis = reports.some(report => 
@@ -3460,21 +3460,31 @@ async function loadSavedReports() {
     if (reportsEmpty) reportsEmpty.style.display = 'none';
     if (reportsList) reportsList.style.display = 'block';
     
-    // Update stats with error information
+    // Update stats - clean version based on history tab format
     if (reportsStats) {
+      // Count categories
+      const itemsWithAnalysis = reports.filter(report => report.hasErrors !== null && report.hasErrors !== undefined);
       const correctItems = reports.filter(report => report.isCorrect === true);
       const errorItems = reports.filter(report => report.hasErrors === true);
-      const unanalyzedItems = reports.filter(report => report.hasErrors === null);
+      
+      // Count language distribution
+      const languageStats = {};
+      reports.forEach(report => {
+        const lang = report.language || 'unknown';
+        languageStats[lang] = (languageStats[lang] || 0) + 1;
+      });
       
       let statsText = `📊 總共 ${reports.length} 個分析報告`;
-      if (correctItems.length > 0 || errorItems.length > 0) {
+      if (itemsWithAnalysis.length > 0) {
         statsText += ` | ✅ 正確: ${correctItems.length} ❌ 錯誤: ${errorItems.length}`;
-        if (unanalyzedItems.length > 0) {
-          statsText += ` 🔍 未分析: ${unanalyzedItems.length}`;
-        }
       }
+      statsText += ` | 語言分布: ${Object.entries(languageStats).map(([lang, count]) => `${languageNames[lang] || lang}: ${count}`).join(', ')}`;
       
-      reportsStats.innerHTML = `<p>${statsText}</p>`;
+      if (window.SecurityFixes) {
+        window.SecurityFixes.safeUpdateStats(reportsStats, statsText);
+      } else {
+        reportsStats.innerHTML = `<p>${statsText}</p>`;
+      }
     }
     
     // Populate tag filter dropdown
@@ -3489,10 +3499,12 @@ async function loadSavedReports() {
       const reportsWithVideo = reports.filter(r => r.videoSource && r.videoSource.url);
       const reportsWithTimestamp = reports.filter(r => r.videoSource && r.videoSource.url && r.videoSource.videoTimestamp);
       
-      console.log(`📊 SAVED TAB - Video Return Button Debug:`, {
-        total: reports.length,
+      console.log(`📊 SAVED TAB - Reports Display Debug:`, {
+        totalReports: reports.length,
         withVideo: reportsWithVideo.length,
         withTimestamp: reportsWithTimestamp.length,
+        limitIncreased: 'MAX_REPORTS increased from 100 to 5000',
+        showingAll: reports.length < 5000 ? 'Yes' : 'Might be limited',
         reportsWithVideoDetails: reportsWithVideo.map(r => ({
           text: r.searchText,
           hasUrl: !!r.videoSource.url,
@@ -3501,6 +3513,9 @@ async function loadSavedReports() {
           url: r.videoSource.url?.substring(0, 50) + '...'
         }))
       });
+      
+      // Build notification HTML
+      let notificationHtml = '';
       
       // Show in UI if no video data found
       if (reportsWithVideo.length === 0 && reports.length > 0) {
@@ -3513,7 +3528,7 @@ async function loadSavedReports() {
         5. Check saved tab for red video buttons`);
         
         // Add visual notification in the UI
-        const notificationHtml = `
+        notificationHtml = `
           <div style="margin: 10px 0; padding: 12px; background: linear-gradient(135deg, #fff3cd, #ffeaa7); border: 1px solid #ffc107; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
               <span style="font-size: 18px;">ℹ️</span>
@@ -3526,10 +3541,11 @@ async function loadSavedReports() {
             </div>
           </div>
         `;
-        reportsList.innerHTML = notificationHtml + reportsList.innerHTML;
+        
       }
       
-      reportsList.innerHTML = reports.map(report => {
+      // Build the complete HTML with notification + reports
+      const reportsHtml = reports.map(report => {
         const truncatedAnalysis = typeof report.analysisData === 'string' 
           ? report.analysisData.substring(0, 150) + (report.analysisData.length > 150 ? '...' : '')
           : (report.analysisData && report.analysisData.content 
@@ -3614,6 +3630,9 @@ async function loadSavedReports() {
             </div>
           </div>`;
       }).join('');
+      
+      // Assign the complete HTML to the reports list
+      reportsList.innerHTML = notificationHtml + reportsHtml;
       
       // Add event listeners
       reportsList.querySelectorAll('.saved-report-item').forEach(item => {
