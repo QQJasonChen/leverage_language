@@ -584,22 +584,44 @@ async function handleYouTubeTextAnalysis(request, tabId) {
     // 生成語言學習 URLs
     const urls = generateLanguageUrls(cleanText, language);
     
-    // 發送到 sidepanel 進行分析
-    chrome.runtime.sendMessage({
-      action: 'updateSidePanel',
-      url: urls.primaryUrl,
-      text: cleanText,
-      language: language,
-      source: request.source || 'youtube-learning',
-      title: request.title || 'YouTube Learning',
-      originalUrl: request.url,
-      allUrls: urls.allUrls
+    // 儲存到 local storage 供 sidepanel 使用
+    await chrome.storage.local.set({
+      youtubeAnalysis: {
+        url: urls.primaryUrl,
+        text: cleanText,
+        language: language,
+        source: request.source || 'youtube-learning',
+        title: request.title || 'YouTube Learning',
+        originalUrl: request.url,
+        allUrls: urls.allUrls,
+        timestamp: Date.now()
+      }
     });
     
-    // 開啟 Side Panel
-    await chrome.sidePanel.open({ tabId });
-    
-    console.log('✅ YouTube text sent to sidepanel successfully');
+    // 嘗試發送消息到已開啟的 sidepanel
+    try {
+      await chrome.runtime.sendMessage({
+        action: 'updateSidePanel',
+        url: urls.primaryUrl,
+        text: cleanText,
+        language: language,
+        source: request.source || 'youtube-learning',
+        title: request.title || 'YouTube Learning',
+        originalUrl: request.url,
+        allUrls: urls.allUrls
+      });
+      console.log('✅ YouTube text sent to sidepanel successfully');
+    } catch (messageError) {
+      console.log('📝 Sidepanel not open, data saved for later');
+      // Show a notification to user
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon128.png',
+        title: 'YouTube Learning',
+        message: `"${cleanText}" saved. Click extension icon to analyze.`,
+        priority: 1
+      });
+    }
     
   } catch (error) {
     console.error('❌ Error handling YouTube text analysis:', error);

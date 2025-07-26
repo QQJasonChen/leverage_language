@@ -129,8 +129,8 @@ if (window.location.href.includes('youtube.com')) {
       if (!isLearningEnabled) return;
       
       const target = e.target;
-      const isSubtitle = target.matches('.ytp-caption-segment, .captions-text') || 
-                        target.closest('.ytp-caption-segment, .captions-text');
+      const isSubtitle = (target && target.matches && target.matches('.ytp-caption-segment, .captions-text')) || 
+                        (target && target.closest && target.closest('.ytp-caption-segment, .captions-text'));
       
       if (isSubtitle) {
         const subtitleElement = isSubtitle === true ? target : isSubtitle;
@@ -152,8 +152,8 @@ if (window.location.href.includes('youtube.com')) {
         return; // Let the word's own click handler handle it
       }
       
-      const isSubtitle = target.matches('.ytp-caption-segment, .captions-text') || 
-                        target.closest('.ytp-caption-segment, .captions-text');
+      const isSubtitle = (target && target.matches && target.matches('.ytp-caption-segment, .captions-text')) || 
+                        (target && target.closest && target.closest('.ytp-caption-segment, .captions-text'));
       
       if (isSubtitle) {
         const subtitleElement = isSubtitle === true ? target : isSubtitle;
@@ -186,8 +186,8 @@ if (window.location.href.includes('youtube.com')) {
     // Handle mouse leave to remove hover effect
     subtitleLeaveHandler = function(e) {
       const target = e.target;
-      const isSubtitle = target.matches('.ytp-caption-segment, .captions-text') || 
-                        target.closest('.ytp-caption-segment, .captions-text');
+      const isSubtitle = (target && target.matches && target.matches('.ytp-caption-segment, .captions-text')) || 
+                        (target && target.closest && target.closest('.ytp-caption-segment, .captions-text'));
       
       if (isSubtitle) {
         const subtitleElement = isSubtitle === true ? target : isSubtitle;

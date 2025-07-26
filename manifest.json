@@ -13,7 +13,8 @@
     "commands",
     "tabs",
     "declarativeNetRequest",
-    "identity"
+    "identity",
+    "notifications"
   ],
   
   "host_permissions": [

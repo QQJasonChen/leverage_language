@@ -59,6 +59,41 @@ let currentQueryData = {};
 let currentAIAnalysis = null;
 let lastProcessedQuery = null;
 
+// Check for YouTube analysis data when sidepanel opens
+async function checkForYouTubeAnalysis() {
+  try {
+    const result = await chrome.storage.local.get('youtubeAnalysis');
+    if (result.youtubeAnalysis) {
+      const data = result.youtubeAnalysis;
+      // Check if data is recent (within last 5 minutes)
+      if (Date.now() - data.timestamp < 5 * 60 * 1000) {
+        console.log('📺 Found recent YouTube analysis data:', data.text);
+        
+        // Switch to video tab
+        const videoBtn = document.getElementById('showVideoBtn');
+        if (videoBtn) {
+          videoBtn.click();
+        }
+        
+        // Process the YouTube data
+        setTimeout(() => {
+          recordLearningSearch(data.text, data.language, data.originalUrl, data.title);
+          updateLearningDashboard();
+          handleYouTubeTextAnalysis(data.text, data.originalUrl, data.title);
+        }, 500);
+        
+        // Load in analysis tab
+        loadYouGlish(data.url, data.text, data.language);
+        
+        // Clear the data after processing
+        chrome.storage.local.remove('youtubeAnalysis');
+      }
+    }
+  } catch (error) {
+    console.error('Error checking YouTube analysis:', error);
+  }
+}
+
 // Initialize storage manager and analytics
 let storageManager = null;
 
@@ -4545,6 +4580,10 @@ function displayFilteredSavedReports(reports) {
 document.addEventListener('DOMContentLoaded', () => {
   // Initialize TTS voices
   initializeTTSVoices();
+  
+  // Check for YouTube analysis data
+  checkForYouTubeAnalysis();
+  
   // Settings button
   const settingsBtn = document.querySelector('.settings-button');
   if (settingsBtn) {
