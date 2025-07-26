@@ -129,8 +129,8 @@ if (window.location.href.includes('youtube.com')) {
       if (!isLearningEnabled) return;
       
       const target = e.target;
-      const isSubtitle = target.matches('.ytp-caption-segment, .captions-text') || 
-                        target.closest('.ytp-caption-segment, .captions-text');
+      const isSubtitle = (target && target.matches && target.matches('.ytp-caption-segment, .captions-text')) || 
+                        (target && target.closest && target.closest('.ytp-caption-segment, .captions-text'));
       
       if (isSubtitle) {
         const subtitleElement = isSubtitle === true ? target : isSubtitle;
@@ -152,8 +152,8 @@ if (window.location.href.includes('youtube.com')) {
         return; // Let the word's own click handler handle it
       }
       
-      const isSubtitle = target.matches('.ytp-caption-segment, .captions-text') || 
-                        target.closest('.ytp-caption-segment, .captions-text');
+      const isSubtitle = (target && target.matches && target.matches('.ytp-caption-segment, .captions-text')) || 
+                        (target && target.closest && target.closest('.ytp-caption-segment, .captions-text'));
       
       if (isSubtitle) {
         const subtitleElement = isSubtitle === true ? target : isSubtitle;
@@ -186,8 +186,8 @@ if (window.location.href.includes('youtube.com')) {
     // Handle mouse leave to remove hover effect
     subtitleLeaveHandler = function(e) {
       const target = e.target;
-      const isSubtitle = target.matches('.ytp-caption-segment, .captions-text') || 
-                        target.closest('.ytp-caption-segment, .captions-text');
+      const isSubtitle = (target && target.matches && target.matches('.ytp-caption-segment, .captions-text')) || 
+                        (target && target.closest && target.closest('.ytp-caption-segment, .captions-text'));
       
       if (isSubtitle) {
         const subtitleElement = isSubtitle === true ? target : isSubtitle;
@@ -499,7 +499,21 @@ if (window.location.href.includes('youtube.com')) {
   }
   
   function sendToSidepanel(text) {
+    console.log('📨 Attempting to send to sidepanel:', text);
+    
+    // Check if chrome.runtime is available
+    if (typeof chrome === 'undefined' || !chrome.runtime) {
+      console.error('❌ Chrome runtime not available');
+      return;
+    }
+    
     try {
+      // Check if chrome.runtime is available
+      if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) {
+        console.warn('⚠️ Chrome runtime not available for YouTube learning');
+        return;
+      }
+      
       // Send message to background script to update sidepanel
       chrome.runtime.sendMessage({
         action: 'analyzeTextInSidepanel',
@@ -509,6 +523,7 @@ if (window.location.href.includes('youtube.com')) {
         source: 'youtube-learning'
       }, (response) => {
         if (chrome.runtime.lastError) {
+          console.log('⚠️ Runtime error (expected):', chrome.runtime.lastError.message);
           console.log('📨 Message sent via content script communication');
         } else {
           console.log('✅ Text sent to sidepanel successfully:', response);

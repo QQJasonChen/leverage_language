@@ -16,6 +16,81 @@
             overflow: hidden;
         }
         
+        /* Advanced Animations and Keyframes */
+        @keyframes enhancedHover {
+            0% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-1px) scale(1.02); }
+            100% { transform: translateY(-2px) scale(1.02); }
+        }
+        
+        @keyframes smoothBounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-4px); }
+            60% { transform: translateY(-2px); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: -200px 0; }
+            100% { background-position: 200px 0; }
+        }
+        
+        @keyframes fadeInUp {
+            from { 
+                opacity: 0; 
+                transform: translateY(20px); 
+            }
+            to { 
+                opacity: 1; 
+                transform: translateY(0); 
+            }
+        }
+        
+        @keyframes successPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.08); border-color: rgba(76, 175, 80, 1); }
+            100% { transform: scale(1); }
+        }
+        
+        /* Enhanced Learning Dashboard Hover Effects */
+        .quick-stats-card:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 12px 28px rgba(102, 126, 234, 0.4);
+            background: linear-gradient(135deg, #7b68ee 0%, #8a2be2 100%) !important;
+        }
+        
+        .learning-section {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .learning-section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .quick-action-btn {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .quick-action-btn:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 4px 15px rgba(26, 115, 232, 0.3);
+            background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%) !important;
+        }
+        
+        .insight-item {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .insight-item:hover {
+            transform: translateX(4px) scale(1.01);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
         .header {
             background: #1a73e8;
             color: white;
@@ -298,7 +373,10 @@
         }
         
         .view-button:hover {
-            background: #e8eaed;
+            background: linear-gradient(135deg, #e8eaed 0%, #f1f3f4 100%);
+            transform: translateY(-1px) scale(1.02);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-color: #1a73e8;
         }
         
         .view-button.active {
@@ -342,6 +420,252 @@
             flex: 1;
             overflow-y: auto;
             padding: 0 16px;
+        }
+
+        .websites-view {
+            margin-top: 16px;
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 16px;
+        }
+
+        .websites-header {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .websites-header h3 {
+            color: #1a73e8;
+            margin: 0 0 8px 0;
+            font-size: 18px;
+        }
+
+        .websites-header p {
+            color: #666;
+            margin: 0;
+            font-size: 14px;
+        }
+
+        /* 發音網站選項樣式 */
+        .pronunciation-sites {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 16px;
+        }
+
+        .sites-header {
+            flex-shrink: 0;
+            margin-bottom: 16px;
+        }
+
+        .pronunciation-sites h4 {
+            color: #1a73e8;
+            margin: 0 0 8px 0;
+            font-size: 16px;
+        }
+
+        .pronunciation-sites p {
+            color: #666;
+            margin: 0 0 16px 0;
+            font-size: 13px;
+        }
+
+        .pronunciation-options {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 16px;
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .category-header {
+            background: #f8f9fa;
+            padding: 12px 16px;
+            border-left: 4px solid #1a73e8;
+            margin: 16px 0 8px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .category-header h4 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1a73e8;
+        }
+
+        .category-count {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .pronunciation-option {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            background: white;
+            transition: all 0.2s;
+            margin: 2px 0;
+        }
+
+        .pronunciation-option:hover {
+            border-color: #1a73e8;
+            background: #f8f9ff;
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 4px 16px rgba(26, 115, 232, 0.2);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .pronunciation-option:active {
+            transform: translateY(0) scale(0.98);
+            box-shadow: 0 2px 8px rgba(26, 115, 232, 0.3);
+        }
+        
+        .open-new-tab-btn:hover {
+            color: #1a73e8 !important;
+            transform: scale(1.1);
+            transition: all 0.2s;
+        }
+
+        .pronunciation-option.primary {
+            border-color: #1a73e8;
+            background: #f8f9ff;
+        }
+
+        .option-info {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+
+        .option-icon {
+            font-size: 18px;
+            margin-right: 12px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .option-details h5 {
+            margin: 0 0 4px 0;
+            font-size: 14px;
+            color: #202124;
+            font-weight: 600;
+        }
+
+        .option-details p {
+            margin: 0;
+            font-size: 12px;
+            color: #5f6368;
+            line-height: 1.3;
+        }
+
+        .option-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .option-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-align: center;
+            min-width: 40px;
+        }
+
+        .option-badge.primary {
+            background: #1a73e8;
+            color: white;
+        }
+
+        .option-badge.secondary {
+            background: #34a853;
+            color: white;
+        }
+
+        .option-badge.tertiary {
+            background: #fbbc04;
+            color: #333;
+        }
+
+        .option-badge.recommended {
+            background: #4caf50;
+            color: white;
+        }
+
+        .option-button {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        .option-button:hover {
+            background: #1557b0;
+        }
+
+        .site-descriptions {
+            border-top: 1px solid #e0e0e0;
+            padding-top: 16px;
+            flex-shrink: 0;
+        }
+
+        .site-info h6 {
+            margin: 0 0 8px 0;
+            color: #1a73e8;
+            font-size: 12px;
+        }
+
+        .site-info ul {
+            margin: 0;
+            padding-left: 16px;
+            font-size: 11px;
+            color: #5f6368;
+            line-height: 1.4;
+        }
+
+        .site-info li {
+            margin-bottom: 4px;
+        }
+
+        .iframe-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .iframe-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #666;
+            font-size: 14px;
         }
         
         .alternative-content {
@@ -1759,8 +2083,9 @@
         }
 
         .flashcard-btn.primary:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(25, 118, 210, 0.4);
+            transform: translateY(-2px) scale(1.03);
+            box-shadow: 0 6px 16px rgba(25, 118, 210, 0.5);
+            animation: smoothBounce 0.6s ease-out;
         }
 
         .flashcard-btn.secondary {
@@ -1770,8 +2095,10 @@
         }
 
         .flashcard-btn.secondary:hover {
-            background: #e8e8e8;
-            transform: translateY(-1px);
+            background: linear-gradient(135deg, #e8e8e8 0%, #f0f0f0 100%);
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-color: #bbb;
         }
 
         .btn-icon {
@@ -2763,8 +3090,15 @@
         }
 
         .primary-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(25, 118, 210, 0.4);
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(25, 118, 210, 0.5);
+            animation: enhancedHover 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+        }
+        
+        .primary-btn:active {
+            transform: translateY(-1px) scale(0.98);
+            box-shadow: 0 4px 12px rgba(25, 118, 210, 0.6);
         }
 
         .primary-btn:disabled {
@@ -3395,12 +3729,13 @@
             </p>
         </div>
         
-        <div id="searchResult" class="search-result" style="display: none;">
+        <div id="searchResult" class="search-result" style="display: block;">
             <div class="result-header">
                 <h3 data-i18n="search_results_title">📺 YouGlish 查詢結果</h3>
                 <div class="view-controls">
                     <button id="showAnalysisBtn" class="view-button active" data-i18n="analysis_view">📊 分析</button>
                     <button id="showVideoBtn" class="view-button" data-i18n="video_view">🎥 影片</button>
+                    <button id="showWebsitesBtn" class="view-button" data-i18n="websites_view">🌐 網站</button>
                     <button id="showHistoryBtn" class="view-button" data-i18n="history_view">📚 歷史</button>
                     <button id="showSavedReportsBtn" class="view-button" data-i18n="saved_reports_view">💾 已保存</button>
                     <button id="showFlashcardsBtn" class="view-button" data-i18n="flashcards_view">🃏 記憶卡</button>
@@ -3581,35 +3916,187 @@
             </div>
             
             <!-- 影片視圖 -->
-            <div id="videoView" class="video-view" style="display: none;">
-                <!-- Video Learning Controls -->
-                <div class="video-learning-controls" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 16px; border-radius: 8px; margin-bottom: 16px; color: white;">
-                    <div class="video-learning-header" style="display: flex; align-items: center; justify-content: between; margin-bottom: 12px;">
-                        <h4 style="margin: 0; display: flex; align-items: center; flex: 1;">
-                            🎬 Learn While Watching
-                        </h4>
-                        <button id="videoLearningToggle" class="video-toggle-btn" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 11px;">
-                            Enable
-                        </button>
+            <div id="videoView" class="video-view" style="display: none; padding: 16px;">
+                
+                <!-- Quick Stats Card -->
+                <div class="quick-stats-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 16px; text-align: center; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer;">
+                    <h3 style="margin: 0 0 16px 0; font-size: 18px;">📚 學習追踪器</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+                        <div>
+                            <div id="quickTotalSearches" style="font-size: 24px; font-weight: bold; margin-bottom: 4px;">0</div>
+                            <div style="font-size: 12px; opacity: 0.9;">總搜尋</div>
+                        </div>
+                        <div>
+                            <div id="quickUniqueWords" style="font-size: 24px; font-weight: bold; margin-bottom: 4px;">0</div>
+                            <div style="font-size: 12px; opacity: 0.9;">詞彙量</div>
+                        </div>
+                        <div>
+                            <div id="quickTodaySearches" style="font-size: 24px; font-weight: bold; margin-bottom: 4px;">0</div>
+                            <div style="font-size: 12px; opacity: 0.9;">今日</div>
+                        </div>
+                    </div>
+                    <button id="quickExportBtn" class="quick-action-btn" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 12px; margin-top: 12px;">
+                        📥 匯出學習數據
+                    </button>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="learning-section" style="background: white; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4 style="margin: 0; color: #333;">🕐 最近活動</h4>
+                        <div style="display: flex; gap: 8px;">
+                            <select id="quickTimeFilter" style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
+                                <option value="all">全部</option>
+                                <option value="today">今天</option>
+                                <option value="week">本週</option>
+                            </select>
+                            <button id="quickClearBtn" style="background: #ff5722; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">清除</button>
+                        </div>
+                    </div>
+                    <div id="quickHistoryList" style="max-height: 300px; overflow-y: auto; border: 1px solid #f0f0f0; border-radius: 4px; padding: 8px;">
+                        <div style="text-align: center; color: #999; padding: 20px;">
+                            <div style="font-size: 48px; margin-bottom: 16px;">📖</div>
+                            <div style="font-size: 14px; margin-bottom: 8px;">尚無學習記錄</div>
+                            <div style="font-size: 12px; color: #ccc; margin-bottom: 16px;">開始在 YouTube 上選擇文字來建立學習記錄</div>
+                            
+                            <!-- Useful learning links -->
+                            <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-top: 20px; text-align: left;">
+                                <h5 style="margin: 0 0 12px 0; color: #333; font-size: 14px;">🔗 推薦學習資源</h5>
+                                <div style="display: flex; flex-direction: column; gap: 8px;">
+                                    <a href="https://www.youtube.com/results?search_query=english+learning" target="_blank" 
+                                       style="display: flex; align-items: center; text-decoration: none; color: #1a73e8; font-size: 12px; padding: 8px; border-radius: 4px; background: white; border: 1px solid #e0e0e0;">
+                                        <span style="margin-right: 8px;">🎥</span>
+                                        <span>YouTube 英語學習頻道</span>
+                                    </a>
+                                    <a href="https://www.youtube.com/results?search_query=language+exchange" target="_blank" 
+                                       style="display: flex; align-items: center; text-decoration: none; color: #1a73e8; font-size: 12px; padding: 8px; border-radius: 4px; background: white; border: 1px solid #e0e0e0;">
+                                        <span style="margin-right: 8px;">💬</span>
+                                        <span>語言交換影片</span>
+                                    </a>
+                                    <a href="https://www.youtube.com/results?search_query=pronunciation+practice" target="_blank" 
+                                       style="display: flex; align-items: center; text-decoration: none; color: #1a73e8; font-size: 12px; padding: 8px; border-radius: 4px; background: white; border: 1px solid #e0e0e0;">
+                                        <span style="margin-right: 8px;">🗣️</span>
+                                        <span>發音練習影片</span>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Video Learning Queue -->
+                <div class="learning-section" style="background: white; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4 style="margin: 0; color: #333;">📹 學習影片列表</h4>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="clearVideoQueueBtn" style="background: #ff5722; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="清除學習影片歷史">🗑️ 清除</button>
+                            <button id="refreshVideoQueueBtn" style="background: #2196F3; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="重新整理影片列表">🔄 刷新</button>
+                        </div>
+                    </div>
+                    <div id="videoLearningQueue" style="max-height: 280px; overflow-y: auto; border: 1px solid #f0f0f0; border-radius: 4px; padding: 8px;">
+                        <div style="text-align: center; color: #999; padding: 30px 20px;">
+                            <div style="font-size: 48px; margin-bottom: 16px;">🎬</div>
+                            <div style="font-size: 14px; margin-bottom: 8px; color: #666;">尚無學習影片</div>
+                            <div style="font-size: 12px; color: #ccc; margin-bottom: 16px;">在 YouTube 影片中點擊字幕開始學習</div>
+                            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px;">
+                                <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank" 
+                                   style="display: flex; align-items: center; text-decoration: none; color: #1a73e8; font-size: 12px; padding: 8px; border-radius: 4px; background: #f8f9fa; border: 1px solid #e0e0e0; transition: all 0.2s;">
+                                    <span style="margin-right: 8px;">🎓</span>
+                                    <span>推薦英語學習影片</span>
+                                </a>
+                                <a href="https://www.youtube.com/results?search_query=english+conversation+practice" target="_blank" 
+                                   style="display: flex; align-items: center; text-decoration: none; color: #1a73e8; font-size: 12px; padding: 8px; border-radius: 4px; background: #f8f9fa; border: 1px solid #e0e0e0; transition: all 0.2s;">
+                                    <span style="margin-right: 8px;">💬</span>
+                                    <span>會話練習影片</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Analysis Section -->
+                <div id="videoAiAnalysisSection" style="background: white; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4 style="margin: 0; color: #333;">💬 實際應用場景</h4>
+                        <button id="closeAiAnalysis" style="background: #f0f0f0; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; color: #666;">✕</button>
                     </div>
                     
-                    <div id="videoLearningStatus" class="video-status" style="font-size: 12px; opacity: 0.9; margin-bottom: 8px;">
-                        Open a video on YouTube, Netflix, Disney+, Prime Video, or Hulu to start learning!
+                    <!-- Current Analysis Text -->
+                    <div id="videoCurrentText" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                        <div style="font-size: 12px; opacity: 0.9; margin-bottom: 6px;">學習內容:</div>
+                        <div id="videoAnalysisText" style="font-size: 14px; font-weight: 500; word-wrap: break-word;"></div>
                     </div>
                     
-                    <div id="videoLearningStats" class="video-stats" style="display: none; font-size: 11px; opacity: 0.8;">
-                        <div>📊 Words analyzed: <span id="wordsAnalyzed">0</span></div>
-                        <div>🎯 Platform: <span id="currentPlatform">None</span></div>
+                    <!-- AI Analysis Results -->
+                    <div id="videoAiResults" style="border: 1px solid #f0f0f0; border-radius: 6px; padding: 12px; min-height: 100px; max-height: 300px; overflow-y: auto;">
+                        <div id="videoAiLoading" style="text-align: center; color: #666; padding: 20px;">
+                            <div style="font-size: 24px; margin-bottom: 8px;">💭</div>
+                            <div>生成實際應用場景中...</div>
+                        </div>
+                        <div id="videoAiContent" style="display: none;"></div>
+                        <div id="videoAiError" style="display: none; text-align: center; color: #ff5722; padding: 20px;">
+                            <div style="font-size: 24px; margin-bottom: 8px;">❌</div>
+                            <div>分析失敗，請重試</div>
+                        </div>
                     </div>
                     
-                    <div class="video-learning-actions" style="display: flex; gap: 8px; margin-top: 12px;">
-                        <button id="clearVideoCache" class="video-action-btn" style="background: rgba(255,255,255,0.15); border: none; color: white; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 10px; opacity: 0.8;">
-                            Clear Cache
+                    <!-- AI Analysis Actions -->
+                    <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
+                        <button id="videoSaveAnalysis" style="background: #4CAF50; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 11px;">💾 保存應用</button>
+                        <button id="videoRetryAnalysis" style="background: #FF9800; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 11px;">🔄 重新生成</button>
+                        <button id="videoSpeakText" style="background: #2196F3; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 11px;">🔊 朗讀</button>
+                    </div>
+                </div>
+
+                <!-- Quick Review & Learning Tools -->
+                <div class="learning-section" style="background: white; border-radius: 8px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <h4 style="margin: 0 0 12px 0; color: #333;">🔄 快速複習</h4>
+                    
+                    <!-- Recent Learning Items for Review -->
+                    <div style="background: #f8f9fa; border-radius: 6px; padding: 12px; margin-bottom: 16px;">
+                        <div style="display: flex; justify-content: between-between; align-items: center; margin-bottom: 8px;">
+                            <div style="font-size: 12px; color: #666; font-weight: 500;">📖 待複習項目</div>
+                            <button id="startQuickReviewBtn" style="background: #4CAF50; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="開始快速複習">▶️ 開始</button>
+                        </div>
+                        <div id="reviewItemsList" style="max-height: 120px; overflow-y: auto;">
+                            <div style="text-align: center; color: #999; padding: 20px; font-size: 12px;">
+                                暫無待複習項目
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Learning Progress Dashboard -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                        <div style="background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%); color: white; padding: 12px; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: bold; margin-bottom: 4px;" id="todayLearningCount">0</div>
+                            <div style="font-size: 11px; opacity: 0.9;">今日學習</div>
+                        </div>
+                        
+                        <div style="background: linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%); color: white; padding: 12px; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: bold; margin-bottom: 4px;" id="weekStreakCount">0</div>
+                            <div style="font-size: 11px; opacity: 0.9;">本週連續</div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions for YouTube Learning -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <button id="openYouTubeBtn" style="background: #FF0000; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px;" title="開啟 YouTube">
+                            <span>🎥</span>
+                            <span>開啟 YouTube</span>
                         </button>
-                        <button id="videoAnalytics" class="video-action-btn" style="background: rgba(255,255,255,0.15); border: none; color: white; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 10px; opacity: 0.8;">
-                            Analytics
+                        <button id="practiceRecentBtn" style="background: #9C27B0; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px;" title="練習最近學習的內容">
+                            <span>🎯</span>
+                            <span>練習模式</span>
                         </button>
                     </div>
+                </div>
+            </div>
+            
+            <!-- 網站視圖 -->
+            <div id="websitesView" class="websites-view" style="display: none;">
+                <div class="websites-header">
+                    <h3>🌐 發音學習網站</h3>
+                    <p data-i18n="websites_description">選擇最適合的發音學習網站來學習您搜尋的內容</p>
                 </div>
                 
                 <div class="pronunciation-sites">
@@ -3618,14 +4105,14 @@
                         <p data-i18n="pronunciation_sites_description">Choose the most suitable pronunciation website:</p>
                     </div>
                     
-                    <div id="pronunciationOptions" class="pronunciation-options">
+                    <div id="websitePronunciationOptions" class="pronunciation-options">
                         <!-- 動態生成的發音網站選項 -->
                     </div>
                     
                     <div class="site-descriptions">
                         <div class="site-info">
                             <h6 data-i18n="site_descriptions_title">📖 Website Descriptions</h6>
-                            <ul id="siteDescriptions">
+                            <ul id="websiteSiteDescriptions">
                                 <!-- 動態生成的網站描述 -->
                             </ul>
                         </div>
@@ -3633,11 +4120,15 @@
                 </div>
                 
                 <!-- 網站顯示區域 -->
-                <div class="iframe-container">
-                    <div id="loading" class="loading" style="display: none;">
+                <div id="websiteIframeContainer" class="iframe-container" style="display: none; margin-top: 16px;">
+                    <div id="currentWebsiteName" style="background: linear-gradient(135deg, #1a73e8 0%, #1565c0 100%); color: white; padding: 12px 16px; font-size: 14px; font-weight: 500; display: none; border-radius: 8px 8px 0 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"></div>
+                    <div id="websiteLoading" class="loading" style="display: none;">
                         <div>載入中...</div>
                     </div>
-                    <iframe id="youglishFrame" name="youglishFrame" src="about:blank"></iframe>
+                    <div id="websiteError" class="error" style="display: none;">
+                        載入失敗，請重試
+                    </div>
+                    <iframe id="websiteFrame" name="websiteFrame" src="about:blank" style="width: 100%; height: 600px; border: 1px solid #e0e0e0; background: white; border-radius: 0 0 8px 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"></iframe>
                 </div>
             </div>
             

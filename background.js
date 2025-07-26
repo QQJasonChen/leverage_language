@@ -54,7 +54,133 @@ chrome.action.onClicked.addListener(async (tab) => {
   }
 });
 
-// Note: Main message handler is consolidated below at line 296 to avoid duplicate listeners
+// 處理來自內容腳本的訊息
+// Consolidated message handler for all actions
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('🔔 Background script received message:', request.action, 'from tab:', sender.tab?.id);
+  
+  // YouTube and YouGlish actions
+  if (request.action === 'searchYouGlish') {
+    console.log('🔍 Processing YouGlish search for:', request.text);
+    searchYouGlish(request.text, sender.tab.id);
+    sendResponse({ success: true, message: 'YouGlish search initiated' });
+    return true;
+  } 
+  
+  if (request.action === 'analyzeTextInSidepanel') {
+    console.log('📖 Processing YouTube learning text analysis for:', request.text);
+    handleYouTubeTextAnalysis(request, sender.tab.id);
+    sendResponse({ success: true, message: 'Text sent to sidepanel for analysis' });
+    return true;
+  }
+  
+  // Settings actions
+  if (request.action === 'saveSettings') {
+    chrome.storage.sync.set(request.settings, () => {
+      sendResponse({ success: true });
+    });
+    return true;
+  }
+  
+  if (request.action === 'getSettings') {
+    chrome.storage.sync.get(null, (result) => {
+      sendResponse(result);
+    });
+    return true;
+  }
+  
+  // History actions
+  if (request.action === 'getHistory') {
+    console.log('📚 Getting history from HistoryManager...');
+    historyManager.getHistory().then(history => {
+      console.log('📚 History retrieved:', history.length, 'items');
+      sendResponse({ success: true, history });
+    }).catch(error => {
+      console.error('❌ Error getting history:', error);
+      sendResponse({ success: false, error: error.message });
+    });
+    return true;
+  }
+  
+  if (request.action === 'searchHistory') {
+    console.log('🔍 Searching history:', request.query, request.language);
+    historyManager.searchHistory(request.query, request.language).then(results => {
+      sendResponse({ success: true, results });
+    }).catch(error => {
+      console.error('❌ Error searching history:', error);
+      sendResponse({ success: false, error: error.message });
+    });
+    return true;
+  }
+  
+  if (request.action === 'deleteHistoryRecord') {
+    console.log('🗑️ Deleting history record:', request.id);
+    historyManager.deleteRecord(request.id).then(success => {
+      console.log('🗑️ Delete result:', success);
+      sendResponse({ success });
+    }).catch(error => {
+      console.error('❌ Error deleting history record:', error);
+      sendResponse({ success: false, error: error.message });
+    });
+    return true;
+  }
+  
+  if (request.action === 'clearHistory') {
+    console.log('🧹 Clearing all history...');
+    historyManager.clearHistory().then(success => {
+      console.log('🧹 Clear result:', success);
+      sendResponse({ success });
+    }).catch(error => {
+      console.error('❌ Error clearing history:', error);
+      sendResponse({ success: false, error: error.message });
+    });
+    return true;
+  }
+  
+  if (request.action === 'getHistoryStats') {
+    console.log('📊 Getting history stats...');
+    historyManager.getHistoryStats().then(stats => {
+      console.log('📊 Stats retrieved:', stats);
+      sendResponse({ success: true, stats });
+    }).catch(error => {
+      console.error('❌ Error getting history stats:', error);
+      sendResponse({ success: false, error: error.message });
+    });
+    return true;
+  }
+  
+  if (request.action === 'manualSearch') {
+    // 獲取當前活動標籤頁
+    chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+      if (tabs[0]) {
+        // Force analysis-only for manual searches to avoid intrusive tabs
+        searchYouGlish(request.text, tabs[0].id, 'manual', 'analysis-only');
+        sendResponse({ success: true });
+      } else {
+        sendResponse({ success: false, error: 'No active tab found' });
+      }
+    });
+    return true;
+  }
+  
+  // Language selection actions
+  if (request.type === 'LANGUAGE_SELECTED') {
+    handleLanguageSelection(request.language, request.originalText, request.tabId, request.remember);
+    sendResponse({ success: true });
+    return true;
+  }
+  
+  if (request.type === 'LANGUAGE_SELECTION_CANCELLED') {
+    console.log('語言選擇已取消');
+    sendResponse({ success: true });
+    return true;
+  }
+  
+  // Unknown action
+  console.log('❓ Unknown action:', request.action);
+  sendResponse({ success: false, error: 'Unknown action' });
+  return true;
+});
 
 // 主要搜尋函數
 async function searchYouGlish(text, tabId, source = 'selection', forcedOpenMethod = null) {
@@ -234,7 +360,7 @@ function generateLanguageUrls(text, language) {
         // 語境
         'Reverso Context': `https://context.reverso.net/translation/japanese-english/${encodedText}`,
         'Tatoeba': `https://tatoeba.org/en/sentences/search?from=jpn&to=eng&query=${encodedText}`,
-        'HiNative': `https://hinative.com/questions?utf8=%E2%9C%93&query=${encodedText}&commit=Search`
+        'HiNative': `https://hinative.com/questions?utf8=✓&query=${encodedText}&commit=Search`
       };
       break;
       
@@ -268,7 +394,7 @@ function generateLanguageUrls(text, language) {
         // 翻譯
         'Papago': `https://papago.naver.com/?sk=ko&tk=en&hn=0&st=${encodedText}`,
         // 社群
-        'HiNative': `https://hinative.com/questions?utf8=%E2%9C%93&query=${encodedText}&commit=Search`,
+        'HiNative': `https://hinative.com/questions?utf8=✓&query=${encodedText}&commit=Search`,
         'Google 搜尋': `https://www.google.com/search?q=${encodedText}+pronunciation+korean`
       };
       break;
@@ -287,209 +413,8 @@ function generateLanguageUrls(text, language) {
   return urls;
 }
 
-// 統一處理所有來自內容腳本和側邊欄的訊息 (合併多個監聽器以提升效能)
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  // 基本搜尋功能
-  if (request.action === 'searchYouGlish') {
-    searchYouGlish(request.text, sender.tab.id);
-    return false; // 不需要異步回應
-  }
-  
-  // YouTube學習模式 - 將文字發送到側邊面板進行AI分析
-  if (request.action === 'analyzeTextInSidepanel') {
-    console.log('📨 Received text for sidepanel analysis:', request.text);
-    
-    // 準備完整的查詢數據
-    const queryData = {
-      text: request.text,
-      url: request.url || '',
-      title: request.title || '',
-      language: 'english', // 預設英文，可以之後加入語言偵測
-      source: request.source || 'youtube-learning',
-      timestamp: new Date().toISOString(),
-      autoAnalysis: true // 自動觸發AI分析
-    };
-    
-    // 開啟側邊面板並發送數據
-    chrome.sidePanel.open({ tabId: sender.tab.id }).then(() => {
-      // 稍微延遲以確保側邊面板已載入
-      setTimeout(() => {
-        chrome.runtime.sendMessage({
-          action: 'updateSidePanel',
-          ...queryData
-        });
-      }, 500);
-    }).catch(error => {
-      console.log('Side panel already open, sending update directly');
-      chrome.runtime.sendMessage({
-        action: 'updateSidePanel',
-        ...queryData
-      });
-    });
-    
-    sendResponse({ success: true, message: 'Text sent to sidepanel for analysis' });
-    return false;
-  }
-  
-  // 設定相關功能
-  if (request.action === 'saveSettings') {
-    chrome.storage.sync.set(request.settings, () => {
-      sendResponse({ success: true });
-    });
-    return true;
-  }
-  
-  if (request.action === 'getSettings') {
-    chrome.storage.sync.get(null, (result) => {
-      sendResponse(result);
-    });
-    return true;
-  }
-  
-  // 歷史記錄相關處理
-  if (request.action === 'getHistory') {
-    historyManager.getHistory().then(history => {
-      sendResponse({ success: true, history });
-    }).catch(error => {
-      sendResponse({ success: false, error: error.message });
-    });
-    return true;
-  }
-  
-  if (request.action === 'searchHistory') {
-    historyManager.searchHistory(request.query, request.language).then(results => {
-      sendResponse({ success: true, results });
-    }).catch(error => {
-      sendResponse({ success: false, error: error.message });
-    });
-    return true;
-  }
-  
-  if (request.action === 'deleteHistoryRecord') {
-    historyManager.deleteRecord(request.id).then(success => {
-      sendResponse({ success });
-    }).catch(error => {
-      sendResponse({ success: false, error: error.message });
-    });
-    return true;
-  }
-  
-  if (request.action === 'clearHistory') {
-    historyManager.clearHistory().then(success => {
-      sendResponse({ success });
-    }).catch(error => {
-      sendResponse({ success: false, error: error.message });
-    });
-    return true;
-  }
-  
-  if (request.action === 'getHistoryStats') {
-    historyManager.getHistoryStats().then(stats => {
-      sendResponse({ success: true, stats });
-    }).catch(error => {
-      sendResponse({ success: false, error: error.message });
-    });
-    return true;
-  }
-  
-  if (request.action === 'manualSearch') {
-    // 獲取當前活動標籤頁
-    chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-      if (tabs[0]) {
-        // Force analysis-only for manual searches to avoid intrusive tabs
-        searchYouGlish(request.text, tabs[0].id, 'manual', 'analysis-only');
-        sendResponse({ success: true });
-      } else {
-        sendResponse({ success: false, error: 'No active tab found' });
-      }
-    });
-    return true;
-  }
-  
-  // 處理語言選擇結果
-  if (request.type === 'LANGUAGE_SELECTED') {
-    handleLanguageSelection(request.language, request.originalText, request.tabId, request.remember);
-    sendResponse({ success: true });
-    return true;
-  }
-  
-  // 處理語言選擇取消
-  if (request.type === 'LANGUAGE_SELECTION_CANCELLED') {
-    // 可以在這裡添加取消的處理邏輯
-    console.log('語言選擇已取消');
-    sendResponse({ success: true });
-    return true;
-  }
-
-  // Video Learning Message Handlers
-  if (request.action === 'videoLearningReady') {
-    console.log('🎬 Video learning ready on:', request.platform, request.url);
-    
-    // Store video learning status for this tab
-    chrome.storage.local.get(['videoLearningTabs'], (result) => {
-      const tabs = result.videoLearningTabs || {};
-      tabs[sender.tab.id] = {
-        platform: request.platform,
-        url: request.url,
-        ready: true,
-        timestamp: Date.now()
-      };
-      
-      chrome.storage.local.set({ videoLearningTabs: tabs });
-    });
-    
-    sendResponse({ success: true });
-    return true;
-  }
-  
-  // Handle video learning word analysis requests
-  if (request.action === 'analyzeVideoWord') {
-    console.log('🔍 Analyzing video word:', request.word, 'from platform:', request.platform);
-    
-    // Track video learning analytics
-    chrome.storage.local.get(['videoLearningStats'], (result) => {
-      const stats = result.videoLearningStats || {
-        totalAnalyses: 0,
-        platformStats: {},
-        dailyStats: {}
-      };
-      
-      stats.totalAnalyses++;
-      
-      // Platform stats
-      if (!stats.platformStats[request.platform]) {
-        stats.platformStats[request.platform] = 0;
-      }
-      stats.platformStats[request.platform]++;
-      
-      // Daily stats
-      const today = new Date().toDateString();
-      if (!stats.dailyStats[today]) {
-        stats.dailyStats[today] = 0;
-      }
-      stats.dailyStats[today]++;
-      
-      chrome.storage.local.set({ videoLearningStats: stats });
-    });
-    
-    sendResponse({ success: true });
-    return true;
-  }
-  
-  // Handle video learning statistics request
-  if (request.action === 'getVideoLearningStats') {
-    chrome.storage.local.get(['videoLearningStats'], (result) => {
-      const stats = result.videoLearningStats || {
-        totalAnalyses: 0,
-        platformStats: {},
-        dailyStats: {}
-      };
-      
-      sendResponse({ success: true, stats });
-    });
-    return true;
-  }
-});
+// 儲存設定和處理歷史記錄
+// Duplicate message listener removed - consolidated into main handler above
 
 // 顯示語言選擇器
 async function showLanguageSelector(text, tabId, candidates) {
@@ -666,51 +591,124 @@ async function proceedWithSearch(text, tabId, language, urls, openMethod, source
   }
 }
 
-// Clean up video learning tabs on tab close
-chrome.tabs.onRemoved.addListener((tabId) => {
-  chrome.storage.local.get(['videoLearningTabs'], (result) => {
-    const tabs = result.videoLearningTabs || {};
-    if (tabs[tabId]) {
-      delete tabs[tabId];
-      chrome.storage.local.set({ videoLearningTabs: tabs });
+// 從 YouTube 標題中提取頻道名稱的輔助函數
+function extractChannelFromTitle(title) {
+  if (!title) return null;
+  
+  try {
+    // YouTube 標題格式通常是: "Video Title - Channel Name - YouTube"
+    const parts = title.split(' - ');
+    if (parts.length >= 2) {
+      // 去除最後的 "YouTube" 部分，返回頻道名稱
+      const channelName = parts[parts.length - 2].trim();
+      if (channelName && channelName !== 'YouTube') {
+        return channelName;
+      }
     }
-  });
-});
-
-// Update video learning tab info on URL change
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.url) {
-    // Check if this is a video platform
-    const videoPatterns = [
-      /youtube\.com\/watch/,
-      /netflix\.com\/watch/,
-      /disneyplus\.com/,
-      /primevideo\.com/,
-      /hulu\.com/
-    ];
     
-    const isVideoSite = videoPatterns.some(pattern => pattern.test(changeInfo.url));
-    
-    if (isVideoSite) {
-      chrome.storage.local.get(['videoLearningTabs'], (result) => {
-        const tabs = result.videoLearningTabs || {};
-        tabs[tabId] = {
-          ...tabs[tabId],
-          url: changeInfo.url,
-          ready: false, // Reset ready status on URL change
-          timestamp: Date.now()
-        };
-        chrome.storage.local.set({ videoLearningTabs: tabs });
-      });
-    } else {
-      // Remove from video tabs if no longer on video site
-      chrome.storage.local.get(['videoLearningTabs'], (result) => {
-        const tabs = result.videoLearningTabs || {};
-        if (tabs[tabId]) {
-          delete tabs[tabId];
-          chrome.storage.local.set({ videoLearningTabs: tabs });
-        }
-      });
+    // 如果標準格式不匹配，嘗試其他常見格式
+    if (title.includes(' | ')) {
+      const pipeparts = title.split(' | ');
+      if (pipeparts.length >= 2) {
+        return pipeparts[pipeparts.length - 1].trim();
+      }
     }
+    
+    return null;
+  } catch (error) {
+    console.error('Error extracting channel from title:', error);
+    return null;
   }
-});
+}
+
+// 處理 YouTube 學習文本分析
+async function handleYouTubeTextAnalysis(request, tabId) {
+  try {
+    console.log('🎬 Processing YouTube learning text:', request.text);
+    
+    const cleanText = request.text.trim();
+    if (!cleanText) return;
+    
+    // 獲取語言設定
+    const result = await chrome.storage.sync.get(['defaultLanguage', 'preferredLanguage']);
+    const defaultLang = result.defaultLanguage || 'auto';
+    const preferredLang = result.preferredLanguage || 'none';
+    
+    // 偵測語言
+    const detectionResult = detectLanguage(cleanText, preferredLang);
+    const language = typeof detectionResult === 'string' ? detectionResult : 
+                    (detectionResult.language !== 'uncertain' ? detectionResult.language : 'english');
+    
+    // 生成語言學習 URLs
+    const urls = generateLanguageUrls(cleanText, language);
+    
+    // 保存到歷史記錄（包含影片來源資訊）
+    try {
+      console.log('💾 Saving YouTube learning to history:', cleanText, language);
+      
+      // 創建影片來源資訊
+      const videoSource = {
+        url: request.url || null,
+        title: request.title || '未知影片',
+        channel: extractChannelFromTitle(request.title) || '未知頻道',
+        timestamp: Date.now(),
+        learnedAt: new Date().toISOString()
+      };
+      
+      console.log('📹 Video source info:', videoSource);
+      await historyManager.addRecord(cleanText, language, 'youtube-learning', [], videoSource);
+      console.log('✅ YouTube learning saved to history with video source');
+    } catch (error) {
+      console.error('❌ Failed to save YouTube learning to history:', error);
+    }
+    
+    // 儲存到 local storage 供 sidepanel 使用
+    await chrome.storage.local.set({
+      youtubeAnalysis: {
+        url: urls.primaryUrl,
+        text: cleanText,
+        language: language,
+        source: request.source || 'youtube-learning',
+        title: request.title || 'YouTube Learning',
+        originalUrl: request.url,
+        allUrls: urls.allUrls,
+        timestamp: Date.now()
+      }
+    });
+    
+    // 開啟 sidepanel (如果尚未開啟)
+    try {
+      await chrome.sidePanel.open({ tabId });
+      console.log('📱 Sidepanel opened for YouTube learning');
+    } catch (error) {
+      console.log('📱 Sidepanel might already be open:', error.message);
+    }
+
+    // 等待一點時間讓 sidepanel 初始化
+    setTimeout(async () => {
+      // 嘗試發送消息到已開啟的 sidepanel
+      try {
+        console.log('🚀 Sending message to sidepanel:', cleanText);
+        const response = await chrome.runtime.sendMessage({
+          action: 'updateSidePanel',
+          url: urls.primaryUrl,
+          text: cleanText,
+          language: language,
+          source: request.source || 'youtube-learning',
+          title: request.title || 'YouTube Learning',
+          originalUrl: request.url,
+          allUrls: urls.allUrls
+        });
+        console.log('✅ YouTube text sent to sidepanel successfully:', response);
+      } catch (messageError) {
+        console.log('📝 Sidepanel message failed:', messageError.message);
+        // The sidepanel should pick up data from storage when it opens
+        console.log('💾 Data saved to storage for sidepanel to read');
+        // Notification removed - data is saved and functionality works normally
+      }
+    }, 1000);
+    
+  } catch (error) {
+    console.error('❌ Error handling YouTube text analysis:', error);
+  }
+}

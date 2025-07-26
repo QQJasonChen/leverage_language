@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "YouTube Language Master - Learn While Watching",
-  "version": "3.0",
-  "description": "The ultimate YouTube language learning experience. Learn vocabulary, pronunciation, and grammar directly from YouTube subtitles with AI-powered analysis.",
+  "name": "__MSG_extensionName__",
+  "version": "2.4",
+  "description": "__MSG_extensionDescription__",
   "default_locale": "en",
   
   "permissions": [
@@ -13,14 +13,22 @@
     "commands",
     "tabs",
     "declarativeNetRequest",
-    "identity"
+    "identity",
+    "notifications"
   ],
   
   "host_permissions": [
+    "https://youglish.com/*",
     "https://*.youtube.com/*",
-    "https://api.dictionaryapi.dev/*",
+    "https://generativelanguage.googleapis.com/*",
+    "https://api.openai.com/*",
     "https://translate.googleapis.com/*",
-    "https://generativelanguage.googleapis.com/*"
+    "https://api.cognitive.microsofttranslator.com/*",
+    "https://api.dictionaryapi.dev/*",
+    "https://www.immersionkit.com/*",
+    "https://api.notion.com/*",
+    "https://www.googleapis.com/*",
+    "https://accounts.google.com/*"
   ],
   
   "background": {
@@ -29,11 +37,13 @@
   
   "content_scripts": [
     {
-      "matches": [
-        "https://*.youtube.com/*"
-      ],
-      "js": ["youtube-standalone-inject.js"],
-      "run_at": "document_end"
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    },
+    {
+      "matches": ["https://*.youtube.com/*"],
+      "js": ["youtube-content.js"],
+      "run_at": "document_start"
     }
   ],
   
@@ -60,10 +70,11 @@
   
   "web_accessible_resources": [
     {
-      "resources": [
-        "lib/youtube-simple-learner.js",
-        "lib/youtube-direct-learner.js"
-      ],
+      "resources": ["proxy.html", "language-selector.html", "language-selector.js", "auth-ui.html"],
+      "matches": ["<all_urls>"]
+    },
+    {
+      "resources": ["youtube-page-script.js"],
       "matches": ["https://*.youtube.com/*"]
     }
   ]

@@ -27,6 +27,8 @@ const handleError = async (error, context = {}) => {
 
 // 監聽來自背景腳本的訊息
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('🔔 Sidepanel received message:', request.action, request.source);
+  
   if (request.action === 'updateSidePanel') {
     // Check if this is from YouTube learning
     if (request.source === 'youtube-learning') {
@@ -40,6 +42,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       
       // Handle the analysis in the video tab
       setTimeout(() => {
+        recordLearningSearch(request.text, request.language, request.url, request.title);
+        updateLearningDashboard();
         handleYouTubeTextAnalysis(request.text, request.url, request.title);
       }, 200);
       
@@ -57,8 +61,440 @@ let currentQueryData = {};
 let currentAIAnalysis = null;
 let lastProcessedQuery = null;
 
+// Check for YouTube analysis data when sidepanel opens
+async function checkForYouTubeAnalysis() {
+  try {
+    const result = await chrome.storage.local.get('youtubeAnalysis');
+    if (result.youtubeAnalysis) {
+      const data = result.youtubeAnalysis;
+      // Check if data is recent (within last 5 minutes)
+      if (Date.now() - data.timestamp < 5 * 60 * 1000) {
+        console.log('📺 Found recent YouTube analysis data:', data.text);
+        
+        // Switch to video tab
+        const videoBtn = document.getElementById('showVideoBtn');
+        if (videoBtn) {
+          videoBtn.click();
+        }
+        
+        // Process the YouTube data
+        setTimeout(() => {
+          recordLearningSearch(data.text, data.language, data.originalUrl, data.title);
+          updateLearningDashboard();
+          handleYouTubeTextAnalysis(data.text, data.originalUrl, data.title);
+        }, 500);
+        
+        // Load in analysis tab
+        loadYouGlish(data.url, data.text, data.language);
+        
+        // Clear the data after processing
+        chrome.storage.local.remove('youtubeAnalysis');
+      }
+    }
+  } catch (error) {
+    console.error('Error checking YouTube analysis:', error);
+  }
+}
+
 // Initialize storage manager and analytics
 let storageManager = null;
+
+// Learning dashboard data
+let learningStats = {
+  totalSearches: 0,
+  vocabularyCount: 0,
+  todaySearches: 0,
+  recentActivity: [],
+  topVocabulary: [],
+  lastUpdated: new Date().toISOString()
+};
+
+// Load learning stats from storage
+async function loadLearningStats() {
+  try {
+    const result = await chrome.storage.local.get('learningStats');
+    if (result.learningStats) {
+      learningStats = { ...learningStats, ...result.learningStats };
+      console.log('📚 Loaded learning stats:', learningStats.totalSearches, 'searches,', learningStats.vocabularyCount, 'vocabulary');
+    }
+  } catch (error) {
+    console.error('Error loading learning stats:', error);
+  }
+}
+
+// Save learning stats to storage
+async function saveLearningStats() {
+  try {
+    await chrome.storage.local.set({ learningStats: learningStats });
+    console.log('💾 Learning stats saved');
+  } catch (error) {
+    console.error('Error saving learning stats:', error);
+  }
+}
+
+// Record learning search function
+function recordLearningSearch(text, language, url, title) {
+  const searchEntry = {
+    text: text,
+    language: language,
+    url: url,
+    title: title || '',
+    timestamp: new Date().toISOString(),
+    date: new Date().toDateString()
+  };
+  
+  // Update stats
+  learningStats.totalSearches++;
+  learningStats.lastUpdated = new Date().toISOString();
+  
+  // Check if today's search
+  const today = new Date().toDateString();
+  if (searchEntry.date === today) {
+    learningStats.todaySearches++;
+  }
+  
+  // Add to recent activity (keep last 10)
+  learningStats.recentActivity.unshift(searchEntry);
+  if (learningStats.recentActivity.length > 10) {
+    learningStats.recentActivity = learningStats.recentActivity.slice(0, 10);
+  }
+  
+  // Update vocabulary tracking
+  updateVocabularyTracking(text, language);
+  
+  // Add video to learning queue if it's a YouTube URL
+  if (url && url.includes('youtube.com')) {
+    const videoTitle = title || 'YouTube Video';
+    const channelName = extractChannelFromYouTubeUrl(url) || 'Unknown Channel';
+    addVideoToQueue(url, videoTitle, channelName);
+  }
+  
+  // Save to storage
+  saveLearningStats();
+  
+  console.log('📚 Learning search recorded:', searchEntry);
+}
+
+// Update vocabulary tracking
+function updateVocabularyTracking(text, language) {
+  const words = text.toLowerCase().split(/\s+/).filter(word => word.length > 2);
+  
+  words.forEach(word => {
+    const existing = learningStats.topVocabulary.find(v => v.word === word);
+    if (existing) {
+      existing.count++;
+      existing.lastSeen = new Date().toISOString();
+    } else {
+      learningStats.topVocabulary.push({
+        word: word,
+        language: language,
+        count: 1,
+        firstSeen: new Date().toISOString(),
+        lastSeen: new Date().toISOString()
+      });
+    }
+  });
+  
+  // Sort by count and keep top 20
+  learningStats.topVocabulary.sort((a, b) => b.count - a.count);
+  learningStats.topVocabulary = learningStats.topVocabulary.slice(0, 20);
+  learningStats.vocabularyCount = learningStats.topVocabulary.length;
+}
+
+// Update learning dashboard function
+function updateLearningDashboard() {
+  // Update quick stats
+  const totalSearchesEl = document.getElementById('quickTotalSearches');
+  const vocabularyCountEl = document.getElementById('quickUniqueWords');
+  const todaySearchesEl = document.getElementById('quickTodaySearches');
+  
+  if (totalSearchesEl) totalSearchesEl.textContent = learningStats.totalSearches;
+  if (vocabularyCountEl) vocabularyCountEl.textContent = learningStats.vocabularyCount;
+  if (todaySearchesEl) todaySearchesEl.textContent = learningStats.todaySearches;
+  
+  // Update recent activity
+  updateRecentActivity();
+  
+  // Update top vocabulary
+  updateTopVocabulary();
+  
+  // Update AI analysis insights
+  updateAIInsights();
+  
+  console.log('📊 Learning dashboard updated');
+}
+
+// Update recent activity section
+function updateRecentActivity() {
+  console.log('🔄 Updating recent activity, found', learningStats.recentActivity.length, 'activities');
+  const activityList = document.getElementById('quickHistoryList');
+  if (!activityList) {
+    console.log('❌ quickHistoryList element not found');
+    return;
+  }
+  
+  activityList.innerHTML = '';
+  
+  if (learningStats.recentActivity.length === 0) {
+    console.log('📝 No learning activity, showing empty state');
+    activityList.innerHTML = '<div class="activity-empty">開始學習後，這裡會顯示您的學習記錄</div>';
+    return;
+  }
+  
+  console.log('📋 Displaying', learningStats.recentActivity.length, 'learning activities');
+  
+  learningStats.recentActivity.forEach(activity => {
+    const activityEl = document.createElement('div');
+    activityEl.className = 'activity-item';
+    activityEl.style.cssText = `
+      padding: 12px;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background-color 0.2s;
+    `;
+    
+    const timeAgo = getTimeAgo(new Date(activity.timestamp));
+    
+    activityEl.innerHTML = `
+      <div>
+        <div style="font-weight: 500; color: #333; margin-bottom: 4px;">${activity.text}</div>
+        <div style="font-size: 12px; color: #666;">${activity.language} • ${timeAgo}</div>
+      </div>
+      <button onclick="reAnalyzeFromHistory('${activity.text}', '${activity.language}')" 
+              style="background: #1a73e8; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">
+        重新分析
+      </button>
+    `;
+    
+    activityEl.addEventListener('mouseenter', () => {
+      activityEl.style.backgroundColor = '#f8f9ff';
+      activityEl.style.transform = 'translateX(4px) scale(1.01)';
+      activityEl.style.boxShadow = '0 2px 12px rgba(26, 115, 232, 0.1)';
+      activityEl.style.borderLeft = '3px solid #1a73e8';
+      activityEl.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+    });
+    
+    activityEl.addEventListener('mouseleave', () => {
+      activityEl.style.backgroundColor = '';
+      activityEl.style.transform = '';
+      activityEl.style.boxShadow = '';
+      activityEl.style.borderLeft = '';
+    });
+    
+    activityList.appendChild(activityEl);
+  });
+}
+
+// Update top vocabulary section
+function updateTopVocabulary() {
+  const vocabularyList = document.getElementById('quickVocabList');
+  if (!vocabularyList) return;
+  
+  vocabularyList.innerHTML = '';
+  
+  if (learningStats.topVocabulary.length === 0) {
+    vocabularyList.innerHTML = '<div class="vocabulary-empty">開始查詢詞彙後，這裡會顯示您的熱門詞彙</div>';
+    return;
+  }
+  
+  learningStats.topVocabulary.slice(0, 10).forEach((vocab, index) => {
+    const vocabEl = document.createElement('div');
+    vocabEl.className = 'vocabulary-item';
+    vocabEl.style.cssText = `
+      padding: 10px 12px;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background-color 0.2s;
+    `;
+    
+    vocabEl.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="background: #1a73e8; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500;">
+          ${index + 1}
+        </span>
+        <div>
+          <div style="font-weight: 500; color: #333;">${vocab.word}</div>
+          <div style="font-size: 12px; color: #666;">${vocab.language}</div>
+        </div>
+      </div>
+      <div style="text-align: right;">
+        <div style="font-weight: 500; color: #1a73e8;">${vocab.count}次</div>
+        <div style="font-size: 12px; color: #666;">${getTimeAgo(new Date(vocab.lastSeen))}</div>
+      </div>
+    `;
+    
+    vocabEl.addEventListener('mouseenter', () => {
+      vocabEl.style.backgroundColor = '#f0f8ff';
+      vocabEl.style.transform = 'translateX(6px) scale(1.02)';
+      vocabEl.style.boxShadow = '0 3px 15px rgba(26, 115, 232, 0.15)';
+      vocabEl.style.borderLeft = '4px solid #1a73e8';
+      vocabEl.style.borderRadius = '0 8px 8px 0';
+      vocabEl.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+      
+      // Add pulse effect to the rank number
+      const rankSpan = vocabEl.querySelector('span');
+      if (rankSpan) {
+        rankSpan.style.animation = 'pulse 1s ease-in-out';
+      }
+    });
+    
+    vocabEl.addEventListener('mouseleave', () => {
+      vocabEl.style.backgroundColor = '';
+      vocabEl.style.transform = '';
+      vocabEl.style.boxShadow = '';
+      vocabEl.style.borderLeft = '';
+      vocabEl.style.borderRadius = '';
+      
+      // Remove pulse effect
+      const rankSpan = vocabEl.querySelector('span');
+      if (rankSpan) {
+        rankSpan.style.animation = '';
+      }
+    });
+    
+    vocabEl.addEventListener('click', () => {
+      // Quick analyze this vocabulary
+      reAnalyzeFromHistory(vocab.word, vocab.language);
+    });
+    
+    vocabularyList.appendChild(vocabEl);
+  });
+}
+
+// Update AI insights section
+function updateAIInsights() {
+  const insightsList = document.getElementById('aiInsightsList');
+  if (!insightsList) return;
+  
+  const insights = generateLearningInsights();
+  insightsList.innerHTML = '';
+  
+  insights.forEach(insight => {
+    const insightEl = document.createElement('div');
+    insightEl.className = 'insight-item';
+    insightEl.style.cssText = `
+      padding: 12px;
+      background: ${insight.color};
+      border-radius: 8px;
+      margin-bottom: 8px;
+      border-left: 4px solid ${insight.borderColor};
+    `;
+    
+    insightEl.innerHTML = `
+      <div style="font-weight: 500; color: #333; margin-bottom: 4px;">${insight.title}</div>
+      <div style="font-size: 13px; color: #666; line-height: 1.4;">${insight.description}</div>
+      <div style="margin-top: 8px;">
+        <div style="background: #fff; height: 4px; border-radius: 2px; overflow: hidden;">
+          <div style="background: ${insight.borderColor}; height: 100%; width: ${insight.progress}%; transition: width 0.3s;"></div>
+        </div>
+        <div style="font-size: 11px; color: #666; margin-top: 4px;">${insight.progress}% 完成</div>
+      </div>
+    `;
+    
+    insightsList.appendChild(insightEl);
+  });
+}
+
+// Generate learning insights
+function generateLearningInsights() {
+  const insights = [];
+  
+  // Daily learning progress
+  const todayProgress = Math.min((learningStats.todaySearches / 10) * 100, 100);
+  insights.push({
+    title: '今日學習進度',
+    description: `今天已完成 ${learningStats.todaySearches} 次查詢，繼續保持！`,
+    progress: todayProgress,
+    color: '#e8f5e8',
+    borderColor: '#4caf50'
+  });
+  
+  // Vocabulary mastery
+  const vocabularyProgress = Math.min((learningStats.vocabularyCount / 50) * 100, 100);
+  insights.push({
+    title: '詞彙掌握度',
+    description: `已掌握 ${learningStats.vocabularyCount} 個詞彙，距離下一個里程碑還需 ${Math.max(0, 50 - learningStats.vocabularyCount)} 個`,
+    progress: vocabularyProgress,
+    color: '#e3f2fd',
+    borderColor: '#2196f3'
+  });
+  
+  // Learning consistency
+  const consistencyProgress = Math.min((learningStats.totalSearches / 100) * 100, 100);
+  insights.push({
+    title: '學習一致性',
+    description: `總共完成 ${learningStats.totalSearches} 次學習，保持規律學習很重要！`,
+    progress: consistencyProgress,
+    color: '#fff3e0',
+    borderColor: '#ff9800'
+  });
+  
+  return insights;
+}
+
+// Helper function to get time ago
+function getTimeAgo(date) {
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  if (diffMins < 1) return '剛剛';
+  if (diffMins < 60) return `${diffMins}分鐘前`;
+  if (diffHours < 24) return `${diffHours}小時前`;
+  if (diffDays < 7) return `${diffDays}天前`;
+  return date.toLocaleDateString('zh-TW');
+}
+
+// Re-analyze from history
+function reAnalyzeFromHistory(text, language) {
+  console.log('🔄 Re-analyzing from history:', text, language);
+  
+  // Switch to analysis tab
+  const analysisBtn = document.getElementById('showAnalysisBtn');
+  if (analysisBtn) analysisBtn.click();
+  
+  // Perform analysis
+  setTimeout(() => {
+    loadYouGlish('', text, language);
+  }, 100);
+}
+
+// Quick action functions
+function startPracticeSession() {
+  console.log('🎯 Starting practice session');
+  // Switch to vocabulary/flashcard tab if available
+  const websiteBtn = document.getElementById('showWebsiteBtn');
+  if (websiteBtn) websiteBtn.click();
+}
+
+function reviewVocabulary() {
+  console.log('📚 Reviewing vocabulary');
+  // Focus on top vocabulary
+  updateTopVocabulary();
+}
+
+function exportLearningData() {
+  console.log('💾 Exporting learning data');
+  const dataToExport = {
+    stats: learningStats,
+    exportDate: new Date().toISOString(),
+    version: '1.0'
+  };
+  
+  const blob = new Blob([JSON.stringify(dataToExport, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `youglish-learning-data-${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 let learningAnalytics = null;
 let studySessionGenerator = null;
 
@@ -398,6 +834,7 @@ function showSearchResult(queryData) {
 function initializeViewControls() {
   const showAnalysisBtn = document.getElementById('showAnalysisBtn');
   const showVideoBtn = document.getElementById('showVideoBtn');
+  const showWebsitesBtn = document.getElementById('showWebsitesBtn');
   const showHistoryBtn = document.getElementById('showHistoryBtn');
   const showSavedReportsBtn = document.getElementById('showSavedReportsBtn');
   const showFlashcardsBtn = document.getElementById('showFlashcardsBtn');
@@ -405,6 +842,7 @@ function initializeViewControls() {
   const openNewTabBtn = document.getElementById('openNewTabBtn');
   const analysisView = document.getElementById('analysisView');
   const videoView = document.getElementById('videoView');
+  const websitesView = document.getElementById('websitesView');
   const historyView = document.getElementById('historyView');
   const savedReportsView = document.getElementById('savedReportsView');
   const flashcardsView = document.getElementById('flashcardsView');
@@ -420,6 +858,7 @@ function initializeViewControls() {
       // Show analysis view, hide all others
       if (analysisView) analysisView.style.display = 'block';
       if (videoView) videoView.style.display = 'none';
+      if (websitesView) websitesView.style.display = 'none';
       if (historyView) historyView.style.display = 'none';
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'none';
@@ -432,6 +871,7 @@ function initializeViewControls() {
   // 影片視圖按鈕
   if (showVideoBtn) {
     showVideoBtn.onclick = () => {
+      console.log('🎥 VIDEO TAB CLICKED! Loading pronunciation sites');
       // Remove active from all view buttons
       document.querySelectorAll('.view-button').forEach(btn => btn.classList.remove('active'));
       showVideoBtn.classList.add('active');
@@ -439,39 +879,55 @@ function initializeViewControls() {
       // Show video view, hide all others
       if (analysisView) analysisView.style.display = 'none';
       if (videoView) videoView.style.display = 'block';
+      if (websitesView) websitesView.style.display = 'none';
       if (historyView) historyView.style.display = 'none';
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'none';
       if (analyticsView) analyticsView.style.display = 'none';
       
-      // Initialize video learning controls
-      // FIXED: Function was missing and causing browser freeze
-      try {
-        initializeVideoLearningControls();
-      } catch (error) {
-        console.log('Video learning controls not available in sidepanel context:', error);
-        // Show simple message instead
-        if (videoView) {
-          videoView.innerHTML = `
-            <div style="padding: 20px; text-align: center;">
-              <h3>🎬 Video Learning</h3>
-              <p>Video learning features are available when watching videos on YouTube.</p>
-              <p>Go to YouTube and look for the "🎬 Learn ON" button in the top-right corner.</p>
-              <br>
-              <div style="background: #f0f0f0; padding: 15px; border-radius: 8px; text-align: left;">
-                <strong>Quick Guide:</strong><br>
-                1. Visit youtube.com/watch?v=...<br>
-                2. Wait for the green "🎬 Learn ON" button to appear<br>
-                3. Turn on YouTube subtitles<br>
-                4. Click "🎬 Learn ON" to highlight words<br>
-                5. Click highlighted words for analysis
-              </div>
-            </div>
-          `;
-        }
-      }
+      // Initialize learning dashboard for video tab
+      console.log('📹 Video tab clicked - Initializing learning dashboard');
+      
+      // Update learning dashboard with current stats
+      updateLearningDashboard();
+      
+      // Don't initialize video learning controls as they override the HTML dashboard
+      // The video tab should show the learning dashboard from HTML, not dynamic content
       
       log('Switched to video view');
+    };
+  }
+  
+  // 網站視圖按鈕
+  if (showWebsitesBtn) {
+    showWebsitesBtn.onclick = () => {
+      console.log('🌐 WEBSITES TAB CLICKED! Loading pronunciation sites');
+      // Remove active from all view buttons
+      document.querySelectorAll('.view-button').forEach(btn => btn.classList.remove('active'));
+      showWebsitesBtn.classList.add('active');
+      
+      // Show websites view, hide all others
+      if (analysisView) analysisView.style.display = 'none';
+      if (videoView) videoView.style.display = 'none';
+      if (websitesView) websitesView.style.display = 'block';
+      if (historyView) historyView.style.display = 'none';
+      if (savedReportsView) savedReportsView.style.display = 'none';
+      if (flashcardsView) flashcardsView.style.display = 'none';
+      if (analyticsView) analyticsView.style.display = 'none';
+      
+      // Load pronunciation sites for current query
+      console.log('🌐 Website tab clicked. currentQueryData:', currentQueryData);
+      
+      const queryToUse = (currentQueryData && currentQueryData.text) ? 
+        currentQueryData : 
+        { text: 'hello', language: 'english' };
+        
+      console.log('🌐 Loading pronunciation sites for:', queryToUse.text);
+      
+      // Load pronunciation sites for websites view
+      loadWebsitePronunciationSites(queryToUse);
+      
+      log('Switched to websites view');
     };
   }
   
@@ -485,6 +941,7 @@ function initializeViewControls() {
       // Show history view, hide all others
       if (analysisView) analysisView.style.display = 'none';
       if (videoView) videoView.style.display = 'none';
+      if (websitesView) websitesView.style.display = 'none';
       if (historyView) historyView.style.display = 'block';
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'none';
@@ -505,6 +962,7 @@ function initializeViewControls() {
       // Show saved reports view, hide all others
       if (analysisView) analysisView.style.display = 'none';
       if (videoView) videoView.style.display = 'none';
+      if (websitesView) websitesView.style.display = 'none';
       if (historyView) historyView.style.display = 'none';
       if (savedReportsView) savedReportsView.style.display = 'block';
       if (flashcardsView) flashcardsView.style.display = 'none';
@@ -525,6 +983,7 @@ function initializeViewControls() {
       // Show flashcards view, hide all others
       if (analysisView) analysisView.style.display = 'none';
       if (videoView) videoView.style.display = 'none';
+      if (websitesView) websitesView.style.display = 'none';
       if (historyView) historyView.style.display = 'none';
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (analyticsView) analyticsView.style.display = 'none';
@@ -545,6 +1004,7 @@ function initializeViewControls() {
       // Show analytics view, hide all others
       if (analysisView) analysisView.style.display = 'none';
       if (videoView) videoView.style.display = 'none';
+      if (websitesView) websitesView.style.display = 'none';
       if (historyView) historyView.style.display = 'none';
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'none';
@@ -590,30 +1050,41 @@ function loadPronunciationSites(queryData) {
   
   // 按類別分組網站
   const categories = {
-    'pronunciation': { name: '發音學習', sites: [] },
-    'dictionary': { name: '字典查詢', sites: [] },
-    'context': { name: '語境例句', sites: [] },
-    'translation': { name: '翻譯服務', sites: [] },
-    'examples': { name: '例句資料庫', sites: [] },
-    'community': { name: '社群問答', sites: [] },
-    'academic': { name: '學術寫作', sites: [] },
-    'slang': { name: '俚語俗語', sites: [] },
-    'search': { name: '搜尋引擎', sites: [] }
+    'pronunciation': { name: '🎯 發音學習', sites: [] },
+    'dictionary': { name: '📚 字典查詢', sites: [] },
+    'context': { name: '💭 語境例句', sites: [] },
+    'translation': { name: '🌐 翻譯服務', sites: [] },
+    'examples': { name: '📝 例句資料庫', sites: [] },
+    'community': { name: '👥 社群問答', sites: [] },
+    'academic': { name: '🎓 學術寫作', sites: [] },
+    'slang': { name: '🏙️ 俚語俗語', sites: [] },
+    'search': { name: '🔍 搜尋引擎', sites: [] }
   };
   
-  // 分類網站
+  // 分類網站 with priority assignments
   siteConfigs.forEach((config, index) => {
     const category = config.category || 'pronunciation';
     const url = queryData.allUrls && queryData.allUrls[config.name] ? 
                 queryData.allUrls[config.name] : 
                 generateUrlForSite(config.name, queryData.text, queryData.language);
     
+    // Assign priority based on site name and category
+    let priority = 'recommended';
+    if (config.name === 'YouGlish' || (config.category === 'pronunciation' && index === 0)) {
+      priority = 'primary';
+    } else if (config.name === 'PlayPhrase.me' || (config.category === 'pronunciation' && index === 1)) {
+      priority = 'secondary';
+    } else if ((config.category === 'pronunciation' && index === 2) || config.name === 'Forvo') {
+      priority = 'tertiary';
+    }
+    
     categories[category].sites.push({
       ...config,
       url: url,
-      isPrimary: index === 0,
-      isSecondary: index === 1,
-      isTertiary: index === 2
+      isPrimary: priority === 'primary',
+      isSecondary: priority === 'secondary',
+      isTertiary: priority === 'tertiary',
+      priority: priority
     });
   });
   
@@ -645,18 +1116,25 @@ function loadPronunciationSites(queryData) {
       const option = document.createElement('div');
       option.className = `pronunciation-option ${site.isPrimary ? 'primary' : ''}`;
       
-      let badgeText = '推薦';
+      let badgeText = '推薦開啟';
       let badgeClass = 'recommended';
       
-      if (site.isPrimary) {
-        badgeText = '主要';
-        badgeClass = 'primary';
-      } else if (site.isSecondary) {
-        badgeText = '備選';
-        badgeClass = 'secondary';
-      } else if (site.isTertiary) {
-        badgeText = '其他';
-        badgeClass = 'tertiary';
+      switch(site.priority) {
+        case 'primary':
+          badgeText = '主要開啟';
+          badgeClass = 'primary';
+          break;
+        case 'secondary':
+          badgeText = '備選開啟';
+          badgeClass = 'secondary';
+          break;
+        case 'tertiary':
+          badgeText = '其他開啟';
+          badgeClass = 'tertiary';
+          break;
+        default:
+          badgeText = '推薦開啟';
+          badgeClass = 'recommended';
       }
       
       // Use SecurityUtils for safe DOM manipulation
@@ -674,13 +1152,10 @@ function loadPronunciationSites(queryData) {
         infoDiv.appendChild(iconSpan);
         infoDiv.appendChild(detailsDiv);
         
-        const actionDiv = window.SecurityFixes.safeCreateElement('div', '');
+        const actionDiv = window.SecurityFixes.safeCreateElement('div', '', 'option-actions');
         const badgeSpan = window.SecurityFixes.safeCreateElement('span', badgeText, `option-badge ${badgeClass}`);
-        const button = window.SecurityFixes.safeCreateElement('button', '開啟', 'option-button');
-        button.setAttribute('data-url', site.url);
         
         actionDiv.appendChild(badgeSpan);
-        actionDiv.appendChild(button);
         option.appendChild(infoDiv);
         option.appendChild(actionDiv);
       } else {
@@ -692,26 +1167,24 @@ function loadPronunciationSites(queryData) {
               <p>${site.description}</p>
             </div>
           </div>
-          <div>
+          <div class="option-actions">
             <span class="option-badge ${badgeClass}">${badgeText}</span>
-            <button class="option-button" data-url="${site.url}">開啟</button>
           </div>
         `;
       }
       
+      // Add click handler for the entire option
+      option.addEventListener('click', () => {
+        chrome.tabs.create({ url: site.url });
+        // Add visual feedback
+        option.style.backgroundColor = '#e3f2fd';
+        setTimeout(() => {
+          option.style.backgroundColor = '';
+        }, 300);
+      });
+
       if (pronunciationOptions) {
         pronunciationOptions.appendChild(option);
-        
-        // Add event listener for the option button
-        const optionButton = option.querySelector('.option-button');
-        if (optionButton) {
-          optionButton.addEventListener('click', () => {
-            const url = optionButton.dataset.url;
-            if (url) {
-              chrome.tabs.create({ url: url });
-            }
-          });
-        }
       }
     });
   });
@@ -1052,6 +1525,232 @@ function generateUrlForSite(siteName, text, language) {
   return urlMaps[siteName] || `https://youglish.com/pronounce/${encodedText}/${language}`;
 }
 
+// 載入網站視圖的發音網站選項
+function loadWebsitePronunciationSites(queryData) {
+  const pronunciationOptions = document.getElementById('websitePronunciationOptions');
+  const siteDescriptions = document.getElementById('websiteSiteDescriptions');
+  
+  // Clear existing content safely
+  if (pronunciationOptions) {
+    while (pronunciationOptions.firstChild) {
+      pronunciationOptions.removeChild(pronunciationOptions.firstChild);
+    }
+  }
+  
+  if (siteDescriptions) {
+    while (siteDescriptions.firstChild) {
+      siteDescriptions.removeChild(siteDescriptions.firstChild);
+    }
+  }
+  
+  // Get site configurations based on language
+  const siteConfigs = getSiteConfigs(queryData.language);
+  
+  // Group sites by category
+  const categories = {
+    'pronunciation': { name: '🎯 發音學習', sites: [] },
+    'dictionary': { name: '📚 字典查詢', sites: [] },
+    'context': { name: '💭 語境例句', sites: [] },
+    'slang': { name: '🏙️ 俚語俗語', sites: [] },
+    'academic': { name: '🎓 學術寫作', sites: [] },
+    'examples': { name: '📝 例句資料庫', sites: [] },
+    'translation': { name: '🌐 翻譯服務', sites: [] },
+    'search': { name: '🔍 搜尋引擎', sites: [] }
+  };
+  
+  // Categorize sites with priority assignments
+  siteConfigs.forEach((config, index) => {
+    const category = config.category || 'pronunciation';
+    const url = queryData.allUrls && queryData.allUrls[config.name] ? 
+                queryData.allUrls[config.name] : 
+                generateUrlForSite(config.name, queryData.text, queryData.language);
+    
+    // Assign priority based on site name and category
+    let priority = 'recommended';
+    if (config.name === 'YouGlish' || (config.category === 'pronunciation' && index === 0)) {
+      priority = 'primary';
+    } else if (config.name === 'PlayPhrase.me' || (config.category === 'pronunciation' && index === 1)) {
+      priority = 'secondary';
+    } else if ((config.category === 'pronunciation' && index === 2) || config.name === 'Forvo') {
+      priority = 'tertiary';
+    }
+    
+    categories[category].sites.push({
+      ...config,
+      url: url,
+      index: index,
+      priority: priority
+    });
+  });
+  
+  // Generate category sections
+  Object.entries(categories).forEach(([categoryKey, category]) => {
+    if (category.sites.length === 0) return;
+    
+    // Create category header with count
+    const categoryHeader = document.createElement('div');
+    categoryHeader.className = 'category-header';
+    categoryHeader.innerHTML = `
+      <h4>${category.name}</h4>
+      <span class="category-count">${category.sites.length} 個網站</span>
+    `;
+    
+    if (pronunciationOptions) pronunciationOptions.appendChild(categoryHeader);
+    
+    // Create site options for this category
+    category.sites.forEach(site => {
+      const option = document.createElement('div');
+      option.className = `pronunciation-option ${site.priority === 'primary' ? 'primary' : ''}`;
+      
+      // Determine badge text and class
+      let badgeText = '推薦開啟';
+      let badgeClass = 'recommended';
+      
+      switch(site.priority) {
+        case 'primary':
+          badgeText = '主要開啟';
+          badgeClass = 'primary';
+          break;
+        case 'secondary':
+          badgeText = '備選開啟';
+          badgeClass = 'secondary';
+          break;
+        case 'tertiary':
+          badgeText = '其他開啟';
+          badgeClass = 'tertiary';
+          break;
+        default:
+          badgeText = '推薦開啟';
+          badgeClass = 'recommended';
+      }
+      
+      option.innerHTML = `
+        <div class="option-info">
+          <span class="option-icon">${site.icon}</span>
+          <div class="option-details">
+            <h5>${site.name}</h5>
+            <p>${site.description}</p>
+          </div>
+        </div>
+        <div class="option-actions">
+          <span class="option-badge ${badgeClass}">${badgeText}</span>
+          <button class="open-new-tab-btn" title="在新標籤頁開啟" style="background: none; border: none; cursor: pointer; padding: 4px; margin-left: 8px; color: #666;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
+            </svg>
+          </button>
+        </div>
+      `;
+      
+      // Handle click on the main option
+      option.addEventListener('click', (e) => {
+        // Don't trigger if clicking the new tab button
+        if (e.target.closest('.open-new-tab-btn')) return;
+        
+        console.log(`🌐 Opening ${site.name}: ${site.url}`);
+        loadWebsiteInFrame(site.url, site.name);
+        
+        // Add visual feedback
+        option.style.backgroundColor = '#e3f2fd';
+        option.style.transform = 'scale(0.98)';
+        option.style.transition = 'all 0.2s';
+        
+        // Show active state
+        document.querySelectorAll('.pronunciation-option').forEach(opt => {
+          opt.classList.remove('active');
+          opt.style.borderColor = '';
+        });
+        option.classList.add('active');
+        option.style.borderColor = '#1a73e8';
+        option.style.borderWidth = '2px';
+        
+        setTimeout(() => {
+          option.style.backgroundColor = '';
+          option.style.transform = '';
+        }, 300);
+      });
+      
+      // Handle new tab button click
+      const newTabBtn = option.querySelector('.open-new-tab-btn');
+      if (newTabBtn) {
+        newTabBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          console.log(`🚀 Opening ${site.name} in new tab`);
+          window.open(site.url, '_blank');
+          
+          // Visual feedback
+          newTabBtn.style.color = '#1a73e8';
+          setTimeout(() => {
+            newTabBtn.style.color = '#666';
+          }, 300);
+        });
+      }
+      
+      if (pronunciationOptions) {
+        pronunciationOptions.appendChild(option);
+      }
+      
+      // Add to descriptions
+      if (siteDescriptions) {
+        const descItem = document.createElement('li');
+        descItem.innerHTML = `<strong>${site.name}:</strong> ${site.longDescription || site.description}`;
+        siteDescriptions.appendChild(descItem);
+      }
+    });
+  });
+}
+
+// 在網站框架中載入網站
+function loadWebsiteInFrame(url, siteName) {
+  const frame = document.getElementById('websiteFrame');
+  const loading = document.getElementById('websiteLoading');
+  const error = document.getElementById('websiteError');
+  const frameContainer = document.getElementById('websiteIframeContainer');
+  
+  // Show loading state
+  if (loading) loading.style.display = 'block';
+  if (error) error.style.display = 'none';
+  if (frameContainer) frameContainer.style.display = 'block';
+  
+  if (frame) {
+    // Clear previous content
+    frame.src = 'about:blank';
+    
+    // Set new source
+    setTimeout(() => {
+      frame.src = url;
+      console.log(`🚀 Loading ${siteName}: ${url}`);
+    }, 100);
+    
+    frame.onload = () => {
+      if (loading) loading.style.display = 'none';
+      console.log(`✅ Successfully loaded ${siteName}`);
+      
+      // Update the current site display
+      const currentSiteEl = document.getElementById('currentWebsiteName');
+      if (currentSiteEl) {
+        currentSiteEl.textContent = `當前網站: ${siteName}`;
+        currentSiteEl.style.display = 'block';
+      }
+    };
+    
+    frame.onerror = () => {
+      if (loading) loading.style.display = 'none';
+      if (error) {
+        error.style.display = 'block';
+        error.innerHTML = `
+          <div>❌ 無法載入 ${siteName}</div>
+          <div style="font-size: 12px; margin-top: 8px;">請檢查網絡連接或嘗試其他網站</div>
+          <button onclick="loadWebsiteInFrame('${url}', '${siteName}')" style="margin-top: 8px; padding: 4px 12px; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            重試
+          </button>
+        `;
+      }
+      console.error(`❌ Failed to load ${siteName}`);
+    };
+  }
+}
+
 // 載入 YouGlish
 function loadYouGlish(url, text, language) {
   const queryData = {
@@ -1060,7 +1759,8 @@ function loadYouGlish(url, text, language) {
     primaryUrl: url,
     secondaryUrl: '',
     tertiaryUrl: '',
-    allUrls: { 'YouGlish': url }
+    allUrls: { 'YouGlish': url },
+    autoAnalysis: true // Enable auto-analysis for YouTube learning
   };
   
   showSearchResult(queryData);
@@ -1133,9 +1833,18 @@ async function loadHistoryView() {
   
   try {
     // Get both history and AI reports to match error status
+    console.log('🔍 Requesting history from background script...');
     const [historyResponse, reportsResponse] = await Promise.all([
-      new Promise((resolve) => {
-        chrome.runtime.sendMessage({ action: 'getHistory' }, resolve);
+      new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({ action: 'getHistory' }, (response) => {
+          if (chrome.runtime.lastError) {
+            console.error('❌ Chrome runtime error:', chrome.runtime.lastError);
+            reject(chrome.runtime.lastError);
+          } else {
+            console.log('📚 History response received:', response);
+            resolve(response);
+          }
+        });
       }),
       storageManager ? storageManager.getAIReports() : Promise.resolve([])
     ]);
@@ -1353,7 +2062,9 @@ function displayHistoryItems(queries) {
         hasErrors: query.hasErrors,
         isCorrect: query.isCorrect,
         errorTypes: query.errorTypes,
-        errorCount: query.errorCount
+        errorCount: query.errorCount,
+        // Video source information
+        videoSource: query.videoSource
       });
     } else {
       // Fallback to innerHTML (unsafe)
@@ -1366,6 +2077,18 @@ function displayHistoryItems(queries) {
             ${query.id ? `<button class="history-action-btn delete" data-id="${query.id}">刪除</button>` : ''}
           </div>
         </div>
+        ${query.videoSource ? `
+          <div class="history-video-source" style="margin-top: 8px; padding: 8px; background-color: #f8f9fa; border-radius: 6px; border-left: 3px solid #ff0000;">
+            <div class="video-info" style="display: flex; align-items: center; gap: 8px;">
+              <span class="video-icon" style="font-size: 16px;">📹</span>
+              <div class="video-details" style="flex: 1;">
+                <div class="video-title" style="font-weight: 500; font-size: 13px; color: #1a73e8; margin-bottom: 2px;">${query.videoSource.title}</div>
+                <div class="video-channel" style="font-size: 12px; color: #666;">${query.videoSource.channel}</div>
+              </div>
+              <button class="video-return-btn" data-video-url="${query.videoSource.url || ''}" style="padding: 4px 8px; font-size: 11px; background-color: #ff0000; color: white; border: none; border-radius: 4px; cursor: pointer;">返回影片</button>
+            </div>
+          </div>
+        ` : ''}
         <div class="history-meta">
           <span class="history-language">${languageNames[query.language] || query.language || 'Unknown'}</span>
           <span class="history-date">${dateStr}</span>
@@ -1382,6 +2105,7 @@ function displayHistoryItems(queries) {
     const replayButton = item.querySelector('.history-action-btn.replay');
     const audioButton = item.querySelector('.history-action-btn.audio');
     const deleteButton = item.querySelector('.history-action-btn.delete');
+    const videoReturnButton = item.querySelector('.video-return-btn');
     
     if (replayButton) {
       replayButton.addEventListener('click', async (e) => {
@@ -1413,15 +2137,24 @@ function displayHistoryItems(queries) {
         const id = deleteButton.dataset.id;
         if (id && confirm('確定要刪除這個搜尋記錄嗎？')) {
           try {
-            const response = await new Promise((resolve) => {
-              chrome.runtime.sendMessage({ action: 'deleteHistoryRecord', id }, resolve);
+            console.log('🗑️ Deleting history record:', id);
+            const response = await new Promise((resolve, reject) => {
+              chrome.runtime.sendMessage({ action: 'deleteHistoryRecord', id }, (response) => {
+                if (chrome.runtime.lastError) {
+                  console.error('❌ Chrome runtime error during delete:', chrome.runtime.lastError);
+                  reject(chrome.runtime.lastError);
+                } else {
+                  console.log('🗑️ Delete response:', response);
+                  resolve(response);
+                }
+              });
             });
             if (response && response.success) {
-              console.log('History record deleted:', id);
+              console.log('✅ History record deleted successfully:', id);
               loadHistoryView(); // Reload the view
             } else {
-              console.error('Failed to delete history record:', response?.error);
-              alert('刪除失敗');
+              console.error('❌ Failed to delete history record:', response?.error);
+              alert('刪除失敗: ' + (response?.error || '未知錯誤'));
             }
           } catch (error) {
             console.error('Error deleting history record:', error);
@@ -1431,9 +2164,27 @@ function displayHistoryItems(queries) {
       });
     }
     
+    if (videoReturnButton) {
+      videoReturnButton.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const videoUrl = videoReturnButton.dataset.videoUrl;
+        if (videoUrl) {
+          console.log('📹 Returning to video:', videoUrl);
+          try {
+            // Open the video URL in a new tab
+            chrome.tabs.create({ url: videoUrl });
+          } catch (error) {
+            console.error('❌ Failed to open video:', error);
+            // Fallback to window.open
+            window.open(videoUrl, '_blank');
+          }
+        }
+      });
+    }
+    
     // Make the whole item clickable (except buttons)
     item.addEventListener('click', async (e) => {
-      if (!e.target.classList.contains('history-action-btn')) {
+      if (!e.target.classList.contains('history-action-btn') && !e.target.classList.contains('video-return-btn')) {
         const text = query.text;
         const language = query.language;
         if (text && language) {
@@ -3913,9 +4664,28 @@ function displayFilteredSavedReports(reports) {
 }
 
 // Initialize all buttons and features
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   // Initialize TTS voices
   initializeTTSVoices();
+  
+  // Load learning stats from storage
+  await loadLearningStats();
+  
+  // Add some sample data if no learning stats exist (for testing)
+  if (learningStats.totalSearches === 0) {
+    console.log('🧪 Adding sample learning data for testing');
+    recordLearningSearch('hello world', 'english', 'https://youtube.com/watch?v=test', 'Sample YouTube Video');
+    recordLearningSearch('pronunciation', 'english', 'https://youtube.com/watch?v=test2', 'Another Sample Video');
+    recordLearningSearch('learning', 'english', 'https://youtube.com/watch?v=test3', 'Learning Video');
+    
+    // Update dashboard after adding sample data
+    console.log('🔄 Updating dashboard with sample data');
+    updateLearningDashboard();
+  }
+  
+  // Check for YouTube analysis data
+  checkForYouTubeAnalysis();
+  
   // Settings button
   const settingsBtn = document.querySelector('.settings-button');
   if (settingsBtn) {
@@ -3968,6 +4738,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const newTabBtn = document.getElementById('openInNewTabBtn');
   if (newTabBtn) {
     newTabBtn.addEventListener('click', openCurrentInNewTab);
+  }
+  
+  // Quick action buttons in video tab
+  const practiceBtn = document.getElementById('practiceTopWords');
+  if (practiceBtn) {
+    practiceBtn.addEventListener('click', startPracticeSession);
+  }
+  
+  const reviewBtn = document.getElementById('reviewRecentWords');
+  if (reviewBtn) {
+    reviewBtn.addEventListener('click', reviewVocabulary);
+  }
+  
+  const exportBtn = document.getElementById('quickExportBtn');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', exportLearningData);
   }
   
   // AI Analysis buttons
@@ -4106,15 +4892,24 @@ document.addEventListener('DOMContentLoaded', () => {
     clearHistoryBtn.addEventListener('click', async () => {
       if (confirm('確定要清空所有搜尋歷史嗎？這個操作無法復原。')) {
         try {
-          const response = await new Promise((resolve) => {
-            chrome.runtime.sendMessage({ action: 'clearHistory' }, resolve);
+          console.log('🧹 Clearing all history...');
+          const response = await new Promise((resolve, reject) => {
+            chrome.runtime.sendMessage({ action: 'clearHistory' }, (response) => {
+              if (chrome.runtime.lastError) {
+                console.error('❌ Chrome runtime error during clear:', chrome.runtime.lastError);
+                reject(chrome.runtime.lastError);
+              } else {
+                console.log('🧹 Clear response:', response);
+                resolve(response);
+              }
+            });
           });
           if (response && response.success) {
-            console.log('History cleared successfully');
+            console.log('✅ History cleared successfully');
             loadHistoryView(); // Reload the view
           } else {
-            console.error('Failed to clear history:', response?.error);
-            alert('清空失敗');
+            console.error('❌ Failed to clear history:', response?.error);
+            alert('清空失敗: ' + (response?.error || '未知錯誤'));
           }
         } catch (error) {
           console.error('Error clearing history:', error);
@@ -4366,7 +5161,314 @@ document.addEventListener('DOMContentLoaded', () => {
       showSavedReportsBtn.classList.add('active');
     };
   }
+  // Enhanced Video Tab Functionality
+  setupVideoTabFeatures();
 });
+
+// Enhanced Video Tab Features
+function setupVideoTabFeatures() {
+  // Video Learning Queue Management
+  const clearVideoQueueBtn = document.getElementById('clearVideoQueueBtn');
+  const refreshVideoQueueBtn = document.getElementById('refreshVideoQueueBtn');
+  const startQuickReviewBtn = document.getElementById('startQuickReviewBtn');
+  const openYouTubeBtn = document.getElementById('openYouTubeBtn');
+  const practiceRecentBtn = document.getElementById('practiceRecentBtn');
+
+  // Clear video learning queue
+  if (clearVideoQueueBtn) {
+    clearVideoQueueBtn.addEventListener('click', async () => {
+      if (confirm('確定要清除所有學習影片記錄嗎？')) {
+        try {
+          await chrome.storage.local.remove(['videoLearningQueue']);
+          refreshVideoQueue();
+          console.log('✅ Video learning queue cleared');
+        } catch (error) {
+          console.error('❌ Failed to clear video queue:', error);
+        }
+      }
+    });
+  }
+
+  // Refresh video queue
+  if (refreshVideoQueueBtn) {
+    refreshVideoQueueBtn.addEventListener('click', () => {
+      refreshVideoQueue();
+    });
+  }
+
+  // Start quick review
+  if (startQuickReviewBtn) {
+    startQuickReviewBtn.addEventListener('click', () => {
+      startQuickReview();
+    });
+  }
+
+  // Open YouTube
+  if (openYouTubeBtn) {
+    openYouTubeBtn.addEventListener('click', () => {
+      chrome.tabs.create({ url: 'https://www.youtube.com' });
+    });
+  }
+
+  // Practice recent items
+  if (practiceRecentBtn) {
+    practiceRecentBtn.addEventListener('click', () => {
+      startPracticeMode();
+    });
+  }
+
+  // Initialize video tab data
+  updateVideoTabStats();
+  refreshVideoQueue();
+  loadReviewItems();
+  
+  // Set up event delegation for manual analysis buttons
+  setupManualAnalysisButtons();
+}
+
+// Refresh video learning queue
+async function refreshVideoQueue() {
+  const queueContainer = document.getElementById('videoLearningQueue');
+  if (!queueContainer) return;
+
+  try {
+    // Get YouTube learning history from storage
+    const result = await chrome.storage.local.get(['videoLearningQueue']);
+    const videoQueue = result.videoLearningQueue || [];
+
+    if (videoQueue.length === 0) {
+      // Show empty state with helpful links
+      queueContainer.innerHTML = `
+        <div style="text-align: center; color: #999; padding: 30px 20px;">
+          <div style="font-size: 48px; margin-bottom: 16px;">🎬</div>
+          <div style="font-size: 14px; margin-bottom: 8px; color: #666;">尚無學習影片</div>
+          <div style="font-size: 12px; color: #ccc; margin-bottom: 16px;">在 YouTube 影片中點擊字幕開始學習</div>
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px;">
+            <a href="https://www.youtube.com/results?search_query=english+learning" target="_blank" 
+               style="display: flex; align-items: center; text-decoration: none; color: #1a73e8; font-size: 12px; padding: 8px; border-radius: 4px; background: #f8f9fa; border: 1px solid #e0e0e0; transition: all 0.2s;">
+              <span style="margin-right: 8px;">🎓</span>
+              <span>推薦英語學習影片</span>
+            </a>
+            <a href="https://www.youtube.com/results?search_query=english+conversation+practice" target="_blank" 
+               style="display: flex; align-items: center; text-decoration: none; color: #1a73e8; font-size: 12px; padding: 8px; border-radius: 4px; background: #f8f9fa; border: 1px solid #e0e0e0; transition: all 0.2s;">
+              <span style="margin-right: 8px;">💬</span>
+              <span>會話練習影片</span>
+            </a>
+          </div>
+        </div>
+      `;
+    } else {
+      // Display video queue
+      queueContainer.innerHTML = videoQueue.map((video, index) => `
+        <div class="video-queue-item" data-video-url="${video.url}" data-video-index="${index}" style="display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: all 0.2s;">
+          <div style="flex: 1;">
+            <div style="font-size: 12px; font-weight: 500; color: #333; margin-bottom: 4px;">${video.title}</div>
+            <div style="font-size: 11px; color: #666;">
+              ${video.channel} • ${new Date(video.timestamp).toLocaleDateString()} • ${video.wordsLearned || 0} 個詞彙
+            </div>
+          </div>
+          <div style="color: #1a73e8; font-size: 12px;">▶️</div>
+        </div>
+      `).join('');
+      
+      // Add event listeners to video queue items
+      queueContainer.querySelectorAll('.video-queue-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const videoUrl = item.dataset.videoUrl;
+          if (videoUrl) {
+            openYouTubeVideo(videoUrl);
+          }
+        });
+      });
+    }
+  } catch (error) {
+    console.error('❌ Failed to load video queue:', error);
+  }
+}
+
+// Add video to learning queue
+async function addVideoToQueue(videoUrl, videoTitle, channel) {
+  try {
+    const result = await chrome.storage.local.get(['videoLearningQueue']);
+    const queue = result.videoLearningQueue || [];
+    
+    // Check if video already exists
+    const existingIndex = queue.findIndex(v => v.url === videoUrl);
+    
+    if (existingIndex >= 0) {
+      // Update existing entry
+      queue[existingIndex].timestamp = Date.now();
+      queue[existingIndex].wordsLearned = (queue[existingIndex].wordsLearned || 0) + 1;
+    } else {
+      // Add new video
+      queue.unshift({
+        url: videoUrl,
+        title: videoTitle || 'YouTube Video',
+        channel: channel || 'Unknown Channel',
+        timestamp: Date.now(),
+        wordsLearned: 1
+      });
+    }
+    
+    // Keep only latest 10 videos
+    if (queue.length > 10) {
+      queue.splice(10);
+    }
+    
+    await chrome.storage.local.set({ videoLearningQueue: queue });
+    refreshVideoQueue();
+  } catch (error) {
+    console.error('❌ Failed to add video to queue:', error);
+  }
+}
+
+// Update video tab statistics
+async function updateVideoTabStats() {
+  try {
+    // Get learning stats
+    const result = await chrome.storage.local.get(['learningStats']);
+    const stats = result.learningStats || { totalSearches: 0, vocabularyCount: 0, todaySearches: 0 };
+    
+    // Update counters
+    const todayCount = document.getElementById('todayLearningCount');
+    const weekCount = document.getElementById('weekStreakCount');
+    
+    if (todayCount) todayCount.textContent = stats.todaySearches || 0;
+    if (weekCount) weekCount.textContent = Math.min(7, Math.floor((stats.totalSearches || 0) / 5)); // Rough calculation
+    
+  } catch (error) {
+    console.error('❌ Failed to update video tab stats:', error);
+  }
+}
+
+// Load review items
+async function loadReviewItems() {
+  const reviewContainer = document.getElementById('reviewItemsList');
+  if (!reviewContainer) return;
+
+  try {
+    // Get recent learning items that need review
+    const historyResponse = await new Promise((resolve) => {
+      chrome.runtime.sendMessage({ action: 'getHistory' }, resolve);
+    });
+
+    if (historyResponse && historyResponse.success) {
+      const recentItems = historyResponse.history
+        .filter(item => item.timestamp > Date.now() - 7 * 24 * 60 * 60 * 1000) // Last 7 days
+        .slice(0, 5); // Top 5 items
+
+      if (recentItems.length === 0) {
+        reviewContainer.innerHTML = `
+          <div style="text-align: center; color: #999; padding: 20px; font-size: 12px;">
+            暫無待複習項目
+          </div>
+        `;
+      } else {
+        reviewContainer.innerHTML = recentItems.map((item, index) => `
+          <div class="review-item" data-text="${item.text}" data-language="${item.language}" data-item-index="${index}" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-bottom: 1px solid #f0f0f0; cursor: pointer;">
+            <div style="flex: 1;">
+              <div style="font-size: 11px; font-weight: 500; color: #333;">${item.text}</div>
+              <div style="font-size: 10px; color: #666;">${languageNames[item.language] || item.language}</div>
+            </div>
+            <div style="color: #4CAF50; font-size: 10px;">▶️</div>
+          </div>
+        `).join('');
+        
+        // Add event listeners to review items
+        reviewContainer.querySelectorAll('.review-item').forEach(item => {
+          item.addEventListener('click', () => {
+            const text = item.dataset.text;
+            const language = item.dataset.language;
+            if (text && language) {
+              reviewItem(text, language);
+            }
+          });
+        });
+      }
+    }
+  } catch (error) {
+    console.error('❌ Failed to load review items:', error);
+  }
+}
+
+// Start quick review
+function startQuickReview() {
+  // Switch to analysis view and start review mode
+  const analysisBtn = document.getElementById('showAnalysisBtn');
+  if (analysisBtn) {
+    analysisBtn.click();
+    // Could add special review mode logic here
+  }
+}
+
+// Start practice mode
+function startPracticeMode() {
+  // Switch to flashcards view
+  const flashcardsBtn = document.getElementById('showFlashcardsBtn');
+  if (flashcardsBtn) {
+    flashcardsBtn.click();
+  }
+}
+
+// Review specific item
+function reviewItem(text, language) {
+  // Load the item for analysis
+  const queryData = {
+    text: text,
+    language: language,
+    primaryUrl: `https://youglish.com/pronounce/${encodeURIComponent(text)}/${language}`,
+    autoAnalysis: true
+  };
+  
+  // Switch to analysis view
+  const analysisBtn = document.getElementById('showAnalysisBtn');
+  if (analysisBtn) {
+    analysisBtn.click();
+    // Load the item
+    setTimeout(() => {
+      showSearchResult(queryData);
+    }, 200);
+  }
+}
+
+// Open YouTube video
+function openYouTubeVideo(url) {
+  chrome.tabs.create({ url: url });
+}
+
+// Set up event delegation for manual analysis buttons
+function setupManualAnalysisButtons() {
+  // Use event delegation to handle dynamically created buttons
+  document.addEventListener('click', (event) => {
+    if (event.target.classList.contains('manual-analysis-btn')) {
+      const text = event.target.dataset.text;
+      const url = event.target.dataset.url;
+      const title = event.target.dataset.title;
+      
+      if (text && typeof triggerManualAnalysis === 'function') {
+        triggerManualAnalysis(text, url, title);
+      }
+    }
+  });
+}
+
+// Extract channel name from YouTube URL (helper function)
+function extractChannelFromYouTubeUrl(url) {
+  try {
+    // This is a simple approach - in practice you might want to use YouTube API
+    // For now, we'll use document title from the page if available
+    if (typeof document !== 'undefined' && document.title) {
+      // YouTube title format is usually "Video Title - Channel Name - YouTube"
+      const parts = document.title.split(' - ');
+      if (parts.length >= 2) {
+        return parts[parts.length - 2]; // Second to last part is usually channel
+      }
+    }
+    return 'YouTube Channel';
+  } catch (error) {
+    return 'Unknown Channel';
+  }
+}
 
 // Filter saved reports based on search, language, tags, date, and favorites
 async function filterSavedReports() {
@@ -7771,6 +8873,366 @@ function initializeVideoLearningControls() {
   }
 }
 
+// 載入發音網站選項 - Video tab functionality  
+function loadPronunciationSites(queryData) {
+  console.log('🎯 loadPronunciationSites called with:', queryData);
+  const pronunciationOptions = document.getElementById('pronunciationOptions');
+  const siteDescriptions = document.getElementById('siteDescriptions');
+  
+  console.log('🎯 Elements found:', {
+    pronunciationOptions: !!pronunciationOptions,
+    siteDescriptions: !!siteDescriptions
+  });
+  
+  // Clear existing content safely
+  if (pronunciationOptions) {
+    while (pronunciationOptions.firstChild) {
+      pronunciationOptions.removeChild(pronunciationOptions.firstChild);
+    }
+  }
+  if (siteDescriptions) {
+    while (siteDescriptions.firstChild) {
+      siteDescriptions.removeChild(siteDescriptions.firstChild);
+    }
+  }
+  
+  // Get site configurations based on language
+  const siteConfigs = getSiteConfigs(queryData.language);
+  console.log('🎯 Site configs loaded:', siteConfigs);
+  
+  // Group sites by category
+  const categories = {
+    'pronunciation': { name: '🎯 發音學習', sites: [] },
+    'dictionary': { name: '📚 字典查詢', sites: [] },
+    'context': { name: '💭 語境例句', sites: [] },
+    'slang': { name: '🏙️ 俚語俗語', sites: [] },
+    'academic': { name: '🎓 學術寫作', sites: [] },
+    'examples': { name: '📝 例句資料庫', sites: [] },
+    'translation': { name: '🌐 翻譯服務', sites: [] },
+    'search': { name: '🔍 搜尋引擎', sites: [] }
+  };
+  
+  // Categorize sites
+  siteConfigs.forEach((config, index) => {
+    const category = config.category || 'pronunciation';
+    const url = queryData.allUrls && queryData.allUrls[config.name] ? 
+                queryData.allUrls[config.name] : 
+                generateUrlForSite(config.name, queryData.text, queryData.language);
+    
+    categories[category].sites.push({
+      ...config,
+      url: url,
+      index: index
+    });
+  });
+  
+  // Generate category sections
+  console.log('🎯 Categories after processing:', categories);
+  Object.entries(categories).forEach(([categoryKey, category]) => {
+    console.log(`🎯 Processing category ${categoryKey}:`, category);
+    if (category.sites.length === 0) return;
+    
+    // Create category header
+    const categoryHeader = document.createElement('div');
+    categoryHeader.className = 'category-header';
+    categoryHeader.innerHTML = `<h5>${category.name}</h5>`;
+    categoryHeader.style.cssText = `
+      margin: 16px 0 8px 0;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #e0e0e0;
+      color: #1a73e8;
+      font-size: 13px;
+    `;
+    
+    if (pronunciationOptions) pronunciationOptions.appendChild(categoryHeader);
+    
+    // Create site options for this category
+    category.sites.forEach(site => {
+      const option = document.createElement('div');
+      option.className = 'pronunciation-option';
+      option.innerHTML = `
+        <div class="site-icon">${site.icon}</div>
+        <div class="site-info">
+          <div class="site-name">${site.displayName}</div>
+          <div class="site-description">${site.description}</div>
+        </div>
+      `;
+      
+      option.style.cssText = `
+        display: flex;
+        align-items: center;
+        padding: 12px;
+        margin: 4px 0;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: white;
+      `;
+      
+      option.addEventListener('mouseenter', () => {
+        option.style.borderColor = '#1a73e8';
+        option.style.backgroundColor = '#f8f9ff';
+      });
+      
+      option.addEventListener('mouseleave', () => {
+        option.style.borderColor = '#e0e0e0';
+        option.style.backgroundColor = 'white';
+      });
+      
+      option.addEventListener('click', () => {
+        loadSiteInFrame(site.url, site.displayName);
+        option.style.backgroundColor = '#e3f2fd';
+      });
+      
+      if (pronunciationOptions) {
+        pronunciationOptions.appendChild(option);
+      }
+      
+      // Add to descriptions
+      if (siteDescriptions) {
+        const descItem = document.createElement('li');
+        descItem.innerHTML = `<strong>${site.displayName}:</strong> ${site.longDescription || site.description}`;
+        siteDescriptions.appendChild(descItem);
+      }
+    });
+  });
+}
+
+// Generate URL for specific site (from main version)
+function generateUrlForSite(siteName, text, language) {
+  const encodedText = encodeURIComponent(text);
+  
+  // Handle language-specific URLs
+  if (siteName === 'PlayPhrase.me') {
+    // Language-specific PlayPhrase.me URLs
+    const languageMap = {
+      'japanese': 'ja',
+      'korean': 'ko',
+      'dutch': 'nl',
+      'english': 'en'
+    };
+    
+    const langCode = languageMap[language];
+    if (langCode && langCode !== 'en') {
+      return `https://www.playphrase.me/#/search?q=${encodedText}&language=${langCode}`;
+    }
+    
+    // Default English PlayPhrase.me (no language parameter needed)
+    return `https://www.playphrase.me/#/search?q=${encodedText}`;
+  }
+  
+  if (siteName === 'Immersion Kit') {
+    // Japanese sentence examples from anime/movies
+    return `https://www.immersionkit.com/dictionary?keyword=${encodedText}`;
+  }
+  
+  if (siteName === 'Reverso Context') {
+    // Language-specific Reverso Context
+    const reverseLangMap = {
+      'english': 'english-chinese',
+      'japanese': 'japanese-chinese', 
+      'korean': 'korean-chinese',
+      'dutch': 'dutch-chinese'
+    };
+    const reverseLang = reverseLangMap[language] || 'english-chinese';
+    return `https://context.reverso.net/translation/${reverseLang}/${encodedText}`;
+  }
+  
+  if (siteName === 'Google 搜尋') {
+    // Language-specific Google search
+    const searchTerms = {
+      'english': `${encodedText}+pronunciation`,
+      'japanese': `${encodedText}+発音+読み方`,
+      'korean': `${encodedText}+발음`,
+      'dutch': `${encodedText}+uitspraak`
+    };
+    const searchTerm = searchTerms[language] || `${encodedText}+pronunciation`;
+    return `https://www.google.com/search?q=${searchTerm}`;
+  }
+  
+  // Default URL mapping
+  const urlMaps = {
+    'YouGlish': `https://youglish.com/pronounce/${encodedText}/${language}`,
+    'Forvo': `https://forvo.com/word/${encodedText}/`,
+    'Cambridge Dictionary': `https://dictionary.cambridge.org/dictionary/english/${encodedText}`,
+    'Thesaurus.com': `https://www.thesaurus.com/browse/${encodedText}`,
+    'Urban Dictionary': `https://www.urbandictionary.com/define.php?term=${encodedText}`,
+    'Ludwig': `https://ludwig.guru/s/${encodedText}`,
+    'Jisho.org': `https://jisho.org/search/${encodedText}`,
+    'Tatoeba': `https://tatoeba.org/en/sentences/search?query=${encodedText}`,
+    'HiNative': `https://hinative.com/questions?search=${encodedText}`,
+    'Van Dale': `https://www.vandale.nl/gratis-woordenboek/nederlands/betekenis/${encodedText}`,
+    'Linguee': `https://www.linguee.com/english-dutch/search?source=dutch&query=${encodedText}`,
+    'Naver Dictionary': `https://en.dict.naver.com/#/search?query=${encodedText}`
+  };
+  
+  return urlMaps[siteName] || `https://youglish.com/pronounce/${encodedText}/${language}`;
+}
+
+// Get site configurations based on language (from main version)
+function getSiteConfigs(language) {
+  const configs = {
+    english: [
+      {
+        name: 'YouGlish',
+        displayName: 'YouGlish',
+        icon: '📺',
+        description: 'YouTube 影片發音範例',
+        longDescription: '基於 YouTube 影片的發音範例，涵蓋各種口音和情境',
+        category: 'pronunciation'
+      },
+      {
+        name: 'PlayPhrase.me',
+        displayName: 'PlayPhrase.me',
+        icon: '🎬',
+        description: '電影片段中的真實發音',
+        longDescription: '從電影和電視劇中提取真實的發音片段，適合學習自然語調',
+        category: 'pronunciation'
+      },
+      {
+        name: 'Forvo',
+        displayName: 'Forvo',
+        icon: '🔊',
+        description: '多國母語者發音字典',
+        longDescription: '由母語者錄製的標準發音，支援多種口音和方言',
+        category: 'pronunciation'
+      },
+      {
+        name: 'Cambridge Dictionary',
+        displayName: 'Cambridge Dictionary',
+        icon: '📖',
+        description: '權威英語字典',
+        longDescription: '劍橋大學出版的權威英語字典，包含詳細定義、例句和語法',
+        category: 'dictionary'
+      },
+      {
+        name: 'Thesaurus.com',
+        displayName: 'Thesaurus.com',
+        icon: '🔤',
+        description: '英語同義詞字典',
+        longDescription: '豐富的同義詞、反義詞和相關詞彙，幫助擴展詞彙量',
+        category: 'dictionary'
+      },
+      {
+        name: 'Reverso Context',
+        displayName: 'Reverso Context',
+        icon: '🌐',
+        description: '真實語境例句',
+        longDescription: '來自網絡和文檔的真實使用例句，了解詞彙的實際用法',
+        category: 'context'
+      },
+      {
+        name: 'Urban Dictionary',
+        displayName: 'Urban Dictionary',
+        icon: '🏙️',
+        description: '英語俚語字典',
+        longDescription: '現代英語俚語、網絡用語和非正式表達的字典',
+        category: 'slang'
+      },
+      {
+        name: 'Ludwig',
+        displayName: 'Ludwig',
+        icon: '🎓',
+        description: '學術寫作範例',
+        longDescription: '學術和專業寫作的範例，適合提高正式英語寫作水平',
+        category: 'academic'
+      }
+    ],
+    japanese: [
+      {
+        name: 'YouGlish',
+        displayName: 'YouGlish',
+        icon: '📺',
+        description: 'YouTube 日語發音範例',
+        longDescription: '基於 YouTube 影片的日語發音範例',
+        category: 'pronunciation'
+      },
+      {
+        name: 'PlayPhrase.me',
+        displayName: 'PlayPhrase.me',
+        icon: '🎬',
+        description: '影視劇日語發音',
+        longDescription: '從電影和電視劇中查找日語詞彙的真實發音和使用情境',
+        category: 'pronunciation'
+      },
+      {
+        name: 'Immersion Kit',
+        displayName: 'Immersion Kit',
+        icon: '🎌',
+        description: '日語動漫例句',
+        longDescription: '從日語動漫、電影中提取真實的日語例句和發音',
+        category: 'pronunciation'
+      },
+      {
+        name: 'Forvo',
+        displayName: 'Forvo',
+        icon: '🔊',
+        description: '日語母語者發音',
+        longDescription: '由日語母語者錄製的標準發音',
+        category: 'pronunciation'
+      },
+      {
+        name: 'Jisho.org',
+        displayName: 'Jisho.org',
+        icon: '📚',
+        description: '最佳日語字典',
+        longDescription: '最全面的線上日語字典，包含漢字、讀音、例句和語法',
+        category: 'dictionary'
+      }
+    ],
+    dutch: [
+      {
+        name: 'YouGlish',
+        displayName: 'YouGlish',
+        icon: '📺',
+        description: 'YouTube 荷蘭語範例',
+        longDescription: '基於 YouTube 影片的荷蘭語發音範例',
+        category: 'pronunciation'
+      },
+      {
+        name: 'Forvo',
+        displayName: 'Forvo',
+        icon: '🔊',
+        description: '荷蘭語母語者發音',
+        longDescription: '由荷蘭語母語者錄製的標準發音，最適合荷蘭語學習',
+        category: 'pronunciation'
+      },
+      {
+        name: 'Van Dale',
+        displayName: 'Van Dale',
+        icon: '📖',
+        description: '權威荷蘭語字典',
+        longDescription: '荷蘭最權威的字典，包含詳細定義、語法和用法',
+        category: 'dictionary'
+      }
+    ]
+  };
+  
+  // Return sites for the specified language, fallback to english
+  return configs[language] || configs.english || [];
+}
+
+// Load site in iframe
+function loadSiteInFrame(url, siteName) {
+  const frame = document.getElementById('youglishFrame');
+  const loading = document.getElementById('loading');
+  
+  if (loading) loading.style.display = 'block';
+  
+  if (frame) {
+    frame.src = url;
+    frame.onload = () => {
+      if (loading) loading.style.display = 'none';
+      console.log(`Loaded ${siteName}: ${url}`);
+    };
+    frame.onerror = () => {
+      if (loading) loading.style.display = 'none';
+      console.error(`Failed to load ${siteName}`);
+    };
+  }
+}
+
 // Setup handlers for video learning functionality
 function setupVideoLearningHandlers() {
   console.log('🎬 Setting up video learning handlers');
@@ -7968,7 +9430,7 @@ function handleYouTubeTextAnalysis(text, url, title, forceReAnalysis = false) {
         if (analysisStatus) {
           analysisStatus.innerHTML = `
             🤖 AI Analysis available 
-            <button onclick="triggerManualAnalysis('${text.replace(/'/g, "\\\\")}', '${url}', '${title}')" 
+            <button class="manual-analysis-btn" data-text="${text.replace(/'/g, "\\\\")}'" data-url="${url}" data-title="${title}"
                     style="margin-left: 8px; padding: 4px 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;">
               ▶️ Analyze Now
             </button>
@@ -8298,7 +9760,7 @@ function showManualAnalysisPrompt(text) {
         <div style="color: #666; font-size: 14px; margin-bottom: 12px;">
           AI analysis is available but auto-analysis is currently disabled.
         </div>
-        <button onclick="triggerManualAnalysis('${text.replace(/'/g, "\\\\'")}', '${window.location.href}', '${document.title}')" 
+        <button class="manual-analysis-btn" data-text="${text.replace(/'/g, "\\\\'")}" data-url="${window.location.href}" data-title="${document.title}"
                 style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; margin: 5px;">
           🤖 Analyze with AI
         </button>
