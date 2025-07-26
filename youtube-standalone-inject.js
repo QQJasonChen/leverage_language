@@ -488,11 +488,11 @@ if (window.location.href.includes('youtube.com')) {
     console.log('✅ Enhanced subtitles cleaned up');
   }
   
-  function showTextPopup(text, x, y) {
+  async function showTextPopup(text, x, y) {
     console.log('📨 Sending text to sidepanel:', text);
     
     // Send text to sidepanel instead of showing popup
-    sendToSidepanel(text);
+    await sendToSidepanel(text);
     
     // Show a brief confirmation that text was sent
     showBriefConfirmation(text, x, y);
@@ -501,12 +501,30 @@ if (window.location.href.includes('youtube.com')) {
   // Get current video timestamp
   function getCurrentVideoTimestamp() {
     try {
+      console.log('🔍 Starting timestamp detection...');
+      
       // Method 1: Try to get the YouTube video element (most reliable)
       const video = document.querySelector('video');
-      if (video && !isNaN(video.currentTime) && video.currentTime > 0) {
-        const timestamp = Math.floor(video.currentTime);
-        console.log('🎬 Video timestamp from video element:', timestamp, 'seconds');
-        return timestamp;
+      console.log('🎬 Video element found:', !!video);
+      
+      if (video) {
+        console.log('🎬 Video details:', {
+          currentTime: video.currentTime,
+          duration: video.duration,
+          paused: video.paused,
+          ended: video.ended,
+          readyState: video.readyState
+        });
+        
+        if (!isNaN(video.currentTime) && video.currentTime > 0) {
+          const timestamp = Math.floor(video.currentTime);
+          console.log('✅ Video timestamp from video element:', timestamp, 'seconds');
+          return timestamp;
+        } else {
+          console.log('⚠️ Video currentTime is 0 or NaN:', video.currentTime);
+        }
+      } else {
+        console.log('❌ No video element found');
       }
       
       // Method 2: Try YouTube player API if available
@@ -542,7 +560,25 @@ if (window.location.href.includes('youtube.com')) {
         }
       }
       
-      console.log('🎬 No video timestamp could be determined');
+      // Method 4: Try alternative video selectors
+      console.log('🔍 Trying alternative video selectors...');
+      const videoSelectors = [
+        'video.html5-main-video',
+        'video.video-stream',
+        '#movie_player video',
+        '.html5-video-player video'
+      ];
+      
+      for (const selector of videoSelectors) {
+        const altVideo = document.querySelector(selector);
+        if (altVideo && !isNaN(altVideo.currentTime) && altVideo.currentTime > 0) {
+          const timestamp = Math.floor(altVideo.currentTime);
+          console.log(`✅ Video timestamp from ${selector}:`, timestamp, 'seconds');
+          return timestamp;
+        }
+      }
+      
+      console.log('❌ No video timestamp could be determined from any method');
       return null;
     } catch (error) {
       console.warn('⚠️ Could not get video timestamp:', error);
@@ -581,7 +617,7 @@ if (window.location.href.includes('youtube.com')) {
     }
   }
 
-  function sendToSidepanel(text) {
+  async function sendToSidepanel(text) {
     console.log('📨 Attempting to send to sidepanel:', text);
     
     // Check if chrome.runtime is available
@@ -597,8 +633,16 @@ if (window.location.href.includes('youtube.com')) {
         return;
       }
       
-      // Get current video timestamp
-      const timestamp = getCurrentVideoTimestamp();
+      // Get current video timestamp with retry logic
+      let timestamp = getCurrentVideoTimestamp();
+      
+      // If no timestamp on first try, wait and retry once
+      if (timestamp === null) {
+        console.log('🔄 No timestamp on first try, waiting 500ms and retrying...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        timestamp = getCurrentVideoTimestamp();
+      }
+      
       const baseUrl = window.location.href; // Use full current URL as base
       const timestampedUrl = createTimestampedUrl(baseUrl, timestamp);
       
