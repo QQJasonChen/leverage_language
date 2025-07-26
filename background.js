@@ -655,6 +655,15 @@ async function handleYouTubeTextAnalysis(request, tabId) {
         timestampType: typeof request.timestamp
       });
       
+      console.log('🔍 CRITICAL DEBUG - Background received timestamp:', {
+        timestamp: request.timestamp,
+        timestampType: typeof request.timestamp,
+        timestampNull: request.timestamp === null,
+        timestampUndefined: request.timestamp === undefined,
+        timestampNaN: isNaN(request.timestamp),
+        rawRequest: JSON.stringify(request, null, 2)
+      });
+      
       const videoSource = {
         url: request.url || null,
         originalUrl: request.originalUrl || request.url || null,

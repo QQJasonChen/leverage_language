@@ -1,6 +1,62 @@
 // YouTube content script - handles communication with the extension
 console.log('🎬 YouTube content script loaded');
 
+// Get current video timestamp
+function getCurrentVideoTimestamp() {
+  try {
+    console.log('🔍 Starting timestamp detection...');
+    
+    // Method 1: Try to get the YouTube video element (most reliable)
+    const video = document.querySelector('video');
+    console.log('🎬 Video element found:', !!video);
+    
+    if (video) {
+      console.log('🎬 Video details:', {
+        currentTime: video.currentTime,
+        duration: video.duration,
+        paused: video.paused,
+        readyState: video.readyState
+      });
+      
+      if (!isNaN(video.currentTime) && video.currentTime >= 0) {
+        const timestamp = Math.floor(video.currentTime);
+        console.log('✅ Video timestamp from video element:', timestamp, 'seconds');
+        return timestamp;
+      } else {
+        console.log('⚠️ Video currentTime is invalid:', video.currentTime);
+      }
+    } else {
+      console.log('❌ No video element found');
+    }
+    
+    // Method 2: Try alternative video selectors
+    const videoSelectors = [
+      'video.html5-main-video',
+      'video.video-stream', 
+      '#movie_player video',
+      '.html5-video-player video',
+      '.ytp-html5-video',
+      '#player video'
+    ];
+    
+    for (const selector of videoSelectors) {
+      const altVideo = document.querySelector(selector);
+      console.log(`🔍 Checking selector ${selector}:`, !!altVideo);
+      if (altVideo && !isNaN(altVideo.currentTime) && altVideo.currentTime >= 0) {
+        const timestamp = Math.floor(altVideo.currentTime);
+        console.log(`✅ Video timestamp from ${selector}:`, timestamp, 'seconds');
+        return timestamp;
+      }
+    }
+    
+    console.log('❌ No video timestamp could be determined');
+    return null;
+  } catch (error) {
+    console.warn('⚠️ Could not get video timestamp:', error);
+    return null;
+  }
+}
+
 // Listen for messages from the injected script
 window.addEventListener('message', (event) => {
   // Only accept messages from the same origin
@@ -14,6 +70,10 @@ window.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'YOUTUBE_LEARNING_TEXT') {
     console.log('📨 Processing YouTube learning text:', event.data.text);
     
+    // CRITICAL: Capture video timestamp
+    const videoTimestamp = getCurrentVideoTimestamp();
+    console.log('⏰ Captured video timestamp:', videoTimestamp);
+    
     // Prepare message with all data from page script
     const messageToBackground = {
       action: 'analyzeTextInSidepanel',
@@ -21,7 +81,8 @@ window.addEventListener('message', (event) => {
       url: event.data.url || window.location.href,
       title: event.data.title || document.title,
       language: event.data.language || 'english',
-      source: event.data.source || 'youtube-learning'
+      source: event.data.source || 'youtube-learning',
+      timestamp: videoTimestamp // ADD THE MISSING TIMESTAMP!
     };
     
     console.log('🚀 Sending to background script:', messageToBackground);

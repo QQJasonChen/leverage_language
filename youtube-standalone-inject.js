@@ -723,6 +723,13 @@ if (window.location.href.includes('youtube.com')) {
       };
       
       console.log('📤 Sending message to background script:', messageData);
+      console.log('🔍 CRITICAL DEBUG - Message timestamp value:', {
+        timestamp: timestamp,
+        timestampType: typeof timestamp,
+        timestampNull: timestamp === null,
+        timestampUndefined: timestamp === undefined,
+        timestampNaN: isNaN(timestamp)
+      });
       
       chrome.runtime.sendMessage(messageData, (response) => {
         if (chrome.runtime.lastError) {

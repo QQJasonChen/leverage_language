@@ -546,10 +546,10 @@ function debugSubtitleStructure() {
     el.textContent && 
     el.textContent.trim().length > 10 && 
     el.textContent.trim().length < 200 &&
-    (el.className.toLowerCase().includes('caption') || 
-     el.className.toLowerCase().includes('subtitle') ||
-     el.id.toLowerCase().includes('caption') ||
-     el.id.toLowerCase().includes('subtitle'))
+    ((el.className || '').toLowerCase().includes('caption') || 
+     (el.className || '').toLowerCase().includes('subtitle') ||
+     (el.id || '').toLowerCase().includes('caption') ||
+     (el.id || '').toLowerCase().includes('subtitle'))
   );
   
   if (possibleSubtitles.length > 0) {
