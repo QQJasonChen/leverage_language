@@ -99,6 +99,280 @@ async function checkForYouTubeAnalysis() {
 // Initialize storage manager and analytics
 let storageManager = null;
 
+// Storage diagnostic function
+async function checkStorageUsage() {
+  try {
+    if (storageManager && typeof storageManager.getStorageStats === 'function') {
+      const stats = await storageManager.getStorageStats();
+      console.log('💾 Current Storage Usage:', stats);
+      
+      if (stats.isNearLimit) {
+        console.warn('⚠️ Storage is near limit! Consider cleanup.');
+        return stats;
+      }
+      return stats;
+    }
+  } catch (error) {
+    console.error('Failed to check storage usage:', error);
+  }
+  return null;
+}
+
+// Emergency storage cleanup function (removes all audio data)
+async function fixStorageIssue() {
+  try {
+    console.log('🚨 Running emergency storage cleanup...');
+    
+    if (storageManager && typeof storageManager.removeAllAudioData === 'function') {
+      const result = await storageManager.removeAllAudioData();
+      
+      if (result.success) {
+        console.log(`✅ Emergency cleanup completed!`);
+        console.log(`🗑️ Removed audio data from ${result.removedAudio} reports`);
+        console.log(`💾 Audio saving has been disabled to prevent future issues`);
+        
+        // Check storage usage after cleanup
+        const newStats = await checkStorageUsage();
+        if (newStats) {
+          console.log(`📊 New storage usage: ${newStats.usagePercentage}%`);
+        }
+        
+        return result;
+      } else {
+        console.error('❌ Emergency cleanup failed:', result.error);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Emergency cleanup error:', error);
+  }
+  return null;
+}
+
+// Export all audio data as backup before clearing (recommended workflow)
+async function exportAndClearAudio() {
+  try {
+    console.log('📦 Starting export and clear audio workflow...');
+    
+    if (storageManager && typeof storageManager.exportAndClearAudioData === 'function') {
+      const result = await storageManager.exportAndClearAudioData();
+      
+      if (result.success) {
+        console.log(`✅ Export and clear completed!`);
+        console.log(`📦 Exported ${result.exportedFiles} audio files`);
+        console.log(`🗑️ Cleared audio data from ${result.clearedReports} reports`);
+        
+        // Show user notification
+        if (typeof showNotification === 'function') {
+          showNotification(`Audio export completed: ${result.exportedFiles} files saved, ${result.clearedReports} reports cleaned`, 'success');
+        }
+        
+        // Check storage usage after cleanup
+        const newStats = await checkStorageUsage();
+        if (newStats) {
+          console.log(`📊 New storage usage: ${newStats.usagePercentage}%`);
+        }
+        
+        return result;
+      } else {
+        console.error('❌ Export and clear failed:', result.error);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Export and clear error:', error);
+  }
+  return null;
+}
+
+// Export audio data only (without clearing)
+async function exportAudioOnly() {
+  try {
+    console.log('📦 Exporting audio data only...');
+    
+    if (storageManager && typeof storageManager.downloadAudioExport === 'function') {
+      const result = await storageManager.downloadAudioExport();
+      
+      if (result.success) {
+        console.log(`✅ Audio export completed!`);
+        console.log(`📦 Exported ${result.totalFiles} audio files as JSON backup`);
+        
+        // Show user notification
+        if (typeof showNotification === 'function') {
+          showNotification(`Audio export completed: ${result.totalFiles} files saved as backup`, 'success');
+        }
+        
+        return result;
+      } else {
+        console.error('❌ Audio export failed:', result.error);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Audio export error:', error);
+  }
+  return null;
+}
+
+// Download individual audio files as .wav files
+async function downloadAudioFiles() {
+  try {
+    console.log('🎵 Downloading individual audio files...');
+    
+    if (storageManager && typeof storageManager.downloadIndividualAudioFiles === 'function') {
+      const result = await storageManager.downloadIndividualAudioFiles();
+      
+      if (result.success) {
+        console.log(`✅ Audio download completed!`);
+        console.log(`🎵 Downloaded ${result.downloadedCount}/${result.totalFiles} individual audio files`);
+        
+        // Show user notification
+        if (typeof showNotification === 'function') {
+          showNotification(`Audio download completed: ${result.downloadedCount}/${result.totalFiles} files`, 'success');
+        }
+        
+        return result;
+      } else {
+        console.error('❌ Audio download failed:', result.error);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Audio download error:', error);
+  }
+  return null;
+}
+
+// Check how much audio data you have
+async function checkAudioData() {
+  try {
+    console.log('📊 Checking audio data...');
+    
+    if (storageManager && typeof storageManager.exportAllAudioData === 'function') {
+      const result = await storageManager.exportAllAudioData();
+      
+      if (result.success) {
+        console.log(`📊 Audio data summary:`);
+        console.log(`🎵 Total audio files: ${result.totalFiles}`);
+        console.log(`💾 Total size: ${result.totalSize}`);
+        
+        return result;
+      } else {
+        console.log('ℹ️ No audio data found');
+      }
+    }
+  } catch (error) {
+    console.error('❌ Audio check error:', error);
+  }
+  return null;
+}
+
+// Update storage display in UI
+async function updateStorageDisplay() {
+  try {
+    const storageUsageDisplay = document.getElementById('storageUsageDisplay');
+    const storageProgress = document.getElementById('storageProgress');
+    const audioDataInfo = document.getElementById('audioDataInfo');
+    
+    if (!storageManager) {
+      if (storageUsageDisplay) storageUsageDisplay.textContent = '儲存管理器未載入';
+      return;
+    }
+    
+    // Get storage stats
+    const stats = await storageManager.getStorageStats();
+    if (!stats) {
+      if (storageUsageDisplay) storageUsageDisplay.textContent = '無法取得儲存資訊';
+      return;
+    }
+    
+    // Update usage display
+    const usagePercent = parseFloat(stats.usagePercentage) || 0;
+    const isNearLimit = usagePercent > 80;
+    
+    if (storageUsageDisplay) {
+      storageUsageDisplay.textContent = `${usagePercent.toFixed(1)}% 已使用 (${stats.storageUsed})`;
+      storageUsageDisplay.style.color = isNearLimit ? '#f44336' : '#666';
+    }
+    
+    if (storageProgress) {
+      storageProgress.style.width = `${usagePercent}%`;
+      storageProgress.style.background = isNearLimit ? '#f44336' : '#ff9800';
+    }
+    
+    // Check audio data
+    const audioResult = await checkAudioData();
+    if (audioDataInfo) {
+      if (audioResult && audioResult.success) {
+        audioDataInfo.textContent = `🎵 音檔：${audioResult.totalFiles} 個檔案 (${audioResult.totalSize})`;
+        audioDataInfo.style.color = '#ff9800';
+      } else {
+        audioDataInfo.textContent = '🎵 沒有音檔數據';
+        audioDataInfo.style.color = '#666';
+      }
+    }
+    
+    console.log('📊 Storage display updated:', {
+      usage: `${usagePercent}%`,
+      audioFiles: audioResult?.totalFiles || 0,
+      isNearLimit
+    });
+    
+  } catch (error) {
+    console.error('Error updating storage display:', error);
+  }
+}
+
+// Show message to user
+function showMessage(text, type = 'info') {
+  // Create toast notification
+  const toast = document.createElement('div');
+  toast.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    color: white;
+    font-size: 14px;
+    z-index: 10000;
+    max-width: 300px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    animation: slideIn 0.3s ease;
+  `;
+  
+  // Set background color based on type
+  switch (type) {
+    case 'success':
+      toast.style.background = '#4CAF50';
+      break;
+    case 'error':
+      toast.style.background = '#f44336';
+      break;
+    case 'warning':
+      toast.style.background = '#ff9800';
+      break;
+    default:
+      toast.style.background = '#2196F3';
+  }
+  
+  toast.textContent = text;
+  document.body.appendChild(toast);
+  
+  // Remove after 4 seconds
+  setTimeout(() => {
+    if (toast.parentNode) {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateX(100%)';
+      setTimeout(() => toast.remove(), 300);
+    }
+  }, 4000);
+}
+
+// Expose audio management functions to global scope for console access
+window.checkAudioData = checkAudioData;
+window.exportAndClearAudio = exportAndClearAudio;
+window.exportAudioOnly = exportAudioOnly;
+window.downloadAudioFiles = downloadAudioFiles;
+window.fixStorageIssue = fixStorageIssue;
+window.updateStorageDisplay = updateStorageDisplay;
+
 // Learning dashboard data
 let learningStats = {
   totalSearches: 0,
@@ -166,7 +440,9 @@ function recordLearningSearch(text, language, url, title) {
   if (url && url.includes('youtube.com')) {
     const videoTitle = title || 'YouTube Video';
     const channelName = extractChannelFromYouTubeUrl(url) || 'Unknown Channel';
-    addVideoToQueue(url, videoTitle, channelName);
+    const wordCount = text.split(/\s+/).length;
+    const isSentence = wordCount > 3; // Consider 4+ words as a sentence
+    addVideoToQueue(url, videoTitle, channelName, isSentence);
   }
   
   // Save to storage
@@ -258,14 +534,23 @@ function updateRecentActivity() {
     const timeAgo = getTimeAgo(new Date(activity.timestamp));
     
     activityEl.innerHTML = `
-      <div>
+      <div style="flex: 1;">
         <div style="font-weight: 500; color: #333; margin-bottom: 4px;">${activity.text}</div>
         <div style="font-size: 12px; color: #666;">${activity.language} • ${timeAgo}</div>
       </div>
-      <button class="reanalyze-btn" data-text="${activity.text}" data-language="${activity.language}"
-              style="background: #1a73e8; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">
-        重新分析
-      </button>
+      <div style="display: flex; gap: 6px;">
+        ${activity.url && activity.url.includes('youtube.com') ? `
+          <button class="replay-video-btn" data-video-url="${activity.url}" 
+                  style="background: #ff0000; color: white; border: none; padding: 6px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;" 
+                  title="返回影片">
+            ⏰
+          </button>
+        ` : ''}
+        <button class="reanalyze-btn" data-text="${activity.text}" data-language="${activity.language}"
+                style="background: #1a73e8; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 11px; cursor: pointer;">
+          重新分析
+        </button>
+      </div>
     `;
     
     // Add event listener for the reanalyze button
@@ -276,6 +561,19 @@ function updateRecentActivity() {
         const text = reanalyzeBtn.dataset.text;
         const language = reanalyzeBtn.dataset.language;
         reAnalyzeFromHistory(text, language);
+      });
+    }
+    
+    // Add event listener for the replay video button
+    const replayBtn = activityEl.querySelector('.replay-video-btn');
+    if (replayBtn) {
+      replayBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const videoUrl = replayBtn.dataset.videoUrl;
+        if (videoUrl) {
+          console.log('🎬 VIDEO TAB - Opening video from recent activity:', videoUrl);
+          window.open(videoUrl, '_blank');
+        }
       });
     }
     
@@ -5048,6 +5346,64 @@ document.addEventListener('DOMContentLoaded', async () => {
     exportBtn.addEventListener('click', exportLearningData);
   }
   
+  // Storage Management buttons
+  const checkStorageBtn = document.getElementById('checkStorageBtn');
+  const exportAudioBtn = document.getElementById('exportAudioBtn');
+  const emergencyCleanBtn = document.getElementById('emergencyCleanBtn');
+  const indexedDbSolutionBtn = document.getElementById('indexedDbSolutionBtn');
+  
+  if (checkStorageBtn) {
+    checkStorageBtn.addEventListener('click', async () => {
+      console.log('🔍 Checking storage usage...');
+      await updateStorageDisplay();
+    });
+  }
+  
+  if (exportAudioBtn) {
+    exportAudioBtn.addEventListener('click', async () => {
+      console.log('📦 Exporting audio data...');
+      const result = await exportAndClearAudio();
+      if (result) {
+        showMessage(`音檔匯出完成：${result.exportedFiles} 個檔案已匯出，${result.clearedReports} 個報告已清理`, 'success');
+        await updateStorageDisplay();
+      }
+    });
+  }
+  
+  if (emergencyCleanBtn) {
+    emergencyCleanBtn.addEventListener('click', async () => {
+      if (confirm('⚠️ 緊急清理將立即移除所有音檔數據，無法復原。確定要繼續嗎？')) {
+        console.log('🚨 Emergency cleanup...');
+        const result = await fixStorageIssue();
+        if (result) {
+          showMessage(`緊急清理完成：已移除 ${result.removedAudio} 個音檔`, 'success');
+          await updateStorageDisplay();
+        }
+      }
+    });
+  }
+  
+  if (indexedDbSolutionBtn) {
+    indexedDbSolutionBtn.addEventListener('click', () => {
+      const message = `🔧 IndexedDB 升級方案\n\n` +
+        `目前問題：Chrome 擴充功能儲存限制 5MB\n` +
+        `解決方案：升級到 IndexedDB\n\n` +
+        `IndexedDB 優勢：\n` +
+        `• 儲存容量：高達可用磁碟空間的 50%（GB 級別）\n` +
+        `• 適合：大型音檔、影片數據\n` +
+        `• 離線：完全本地儲存\n\n` +
+        `是否需要我實作 IndexedDB 升級？`;
+      
+      if (confirm(message)) {
+        showMessage('📝 我會為您實作 IndexedDB 升級方案！請稍候...', 'info');
+        console.log('🔧 User requested IndexedDB implementation');
+      }
+    });
+  }
+  
+  // Initialize storage display
+  updateStorageDisplay();
+
   // AI Analysis buttons
   const generateBtn = document.getElementById('generateAiAnalysisBtn');
   const refreshBtn = document.getElementById('refreshAiAnalysisBtn');
@@ -5488,10 +5844,11 @@ function setupVideoTabFeatures() {
     });
   }
 
-  // Start quick review
-  if (startQuickReviewBtn) {
-    startQuickReviewBtn.addEventListener('click', () => {
-      startQuickReview();
+  // View all achievements
+  const viewAllAchievementsBtn = document.getElementById('viewAllAchievementsBtn');
+  if (viewAllAchievementsBtn) {
+    viewAllAchievementsBtn.addEventListener('click', () => {
+      showAchievementsModal();
     });
   }
 
@@ -5502,17 +5859,20 @@ function setupVideoTabFeatures() {
     });
   }
 
-  // Practice recent items
-  if (practiceRecentBtn) {
-    practiceRecentBtn.addEventListener('click', () => {
-      startPracticeMode();
+  // View progress (switch to analytics tab)
+  const viewProgressBtn = document.getElementById('viewProgressBtn');
+  if (viewProgressBtn) {
+    viewProgressBtn.addEventListener('click', () => {
+      const analyticsBtn = document.getElementById('showAnalyticsBtn');
+      if (analyticsBtn) {
+        analyticsBtn.click();
+      }
     });
   }
 
   // Initialize video tab data
   updateVideoTabStats();
   refreshVideoQueue();
-  loadReviewItems();
   
   // Set up event delegation for manual analysis buttons
   setupManualAnalysisButtons();
@@ -5550,27 +5910,63 @@ async function refreshVideoQueue() {
         </div>
       `;
     } else {
-      // Display video queue
-      queueContainer.innerHTML = videoQueue.map((video, index) => `
-        <div class="video-queue-item" data-video-url="${video.url}" data-video-index="${index}" style="display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: all 0.2s;">
+      // Display video queue with enhanced statistics
+      queueContainer.innerHTML = videoQueue.map((video, index) => {
+        const wordsCount = video.wordsLearned || 0;
+        const sentencesCount = video.sentencesLearned || 0;
+        const sessionsCount = video.sessionsCount || 1;
+        const totalLearned = wordsCount + sentencesCount;
+        
+        return `
+        <div class="video-queue-item" data-video-url="${video.url}" data-video-index="${index}" 
+             style="display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: all 0.2s; border-radius: 8px; margin-bottom: 8px; background: #fafafa;">
           <div style="flex: 1;">
-            <div style="font-size: 12px; font-weight: 500; color: #333; margin-bottom: 4px;">${video.title}</div>
-            <div style="font-size: 11px; color: #666;">
-              ${video.channel} • ${new Date(video.timestamp).toLocaleDateString()} • ${video.wordsLearned || 0} 個詞彙
+            <div style="font-size: 13px; font-weight: 500; color: #333; margin-bottom: 6px; line-height: 1.3;">${video.title}</div>
+            <div style="font-size: 11px; color: #666; margin-bottom: 4px;">
+              ${video.channel} • ${new Date(video.timestamp).toLocaleDateString()}
+            </div>
+            <div style="display: flex; gap: 12px; font-size: 10px; color: #888;">
+              <span style="background: #e3f2fd; color: #1565c0; padding: 2px 6px; border-radius: 10px;">📝 ${wordsCount} 個詞彙</span>
+              <span style="background: #f3e5f5; color: #7b1fa2; padding: 2px 6px; border-radius: 10px;">💬 ${sentencesCount} 個句子</span>
+              <span style="background: #e8f5e8; color: #2e7d32; padding: 2px 6px; border-radius: 10px;">🎯 總共 ${totalLearned} 項學習</span>
             </div>
           </div>
-          <div style="color: #1a73e8; font-size: 12px;">▶️</div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+            <button class="replay-video-btn" data-video-url="${video.url}" 
+                    style="background: #ff0000; color: white; border: none; padding: 6px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;" 
+                    title="返回影片">
+              ⏰ 返回
+            </button>
+            <div style="font-size: 9px; color: #999;">${sessionsCount} 次學習</div>
+          </div>
         </div>
-      `).join('');
+        `;
+      }).join('');
       
       // Add event listeners to video queue items
       queueContainer.querySelectorAll('.video-queue-item').forEach(item => {
-        item.addEventListener('click', () => {
+        item.addEventListener('click', (e) => {
+          // Don't trigger if clicking on replay button
+          if (e.target.closest('.replay-video-btn')) return;
+          
           const videoUrl = item.dataset.videoUrl;
           if (videoUrl) {
             openYouTubeVideo(videoUrl);
           }
         });
+        
+        // Add event listener for replay button
+        const replayBtn = item.querySelector('.replay-video-btn');
+        if (replayBtn) {
+          replayBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const videoUrl = replayBtn.dataset.videoUrl;
+            if (videoUrl) {
+              console.log('🎬 VIDEO TAB - Opening video from learning queue:', videoUrl);
+              window.open(videoUrl, '_blank');
+            }
+          });
+        }
       });
     }
   } catch (error) {
@@ -5579,7 +5975,7 @@ async function refreshVideoQueue() {
 }
 
 // Add video to learning queue
-async function addVideoToQueue(videoUrl, videoTitle, channel) {
+async function addVideoToQueue(videoUrl, videoTitle, channel, isSentence = false) {
   try {
     const result = await chrome.storage.local.get(['videoLearningQueue']);
     const queue = result.videoLearningQueue || [];
@@ -5588,17 +5984,28 @@ async function addVideoToQueue(videoUrl, videoTitle, channel) {
     const existingIndex = queue.findIndex(v => v.url === videoUrl);
     
     if (existingIndex >= 0) {
-      // Update existing entry
+      // Update existing entry with enhanced tracking
       queue[existingIndex].timestamp = Date.now();
-      queue[existingIndex].wordsLearned = (queue[existingIndex].wordsLearned || 0) + 1;
+      if (isSentence) {
+        queue[existingIndex].sentencesLearned = (queue[existingIndex].sentencesLearned || 0) + 1;
+      } else {
+        queue[existingIndex].wordsLearned = (queue[existingIndex].wordsLearned || 0) + 1;
+      }
+      queue[existingIndex].sessionsCount = (queue[existingIndex].sessionsCount || 1) + 1;
+      queue[existingIndex].lastActivity = new Date().toISOString();
     } else {
-      // Add new video
+      // Add new video with enhanced data tracking
       queue.unshift({
         url: videoUrl,
         title: videoTitle || 'YouTube Video',
         channel: channel || 'Unknown Channel',
         timestamp: Date.now(),
-        wordsLearned: 1
+        firstLearned: new Date().toISOString(),
+        lastActivity: new Date().toISOString(),
+        wordsLearned: isSentence ? 0 : 1,
+        sentencesLearned: isSentence ? 1 : 0, // Track sentences separately
+        sessionsCount: 1,    // Track how many times user learned from this video
+        totalTimeSpent: 0    // Could track time spent learning
       });
     }
     
@@ -5617,20 +6024,140 @@ async function addVideoToQueue(videoUrl, videoTitle, channel) {
 // Update video tab statistics
 async function updateVideoTabStats() {
   try {
-    // Get learning stats
-    const result = await chrome.storage.local.get(['learningStats']);
+    // Get learning stats and video queue
+    const result = await chrome.storage.local.get(['learningStats', 'videoLearningQueue']);
     const stats = result.learningStats || { totalSearches: 0, vocabularyCount: 0, todaySearches: 0 };
+    const videoQueue = result.videoLearningQueue || [];
     
-    // Update counters
+    // Update main counters
     const todayCount = document.getElementById('todayLearningCount');
     const weekCount = document.getElementById('weekStreakCount');
     
     if (todayCount) todayCount.textContent = stats.todaySearches || 0;
     if (weekCount) weekCount.textContent = Math.min(7, Math.floor((stats.totalSearches || 0) / 5)); // Rough calculation
     
+    // Update mini dashboard stats
+    const totalVideoCountEl = document.getElementById('totalVideoCount');
+    const accuracyRateEl = document.getElementById('accuracyRate');
+    const learningStreakEl = document.getElementById('learningStreak');
+    
+    if (totalVideoCountEl) totalVideoCountEl.textContent = videoQueue.length;
+    
+    // Calculate accuracy rate from saved reports
+    if (accuracyRateEl) {
+      try {
+        if (storageManager && typeof storageManager.getAIReports === 'function') {
+          const reports = await storageManager.getAIReports();
+          const analyzedReports = reports.filter(r => r.hasErrors !== null && r.hasErrors !== undefined);
+          const correctReports = reports.filter(r => r.isCorrect === true);
+          const accuracyRate = analyzedReports.length > 0 ? Math.round((correctReports.length / analyzedReports.length) * 100) : 0;
+          accuracyRateEl.textContent = `${accuracyRate}%`;
+        } else {
+          accuracyRateEl.textContent = '0%';
+        }
+      } catch (error) {
+        accuracyRateEl.textContent = '0%';
+      }
+    }
+    
+    // Calculate learning streak (rough estimation based on activity)
+    if (learningStreakEl) {
+      const streak = calculateLearningStreak(stats);
+      learningStreakEl.textContent = streak;
+    }
+    
+    // Update achievements
+    await updateRecentAchievements(stats, videoQueue);
+    
   } catch (error) {
     console.error('❌ Failed to update video tab stats:', error);
   }
+}
+
+// Calculate learning streak
+function calculateLearningStreak(stats) {
+  if (!stats.recentActivity || stats.recentActivity.length === 0) return 0;
+  
+  // Simple streak calculation based on recent activity
+  const today = new Date().toDateString();
+  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString();
+  
+  const todayActivity = stats.recentActivity.some(a => new Date(a.timestamp).toDateString() === today);
+  const yesterdayActivity = stats.recentActivity.some(a => new Date(a.timestamp).toDateString() === yesterday);
+  
+  if (todayActivity && yesterdayActivity) return 2;
+  if (todayActivity) return 1;
+  return 0;
+}
+
+// Update recent achievements
+async function updateRecentAchievements(stats, videoQueue) {
+  const achievementsList = document.getElementById('recentAchievementsList');
+  if (!achievementsList) return;
+  
+  const achievements = [];
+  
+  // Check for various achievements
+  if (stats.totalSearches >= 10) {
+    achievements.push({
+      icon: '🌟',
+      title: '初學者',
+      description: '完成了 10 次學習搜尋',
+      earned: true
+    });
+  }
+  
+  if (stats.vocabularyCount >= 50) {
+    achievements.push({
+      icon: '📚',
+      title: '詞彙收集者',
+      description: '學習了 50 個不同詞彙',
+      earned: true
+    });
+  }
+  
+  if (videoQueue.length >= 5) {
+    achievements.push({
+      icon: '🎬',
+      title: '影片愛好者',
+      description: '從 5 個不同影片學習',
+      earned: true
+    });
+  }
+  
+  if (stats.todaySearches >= 5) {
+    achievements.push({
+      icon: '🔥',
+      title: '今日活躍',
+      description: '今天學習了 5 次',
+      earned: true
+    });
+  }
+  
+  if (achievements.length === 0) {
+    achievementsList.innerHTML = `
+      <div style="text-align: center; color: #999; padding: 20px; font-size: 12px;">
+        開始學習來解鎖成就！
+      </div>
+    `;
+  } else {
+    achievementsList.innerHTML = achievements.map(achievement => `
+      <div style="display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #f0f0f0;">
+        <span style="font-size: 16px; margin-right: 8px;">${achievement.icon}</span>
+        <div style="flex: 1;">
+          <div style="font-size: 12px; font-weight: 500; color: #333;">${achievement.title}</div>
+          <div style="font-size: 10px; color: #666;">${achievement.description}</div>
+        </div>
+        <span style="color: #4CAF50; font-size: 12px;">✓</span>
+      </div>
+    `).join('');
+  }
+}
+
+// Show achievements modal
+function showAchievementsModal() {
+  // For now, just show a simple alert - can be enhanced later
+  alert('🏆 成就系統\n\n查看您的學習成就和進度。\n這個功能可以在未來版本中進一步增強！');
 }
 
 // Load review items

@@ -4048,24 +4048,11 @@
                     </div>
                 </div>
 
-                <!-- Quick Review & Learning Tools -->
+                <!-- Learning Achievements & Progress -->
                 <div class="learning-section" style="background: white; border-radius: 8px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <h4 style="margin: 0 0 12px 0; color: #333;">🔄 快速複習</h4>
+                    <h4 style="margin: 0 0 12px 0; color: #333;">🏆 學習成就</h4>
                     
-                    <!-- Recent Learning Items for Review -->
-                    <div style="background: #f8f9fa; border-radius: 6px; padding: 12px; margin-bottom: 16px;">
-                        <div style="display: flex; justify-content: between-between; align-items: center; margin-bottom: 8px;">
-                            <div style="font-size: 12px; color: #666; font-weight: 500;">📖 待複習項目</div>
-                            <button id="startQuickReviewBtn" style="background: #4CAF50; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="開始快速複習">▶️ 開始</button>
-                        </div>
-                        <div id="reviewItemsList" style="max-height: 120px; overflow-y: auto;">
-                            <div style="text-align: center; color: #999; padding: 20px; font-size: 12px;">
-                                暫無待複習項目
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Learning Progress Dashboard -->
+                    <!-- Progress Overview -->
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
                         <div style="background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%); color: white; padding: 12px; border-radius: 6px; text-align: center;">
                             <div style="font-size: 18px; font-weight: bold; margin-bottom: 4px;" id="todayLearningCount">0</div>
@@ -4078,15 +4065,44 @@
                         </div>
                     </div>
 
+                    <!-- Recent Achievements -->
+                    <div style="background: #f8f9fa; border-radius: 6px; padding: 12px; margin-bottom: 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div style="font-size: 12px; color: #666; font-weight: 500;">🎖️ 最近成就</div>
+                            <button id="viewAllAchievementsBtn" style="background: #4CAF50; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="查看所有成就">查看全部</button>
+                        </div>
+                        <div id="recentAchievementsList" style="max-height: 120px; overflow-y: auto;">
+                            <div style="text-align: center; color: #999; padding: 20px; font-size: 12px;">
+                                開始學習來解鎖成就！
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Learning Stats Mini Dashboard -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; font-size: 11px;">
+                        <div style="background: #e3f2fd; color: #1565c0; padding: 8px; border-radius: 4px; text-align: center;">
+                            <div style="font-weight: bold;" id="totalVideoCount">0</div>
+                            <div>影片學習</div>
+                        </div>
+                        <div style="background: #f3e5f5; color: #7b1fa2; padding: 8px; border-radius: 4px; text-align: center;">
+                            <div style="font-weight: bold;" id="accuracyRate">0%</div>
+                            <div>準確率</div>
+                        </div>
+                        <div style="background: #e8f5e8; color: #2e7d32; padding: 8px; border-radius: 4px; text-align: center;">
+                            <div style="font-weight: bold;" id="learningStreak">0</div>
+                            <div>連續天數</div>
+                        </div>
+                    </div>
+
                     <!-- Quick Actions for YouTube Learning -->
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
                         <button id="openYouTubeBtn" style="background: #FF0000; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px;" title="開啟 YouTube">
                             <span>🎥</span>
                             <span>開啟 YouTube</span>
                         </button>
-                        <button id="practiceRecentBtn" style="background: #9C27B0; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px;" title="練習最近學習的內容">
-                            <span>🎯</span>
-                            <span>練習模式</span>
+                        <button id="viewProgressBtn" style="background: #9C27B0; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px;" title="查看詳細學習進度">
+                            <span>📊</span>
+                            <span>查看進度</span>
                         </button>
                     </div>
                 </div>
@@ -4232,6 +4248,40 @@
                 
                 <div class="saved-reports-stats" id="savedReportsStats">
                     <!-- 保存報告統計信息 -->
+                </div>
+                
+                <!-- Storage Management Section -->
+                <div class="storage-management-section" style="background: #fff3e0; border: 1px solid #ffb74d; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4 style="margin: 0; color: #f57c00; font-size: 14px;">💾 儲存空間管理</h4>
+                        <span id="storageUsageDisplay" style="font-size: 12px; color: #666;">檢查中...</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 12px;">
+                        <div style="font-size: 12px; color: #666; margin-bottom: 8px;">Chrome 擴充功能儲存限制：5MB（無法增加）</div>
+                        <div id="storageProgressBar" style="background: #e0e0e0; border-radius: 4px; height: 6px; margin-bottom: 8px;">
+                            <div id="storageProgress" style="background: #ff9800; height: 100%; border-radius: 4px; width: 0%; transition: width 0.3s;"></div>
+                        </div>
+                        <div id="audioDataInfo" style="font-size: 11px; color: #666;"></div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <button id="checkStorageBtn" style="background: #2196F3; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="檢查儲存使用情況">
+                            📊 檢查使用量
+                        </button>
+                        <button id="exportAudioBtn" style="background: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="匯出音檔備份並清理">
+                            📦 匯出音檔
+                        </button>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+                        <button id="emergencyCleanBtn" style="background: #ff5722; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="緊急清理（僅移除音檔）">
+                            🚨 緊急清理
+                        </button>
+                        <button id="indexedDbSolutionBtn" style="background: #9c27b0; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="了解 IndexedDB 解決方案">
+                            🔧 升級方案
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="saved-reports-list" id="savedReportsList">
