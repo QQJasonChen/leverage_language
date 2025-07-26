@@ -508,6 +508,12 @@ if (window.location.href.includes('youtube.com')) {
     }
     
     try {
+      // Check if chrome.runtime is available
+      if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) {
+        console.warn('⚠️ Chrome runtime not available for YouTube learning');
+        return;
+      }
+      
       // Send message to background script to update sidepanel
       chrome.runtime.sendMessage({
         action: 'analyzeTextInSidepanel',

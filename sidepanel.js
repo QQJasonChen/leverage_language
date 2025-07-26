@@ -169,9 +169,9 @@ function updateVocabularyTracking(text, language) {
 // Update learning dashboard function
 function updateLearningDashboard() {
   // Update quick stats
-  const totalSearchesEl = document.querySelector('.stat-value[data-stat="searches"]');
-  const vocabularyCountEl = document.querySelector('.stat-value[data-stat="vocabulary"]');
-  const todaySearchesEl = document.querySelector('.stat-value[data-stat="today"]');
+  const totalSearchesEl = document.getElementById('quickTotalSearches');
+  const vocabularyCountEl = document.getElementById('quickUniqueWords');
+  const todaySearchesEl = document.getElementById('quickTodaySearches');
   
   if (totalSearchesEl) totalSearchesEl.textContent = learningStats.totalSearches;
   if (vocabularyCountEl) vocabularyCountEl.textContent = learningStats.vocabularyCount;
@@ -191,7 +191,7 @@ function updateLearningDashboard() {
 
 // Update recent activity section
 function updateRecentActivity() {
-  const activityList = document.getElementById('recentActivityList');
+  const activityList = document.getElementById('quickHistoryList');
   if (!activityList) return;
   
   activityList.innerHTML = '';
@@ -247,7 +247,7 @@ function updateRecentActivity() {
 
 // Update top vocabulary section
 function updateTopVocabulary() {
-  const vocabularyList = document.getElementById('topVocabularyList');
+  const vocabularyList = document.getElementById('quickVocabList');
   if (!vocabularyList) return;
   
   vocabularyList.innerHTML = '';
@@ -4636,6 +4636,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const newTabBtn = document.getElementById('openInNewTabBtn');
   if (newTabBtn) {
     newTabBtn.addEventListener('click', openCurrentInNewTab);
+  }
+  
+  // Quick action buttons in video tab
+  const practiceBtn = document.getElementById('practiceTopWords');
+  if (practiceBtn) {
+    practiceBtn.addEventListener('click', startPracticeSession);
+  }
+  
+  const reviewBtn = document.getElementById('reviewRecentWords');
+  if (reviewBtn) {
+    reviewBtn.addEventListener('click', reviewVocabulary);
+  }
+  
+  const exportBtn = document.getElementById('quickExportBtn');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', exportLearningData);
   }
   
   // AI Analysis buttons
