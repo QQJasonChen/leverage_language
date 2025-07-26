@@ -513,18 +513,32 @@ if (window.location.href.includes('youtube.com')) {
           duration: video.duration,
           paused: video.paused,
           ended: video.ended,
-          readyState: video.readyState
+          readyState: video.readyState,
+          src: video.src,
+          tagName: video.tagName
         });
         
-        if (!isNaN(video.currentTime) && video.currentTime > 0) {
+        // More lenient check - even 0.1 seconds is valid
+        if (!isNaN(video.currentTime) && video.currentTime >= 0) {
           const timestamp = Math.floor(video.currentTime);
-          console.log('✅ Video timestamp from video element:', timestamp, 'seconds');
+          console.log('✅ Video timestamp from video element:', timestamp, 'seconds (currentTime:', video.currentTime, ')');
           return timestamp;
         } else {
-          console.log('⚠️ Video currentTime is 0 or NaN:', video.currentTime);
+          console.log('⚠️ Video currentTime is invalid:', video.currentTime, typeof video.currentTime);
         }
       } else {
         console.log('❌ No video element found');
+        // Let's see what video-like elements exist
+        const allVideos = document.querySelectorAll('video');
+        console.log('🔍 All video elements found:', allVideos.length);
+        allVideos.forEach((v, i) => {
+          console.log(`  Video ${i}:`, {
+            currentTime: v.currentTime,
+            src: v.src,
+            className: v.className,
+            id: v.id
+          });
+        });
       }
       
       // Method 2: Try YouTube player API if available
@@ -661,7 +675,7 @@ if (window.location.href.includes('youtube.com')) {
       }
       
       // Send message to background script to update sidepanel
-      chrome.runtime.sendMessage({
+      const messageData = {
         action: 'analyzeTextInSidepanel',
         text: text,
         url: timestampedUrl, // Use timestamped URL
@@ -669,7 +683,11 @@ if (window.location.href.includes('youtube.com')) {
         title: document.title,
         source: 'youtube-learning',
         timestamp: timestamp // Include raw timestamp
-      }, (response) => {
+      };
+      
+      console.log('📤 Sending message to background script:', messageData);
+      
+      chrome.runtime.sendMessage(messageData, (response) => {
         if (chrome.runtime.lastError) {
           console.log('⚠️ Runtime error (expected):', chrome.runtime.lastError.message);
           console.log('📨 Message sent via content script communication');

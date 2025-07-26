@@ -647,6 +647,14 @@ async function handleYouTubeTextAnalysis(request, tabId) {
       console.log('💾 Saving YouTube learning to history:', cleanText, language);
       
       // 創建影片來源資訊
+      console.log('🔍 Raw request data from YouTube:', {
+        url: request.url,
+        originalUrl: request.originalUrl, 
+        title: request.title,
+        timestamp: request.timestamp,
+        timestampType: typeof request.timestamp
+      });
+      
       const videoSource = {
         url: request.url || null,
         originalUrl: request.originalUrl || request.url || null,
@@ -656,6 +664,13 @@ async function handleYouTubeTextAnalysis(request, tabId) {
         timestamp: Date.now(), // When this was learned
         learnedAt: new Date().toISOString()
       };
+      
+      console.log('🎯 Final videoSource object:', {
+        hasTimestamp: videoSource.videoTimestamp !== null,
+        videoTimestamp: videoSource.videoTimestamp,
+        url: videoSource.url,
+        title: videoSource.title
+      });
       
       console.log('📹 Video source info:', videoSource);
       console.log('📹 Video source details:', JSON.stringify(videoSource, null, 2));
