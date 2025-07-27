@@ -8,6 +8,21 @@
 
   // Listen for requests from extension
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    console.log('🎬 Enhanced transcript content script received message:', request);
+    
+    // Handle ping test
+    if (request.action === 'ping') {
+      console.log('🏓 Ping received, sending pong...');
+      sendResponse({ 
+        pong: true, 
+        timestamp: Date.now(), 
+        url: window.location.href,
+        videoId: extractVideoId() 
+      });
+      return false; // Don't keep channel open
+    }
+    
+    // Handle transcript requests
     if (request.action === 'getYouTubeTranscript') {
       console.log('🚀 Processing enhanced transcript request...');
       getEnhancedTranscript().then(response => {

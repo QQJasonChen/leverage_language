@@ -37,6 +37,13 @@ class TranscriptRestructurer {
               </svg>
               List Tabs
             </button>
+            <button class="test-connection-btn" title="Test content script connection">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22,4 12,14.01 9,11.01"/>
+              </svg>
+              Test
+            </button>
             <button class="fetch-transcript-btn" title="Fetch and restructure transcript">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path d="M4 12h16m0 0l-4-4m4 4l-4 4"/>
@@ -86,6 +93,7 @@ class TranscriptRestructurer {
   attachEventListeners() {
     const checkBtn = this.container.querySelector('.check-captions-btn');
     const listTabsBtn = this.container.querySelector('.list-tabs-btn');
+    const testBtn = this.container.querySelector('.test-connection-btn');
     const fetchBtn = this.container.querySelector('.fetch-transcript-btn');
     const copyBtn = this.container.querySelector('.copy-transcript-btn');
     const exportBtn = this.container.querySelector('.export-transcript-btn');
@@ -93,6 +101,7 @@ class TranscriptRestructurer {
     
     checkBtn.addEventListener('click', () => this.checkCaptions());
     listTabsBtn.addEventListener('click', () => this.listYouTubeTabs());
+    testBtn.addEventListener('click', () => this.testConnection());
     fetchBtn.addEventListener('click', () => this.fetchAndRestructure());
     copyBtn.addEventListener('click', () => this.copyTranscript());
     exportBtn.addEventListener('click', () => this.exportTranscript());
@@ -140,6 +149,59 @@ class TranscriptRestructurer {
     } catch (error) {
       console.error('❌ List tabs error:', error);
       statusEl.textContent = `Error: ${error.message}`;
+      statusEl.className = 'transcript-status error';
+    }
+  }
+
+  async testConnection() {
+    const statusEl = this.container.querySelector('.transcript-status');
+    statusEl.textContent = 'Testing content script connection...';
+    statusEl.className = 'transcript-status loading';
+    
+    try {
+      // Get current YouTube tab
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const tab = tabs[0];
+      
+      console.log('🧪 Testing connection to tab:', {
+        id: tab.id,
+        url: tab.url,
+        title: tab.title
+      });
+      
+      if (!tab.url.includes('youtube.com')) {
+        statusEl.textContent = `❌ Not on YouTube. Current: ${new URL(tab.url).hostname}`;
+        statusEl.className = 'transcript-status error';
+        return;
+      }
+      
+      // Test simple ping message
+      console.log('📡 Sending ping message...');
+      const response = await Promise.race([
+        chrome.tabs.sendMessage(tab.id, { action: 'ping' }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
+      ]);
+      
+      console.log('📨 Ping response:', response);
+      
+      if (response && response.pong) {
+        statusEl.textContent = '✅ Content script connected successfully!';
+        statusEl.className = 'transcript-status success';
+      } else {
+        statusEl.textContent = '❌ Content script not responding. Try refreshing YouTube page.';
+        statusEl.className = 'transcript-status error';
+      }
+      
+    } catch (error) {
+      console.error('❌ Connection test failed:', error);
+      
+      if (error.message.includes('Receiving end does not exist')) {
+        statusEl.textContent = '❌ Content script not loaded. Refresh YouTube page and try again.';
+      } else if (error.message === 'Timeout') {
+        statusEl.textContent = '❌ Content script timeout. Refresh YouTube page.';
+      } else {
+        statusEl.textContent = `❌ Connection failed: ${error.message}`;
+      }
       statusEl.className = 'transcript-status error';
     }
   }
@@ -424,6 +486,23 @@ class TranscriptRestructurer {
       
       .list-tabs-btn:hover {
         background: #f57c00;
+      }
+      
+      .test-connection-btn {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 12px;
+        background: #9c27b0;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      
+      .test-connection-btn:hover {
+        background: #7b1fa2;
       }
       
       .fetch-transcript-btn {
