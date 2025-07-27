@@ -54,7 +54,7 @@
     },
     {
       "matches": ["https://*.youtube.com/*"],
-      "js": ["youtube-transcript-enhanced.js"],
+      "js": ["youtube-transcript-simple.js"],
       "run_at": "document_end"
     }
   ],
