@@ -24,12 +24,20 @@ class TranscriptRestructurer {
       <div class="transcript-restructurer">
         <div class="transcript-header">
           <h3>Transcript Restructurer</h3>
-          <button class="fetch-transcript-btn" title="Fetch and restructure transcript">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path d="M4 12h16m0 0l-4-4m4 4l-4 4"/>
-            </svg>
-            Get Transcript
-          </button>
+          <div class="header-buttons">
+            <button class="check-captions-btn" title="Check if video has captions">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              Check CC
+            </button>
+            <button class="fetch-transcript-btn" title="Fetch and restructure transcript">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M4 12h16m0 0l-4-4m4 4l-4 4"/>
+              </svg>
+              Get Transcript
+            </button>
+          </div>
         </div>
         
         <div class="transcript-options">
@@ -70,11 +78,13 @@ class TranscriptRestructurer {
   }
 
   attachEventListeners() {
+    const checkBtn = this.container.querySelector('.check-captions-btn');
     const fetchBtn = this.container.querySelector('.fetch-transcript-btn');
     const copyBtn = this.container.querySelector('.copy-transcript-btn');
     const exportBtn = this.container.querySelector('.export-transcript-btn');
     const toggleBtn = this.container.querySelector('.toggle-view-btn');
     
+    checkBtn.addEventListener('click', () => this.checkCaptions());
     fetchBtn.addEventListener('click', () => this.fetchAndRestructure());
     copyBtn.addEventListener('click', () => this.copyTranscript());
     exportBtn.addEventListener('click', () => this.exportTranscript());
@@ -87,6 +97,38 @@ class TranscriptRestructurer {
         this.seekToTime(startTime);
       }
     });
+  }
+
+  async checkCaptions() {
+    const statusEl = this.container.querySelector('.transcript-status');
+    statusEl.textContent = 'Checking for captions...';
+    statusEl.className = 'transcript-status loading';
+    
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const tab = tabs[0];
+      
+      if (!tab.url.includes('youtube.com/watch')) {
+        throw new Error('Please open a YouTube video first');
+      }
+      
+      // Send a test message to check caption availability
+      const response = await chrome.tabs.sendMessage(tab.id, { 
+        action: 'getYouTubeTranscript' 
+      });
+      
+      if (response && response.success) {
+        statusEl.textContent = `✅ Captions available! Found ${response.transcript.length} segments via ${response.method}`;
+        statusEl.className = 'transcript-status success';
+      } else {
+        statusEl.textContent = `❌ ${response?.error || 'No captions found'}`;
+        statusEl.className = 'transcript-status error';
+      }
+      
+    } catch (error) {
+      statusEl.textContent = `Error: ${error.message}`;
+      statusEl.className = 'transcript-status error';
+    }
   }
 
   async fetchAndRestructure() {
@@ -280,6 +322,28 @@ class TranscriptRestructurer {
       .transcript-header h3 {
         margin: 0;
         font-size: 18px;
+      }
+      
+      .header-buttons {
+        display: flex;
+        gap: 10px;
+      }
+      
+      .check-captions-btn {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 12px;
+        background: #34a853;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      
+      .check-captions-btn:hover {
+        background: #2d8e47;
       }
       
       .fetch-transcript-btn {
