@@ -95,27 +95,44 @@ class TranscriptRestructurer {
     statusEl.className = 'transcript-status loading';
     
     try {
+      console.log('🎬 Starting transcript fetch...');
+      
       // Get current tab
       const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
       const tab = tabs[0];
+      
+      console.log('📍 Current tab URL:', tab.url);
       
       if (!tab.url.includes('youtube.com/watch')) {
         throw new Error('Please open a YouTube video first');
       }
       
+      statusEl.textContent = 'Connecting to YouTube page...';
+      
       // Send message to content script
+      console.log('📡 Sending message to content script...');
       const response = await chrome.tabs.sendMessage(tab.id, { action: 'getYouTubeTranscript' });
       
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to fetch transcript');
+      console.log('📨 Content script response:', response);
+      
+      if (!response || !response.success) {
+        const errorMsg = response?.error || 'Failed to fetch transcript - no response from content script';
+        console.error('❌ Transcript fetch failed:', errorMsg);
+        throw new Error(errorMsg);
+      }
+      
+      if (!response.transcript || response.transcript.length === 0) {
+        throw new Error('No transcript data found. Video may not have captions available.');
       }
       
       this.currentTranscript = response.transcript;
+      console.log('✅ Transcript fetched:', this.currentTranscript.length, 'segments');
       statusEl.textContent = `Fetched ${this.currentTranscript.length} segments. Restructuring...`;
       
       // Restructure the transcript
       await this.restructureTranscript();
       
+      console.log('✅ Restructuring complete:', this.restructuredSentences.length, 'sentences');
       statusEl.textContent = `Restructured into ${this.restructuredSentences.length} sentences`;
       statusEl.className = 'transcript-status success';
       
@@ -123,9 +140,14 @@ class TranscriptRestructurer {
       this.displayTranscript();
       
     } catch (error) {
+      console.error('❌ Transcript fetch error:', error);
       statusEl.textContent = `Error: ${error.message}`;
       statusEl.className = 'transcript-status error';
-      console.error('Transcript fetch error:', error);
+      
+      // Show more detailed error information
+      if (error.message.includes('content script')) {
+        statusEl.textContent += ' (Try refreshing the YouTube page)';
+      }
     }
   }
 

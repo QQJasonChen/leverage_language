@@ -6,42 +6,67 @@
 
   // Listen for requests from extension
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    console.log('🎬 YouTube transcript content script received message:', request);
     if (request.action === 'getYouTubeTranscript') {
-      getTranscript().then(sendResponse);
+      console.log('🚀 Processing getYouTubeTranscript request...');
+      getTranscript().then(response => {
+        console.log('📤 Sending transcript response:', response);
+        sendResponse(response);
+      }).catch(error => {
+        console.error('❌ Error in getTranscript:', error);
+        sendResponse({ success: false, error: error.message });
+      });
       return true; // Keep message channel open for async response
     }
   });
 
   // Extract transcript from YouTube player
   async function getTranscript() {
+    console.log('🔍 Starting transcript extraction...');
     try {
       // Method 1: Try to get from YouTube's player API
+      console.log('🎯 Method 1: Checking YouTube player...');
       const player = document.querySelector('#movie_player');
+      console.log('🎬 Player found:', !!player);
+      
       if (player && player.getVideoData) {
         const videoData = player.getVideoData();
         const videoId = videoData.video_id;
+        console.log('📹 Video ID:', videoId);
         
         // Try to access caption tracks
+        console.log('🔍 Looking for caption tracks...');
         const captionTracks = await getCaptionTracks();
+        console.log('📝 Caption tracks found:', captionTracks?.length || 0);
+        
         if (captionTracks && captionTracks.length > 0) {
+          console.log('✅ Using caption track:', captionTracks[0]);
           const transcript = await fetchCaptionTrack(captionTracks[0]);
-          return { success: true, transcript, videoId };
+          if (transcript && transcript.length > 0) {
+            console.log('✅ Transcript fetched via Method 1:', transcript.length, 'segments');
+            return { success: true, transcript, videoId };
+          }
         }
       }
 
       // Method 2: Try to extract from page data
+      console.log('🎯 Method 2: Extracting from page data...');
       const transcriptData = await extractFromPageData();
-      if (transcriptData) {
+      if (transcriptData && transcriptData.length > 0) {
+        console.log('✅ Transcript fetched via Method 2:', transcriptData.length, 'segments');
         return { success: true, transcript: transcriptData };
       }
 
       // Method 3: Try the transcript button
+      console.log('🎯 Method 3: Trying transcript button...');
       const transcriptFromButton = await clickTranscriptButton();
-      if (transcriptFromButton) {
+      if (transcriptFromButton && transcriptFromButton.length > 0) {
+        console.log('✅ Transcript fetched via Method 3:', transcriptFromButton.length, 'segments');
         return { success: true, transcript: transcriptFromButton };
       }
 
-      return { success: false, error: 'No transcript available' };
+      console.log('❌ All methods failed - no transcript available');
+      return { success: false, error: 'No transcript available. This video may not have captions.' };
     } catch (error) {
       return { success: false, error: error.message };
     }
