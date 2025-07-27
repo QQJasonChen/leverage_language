@@ -1,8 +1,10 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extensionName__",
-  "version": "2.4",
+  "version": "2.4.0",
+  "version_name": "2.4.0 Beta",
   "description": "__MSG_extensionDescription__",
+  "author": "Your Name",
   "default_locale": "en",
   
   "permissions": [
@@ -37,7 +39,12 @@
   
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": [
+        "https://youglish.com/*",
+        "https://*.youtube.com/*",
+        "https://www.immersionkit.com/*",
+        "https://api.notion.com/*"
+      ],
       "js": ["content.js"]
     },
     {
