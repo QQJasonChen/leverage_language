@@ -54,7 +54,14 @@
         return { success: true, transcript, videoId, method: 'transcriptPanel' };
       }
 
-      // Method 3: Scrape from subtitle elements
+      // Method 3: Direct page injection to access player
+      transcript = await getFromDirectPageAccess();
+      if (transcript && transcript.length > 0) {
+        console.log('✅ Transcript from direct page access:', transcript.length, 'segments');
+        return { success: true, transcript, videoId, method: 'directPageAccess' };
+      }
+
+      // Method 4: Scrape from subtitle elements
       transcript = await getFromSubtitleElements();
       if (transcript && transcript.length > 0) {
         console.log('✅ Transcript from subtitle elements:', transcript.length, 'segments');
@@ -91,13 +98,27 @@
             
             if (captions && captions.length > 0) {
               console.log('📝 Found caption tracks:', captions.length);
+              console.log('📋 All available tracks:', captions.map(c => ({
+                vssId: c.vssId,
+                languageCode: c.languageCode,
+                name: c.name?.simpleText,
+                isTranslatable: c.isTranslatable
+              })));
               
-              // Prefer auto-generated English captions
-              let track = captions.find(c => c.vssId && c.vssId.includes('.en')) ||
-                         captions.find(c => c.vssId && c.vssId.includes('.asr')) ||
-                         captions[0];
+              // Prefer auto-generated captions in any language
+              let track = captions.find(c => c.vssId && c.vssId.includes('.asr')) || // Auto-generated
+                         captions.find(c => c.vssId && c.vssId.includes('.nl')) ||  // Dutch
+                         captions.find(c => c.vssId && c.vssId.includes('.en')) ||  // English
+                         captions.find(c => c.languageCode === 'nl') ||              // Dutch by code
+                         captions[0]; // Fallback to first available
               
-              console.log('🎯 Using track:', track);
+              console.log('🎯 Selected track:', track);
+              console.log('🔍 Track details:', {
+                vssId: track.vssId,
+                languageCode: track.languageCode,
+                baseUrl: track.baseUrl?.substring(0, 100) + '...'
+              });
+              
               return await fetchCaptionData(track.baseUrl);
             }
           }
@@ -116,6 +137,7 @@
     try {
       // Check if there's ytInitialData
       if (window.ytInitialData) {
+        console.log('📊 Found ytInitialData');
         const data = window.ytInitialData;
         // Navigate through the data structure to find captions
         // This path might change as YouTube updates
@@ -125,14 +147,62 @@
 
       // Also check for ytInitialPlayerResponse global
       if (window.ytInitialPlayerResponse) {
+        console.log('📊 Found ytInitialPlayerResponse global');
         const data = window.ytInitialPlayerResponse;
         const captions = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
         
         if (captions && captions.length > 0) {
-          let track = captions.find(c => c.vssId && c.vssId.includes('.asr')) || captions[0];
+          console.log('📝 Found captions in global data:', captions.length);
+          console.log('📋 Global tracks:', captions.map(c => ({
+            vssId: c.vssId,
+            languageCode: c.languageCode,
+            name: c.name?.simpleText
+          })));
+          
+          let track = captions.find(c => c.vssId && c.vssId.includes('.asr')) || 
+                     captions.find(c => c.languageCode === 'nl') ||
+                     captions[0];
+          
+          console.log('🎯 Selected global track:', track);
           return await fetchCaptionData(track.baseUrl);
         }
       }
+
+      // Try alternative script search patterns
+      console.log('🔍 Searching for alternative script patterns...');
+      const scriptTexts = Array.from(document.querySelectorAll('script')).map(s => s.textContent);
+      
+      for (const scriptText of scriptTexts) {
+        if (scriptText.includes('captionTracks')) {
+          console.log('📜 Found script with captionTracks');
+          // Try different regex patterns
+          const patterns = [
+            /"captionTracks":\s*(\[[^\]]*\])/,
+            /'captionTracks':\s*(\[[^\]]*\])/,
+            /captionTracks:\s*(\[[^\]]*\])/
+          ];
+          
+          for (const pattern of patterns) {
+            const match = scriptText.match(pattern);
+            if (match) {
+              console.log('✅ Found captions with pattern:', pattern);
+              try {
+                const captions = JSON.parse(match[1]);
+                if (captions && captions.length > 0) {
+                  console.log('📝 Alternative pattern captions:', captions.length);
+                  let track = captions.find(c => c.vssId && c.vssId.includes('.asr')) || 
+                             captions.find(c => c.languageCode === 'nl') ||
+                             captions[0];
+                  return await fetchCaptionData(track.baseUrl);
+                }
+              } catch (e) {
+                console.log('❌ Failed to parse alternative pattern:', e);
+              }
+            }
+          }
+        }
+      }
+      
     } catch (error) {
       console.error('❌ Method 1b failed:', error);
     }
@@ -157,9 +227,14 @@
           moreButton.click();
           await sleep(500);
           
-          // Look for transcript option in menu
+          // Look for transcript option in menu (multiple languages)
           const transcriptButton = Array.from(document.querySelectorAll('yt-formatted-string, span'))
-            .find(el => el.textContent && el.textContent.toLowerCase().includes('transcript'));
+            .find(el => el.textContent && (
+              el.textContent.toLowerCase().includes('transcript') ||
+              el.textContent.toLowerCase().includes('transcriptie') || // Dutch
+              el.textContent.toLowerCase().includes('transkript') ||   // German
+              el.textContent.toLowerCase().includes('transcription')   // French
+            ));
           
           if (transcriptButton) {
             transcriptButton.click();
@@ -202,8 +277,86 @@
     return null;
   }
 
+  async function getFromDirectPageAccess() {
+    console.log('🎯 Method 3: Direct page access...');
+    
+    try {
+      // Inject script to access page globals directly
+      const script = document.createElement('script');
+      script.textContent = `
+        window.__getYouTubePlayerData = function() {
+          try {
+            // Try multiple ways to get player data
+            const player = document.querySelector('#movie_player');
+            
+            // Method 1: Direct player access
+            if (player && player.getVideoData) {
+              const videoData = player.getVideoData();
+              if (window.ytInitialPlayerResponse) {
+                return {
+                  videoId: videoData.video_id,
+                  captions: window.ytInitialPlayerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks
+                };
+              }
+            }
+            
+            // Method 2: Check ytplayer global
+            if (window.ytplayer && window.ytplayer.config) {
+              return {
+                captions: window.ytplayer.config.args?.player_response?.captions?.playerCaptionsTracklistRenderer?.captionTracks
+              };
+            }
+            
+            // Method 3: Search for yt object
+            if (window.yt && window.yt.config_) {
+              return {
+                captions: window.yt.config_.EXPERIMENT_FLAGS?.web_player_caption_tracks
+              };
+            }
+            
+            return null;
+          } catch (e) {
+            return { error: e.message };
+          }
+        };
+      `;
+      
+      document.head.appendChild(script);
+      await sleep(100);
+      
+      // Call the injected function
+      const result = window.__getYouTubePlayerData?.();
+      console.log('📊 Direct page access result:', result);
+      
+      if (result && result.captions && result.captions.length > 0) {
+        console.log('📝 Found captions via direct access:', result.captions.length);
+        console.log('📋 Direct access tracks:', result.captions.map(c => ({
+          vssId: c.vssId,
+          languageCode: c.languageCode,
+          name: c.name?.simpleText
+        })));
+        
+        let track = result.captions.find(c => c.vssId && c.vssId.includes('.asr')) || 
+                   result.captions.find(c => c.languageCode === 'nl') ||
+                   result.captions[0];
+        
+        console.log('🎯 Selected direct access track:', track);
+        return await fetchCaptionData(track.baseUrl);
+      }
+      
+      // Clean up
+      script.remove();
+      delete window.__getYouTubePlayerData;
+      
+    } catch (error) {
+      console.error('❌ Method 3 failed:', error);
+    }
+    
+    return null;
+  }
+
   async function getFromSubtitleElements() {
-    console.log('🎯 Method 3: Checking subtitle elements...');
+    console.log('🎯 Method 4: Checking subtitle elements...');
     
     try {
       // Look for current subtitle display
