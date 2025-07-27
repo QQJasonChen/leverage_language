@@ -15,6 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // 綁定 AI 啟用變更事件
   document.getElementById('aiEnabled').addEventListener('change', toggleAiGroups);
   
+  // 綁定 AI 提供商變更事件
+  document.getElementById('aiProvider').addEventListener('change', toggleOpenAiModelGroup);
+  
   // 綁定 UI 語言變更事件
   document.getElementById('uiLanguage').addEventListener('change', handleUILanguageChange);
   
@@ -23,13 +26,16 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 初始化 AI 群組顯示狀態
   toggleAiGroups();
+  
+  // 初始化 OpenAI 模型群組顯示狀態
+  toggleOpenAiModelGroup();
 });
 
 // 載入設定
 function loadSettings() {
   chrome.storage.sync.get([
     'uiLanguage', 'defaultLanguage', 'openMethod', 'preferredLanguage', 'uncertaintyHandling',
-    'aiEnabled', 'autoAnalysis', 'aiProvider', 'apiKey', 'pronunciationGuide', 'wordExplanation', 
+    'aiEnabled', 'autoAnalysis', 'aiProvider', 'openaiModel', 'apiKey', 'pronunciationGuide', 'wordExplanation', 
     'grammarAnalysis', 'culturalContext', 'errorDetection', 'audioPronunciation', 'ttsVoice', 
     'speechSpeed', 'autoPlayAudio'
   ], (result) => {
@@ -43,6 +49,7 @@ function loadSettings() {
     document.getElementById('aiEnabled').value = result.aiEnabled || 'false';
     document.getElementById('autoAnalysis').value = result.autoAnalysis || 'true'; // Default to automatic
     document.getElementById('aiProvider').value = result.aiProvider || 'gemini';
+    document.getElementById('openaiModel').value = result.openaiModel || 'gpt-4o-mini'; // Default to cheapest and best
     document.getElementById('apiKey').value = result.apiKey || '';
     document.getElementById('pronunciationGuide').checked = result.pronunciationGuide !== false;
     document.getElementById('wordExplanation').checked = result.wordExplanation !== false;
@@ -70,6 +77,7 @@ function saveSettings() {
   const aiEnabled = document.getElementById('aiEnabled').value;
   const autoAnalysis = document.getElementById('autoAnalysis').value;
   const aiProvider = document.getElementById('aiProvider').value;
+  const openaiModel = document.getElementById('openaiModel').value;
   const apiKey = document.getElementById('apiKey').value;
   const pronunciationGuide = document.getElementById('pronunciationGuide').checked;
   const wordExplanation = document.getElementById('wordExplanation').checked;
@@ -100,6 +108,7 @@ function saveSettings() {
     aiEnabled: aiEnabled,
     autoAnalysis: autoAnalysis,
     aiProvider: aiProvider,
+    openaiModel: openaiModel,
     apiKey: apiKey,
     pronunciationGuide: pronunciationGuide,
     wordExplanation: wordExplanation,
@@ -162,25 +171,36 @@ function togglePreferredLanguageGroup() {
 
 // 切換 AI 群組的顯示狀態
 function toggleAiGroups() {
-  const aiEnabled = document.getElementById('aiEnabled').value === 'true';
+  // Always show all AI settings for better UX
+  // Users can configure everything before enabling, or change settings without disabling/re-enabling
   const autoAnalysisGroup = document.getElementById('autoAnalysisGroup');
   const aiProviderGroup = document.getElementById('aiProviderGroup');
   const apiKeyGroup = document.getElementById('apiKeyGroup');
   const aiOptionsGroup = document.getElementById('aiOptionsGroup');
   const audioOptionsGroup = document.getElementById('audioOptionsGroup');
   
-  if (aiEnabled) {
-    autoAnalysisGroup.style.display = 'block';
-    aiProviderGroup.style.display = 'block';
-    apiKeyGroup.style.display = 'block';
-    aiOptionsGroup.style.display = 'block';
-    audioOptionsGroup.style.display = 'block';
+  // Always show all groups
+  autoAnalysisGroup.style.display = 'block';
+  aiProviderGroup.style.display = 'block';
+  apiKeyGroup.style.display = 'block';
+  aiOptionsGroup.style.display = 'block';
+  audioOptionsGroup.style.display = 'block';
+  
+  // OpenAI model group visibility still depends on provider
+  toggleOpenAiModelGroup();
+}
+
+// 切換 OpenAI 模型群組的顯示狀態
+function toggleOpenAiModelGroup() {
+  const aiProvider = document.getElementById('aiProvider').value;
+  const openaiModelGroup = document.getElementById('openaiModelGroup');
+  
+  // Show OpenAI model selection only when OpenAI is selected as provider
+  // Regardless of whether AI is enabled or not
+  if (aiProvider === 'openai') {
+    openaiModelGroup.style.display = 'block';
   } else {
-    autoAnalysisGroup.style.display = 'none';
-    aiProviderGroup.style.display = 'none';
-    apiKeyGroup.style.display = 'none';
-    aiOptionsGroup.style.display = 'none';
-    audioOptionsGroup.style.display = 'none';
+    openaiModelGroup.style.display = 'none';
   }
 }
 

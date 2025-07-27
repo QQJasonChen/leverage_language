@@ -223,12 +223,12 @@
         <div class="setting-group">
             <label for="aiEnabled">啟用 AI 分析</label>
             <select id="aiEnabled">
-                <option value="false">停用</option>
-                <option value="true">啟用 ✅</option>
+                <option value="false">🔴 停用</option>
+                <option value="true">🟢 啟用</option>
             </select>
             <div class="description">
-                <strong>請先選擇「啟用 ✅」以顯示 API 金鑰輸入框和其他設定選項。</strong><br>
-                啟用後將在搜尋結果中提供 AI 發音指導和詞彙解釋。
+                啟用後將在搜尋結果中提供 AI 發音指導和詞彙解釋。<br>
+                <em>💡 提示：您可以隨時調整下方的 AI 設定，無需停用後重新啟用。</em>
             </div>
         </div>
 
@@ -252,6 +252,20 @@
             </select>
             <div class="description">
                 選擇您偏好的 AI 服務提供商。
+            </div>
+        </div>
+        
+        <div class="setting-group" id="openaiModelGroup" style="display: none;">
+            <label for="openaiModel">OpenAI 模型選擇</label>
+            <select id="openaiModel">
+                <option value="gpt-4o-mini">GPT-4o Mini (推薦 - 最佳性價比)</option>
+                <option value="gpt-4o">GPT-4o (頂級品質)</option>
+            </select>
+            <div class="description">
+                <strong>💰 價格比較 (每1K tokens):</strong><br>
+                • <span style="color: #4CAF50; font-weight: bold;">GPT-4o Mini: $0.00015 輸入 + $0.0006 輸出 (極便宜且優質！)</span><br>
+                • GPT-4o: $0.0025 輸入 + $0.01 輸出 (最高品質，成本較高)<br>
+                <em>💡 GPT-4o Mini 提供 95% 的品質，但成本僅為 GPT-4o 的 1/10</em>
             </div>
         </div>
         
