@@ -53,15 +53,7 @@ class TranscriptRestructurer {
         <div class="transcript-status"></div>
         
         <div class="transcript-content">
-          <div class="restructured-transcript" style="display: none;">
-            <h4>Clean Transcript</h4>
-            <div class="transcript-sentences"></div>
-          </div>
-        </div>
-        
-        <div class="transcript-actions" style="display: none;">
-          <button class="copy-transcript-btn">Copy All</button>
-          <button class="export-transcript-btn">Export</button>
+          <!-- ✅ SIMPLIFIED: Only reader mode container -->
         </div>
       </div>
     `;
@@ -72,20 +64,11 @@ class TranscriptRestructurer {
 
   attachEventListeners() {
     const collectBtn = this.container.querySelector('.start-collection-btn');
-    const copyBtn = this.container.querySelector('.copy-transcript-btn');
-    const exportBtn = this.container.querySelector('.export-transcript-btn');
     
     collectBtn.addEventListener('click', () => this.toggleCollection());
-    copyBtn.addEventListener('click', () => this.copyTranscript());
-    exportBtn.addEventListener('click', () => this.exportTranscript());
     
-    // Listen for sentence clicks to play from that point
-    this.container.addEventListener('click', (e) => {
-      if (e.target.classList.contains('sentence-text')) {
-        const startTime = parseFloat(e.target.dataset.start);
-        this.seekToTime(startTime);
-      }
-    });
+    // ✅ SIMPLIFIED: Reader mode handles its own interactions
+    // No more classic view buttons to attach
   }
 
   async listYouTubeTabs() {
@@ -415,15 +398,20 @@ class TranscriptRestructurer {
   superAggressiveClean(text) {
     console.log('🔥 Starting super aggressive cleaning...');
     
-    // Step 1: Find and eliminate the most repetitive patterns
     let cleaned = text;
     
-    // Remove patterns that repeat more than once
-    const words = text.split(' ');
+    // Step 1: Handle exact sentence repetitions (like "I'm very excited. I'm very excited. I'm very excited.")
+    cleaned = this.removeExactSentenceRepetitions(cleaned);
+    
+    // Step 2: Handle partial sentence repetitions (like "And because of our meal program, And because of our meal program,")
+    cleaned = this.removePartialSentenceRepetitions(cleaned);
+    
+    // Step 3: Find and eliminate phrase-level repetitive patterns
+    const words = cleaned.split(' ');
     const patterns = new Map();
     
-    // Find all 4-12 word patterns and count them
-    for (let len = 4; len <= 12; len++) {
+    // Find all 3-15 word patterns and count them (extended range)
+    for (let len = 3; len <= 15; len++) {
       for (let i = 0; i <= words.length - len; i++) {
         const pattern = words.slice(i, i + len).join(' ');
         patterns.set(pattern, (patterns.get(pattern) || 0) + 1);
@@ -449,10 +437,10 @@ class TranscriptRestructurer {
       }
     }
     
-    // Step 2: Remove immediate word repetitions
+    // Step 4: Remove immediate word repetitions
     cleaned = cleaned.replace(/\b(\w+)(\s+\1)+\b/g, '$1');
     
-    // Step 3: Normalize whitespace  
+    // Step 5: Normalize whitespace  
     cleaned = cleaned.replace(/\s+/g, ' ').trim();
     
     console.log('✨ Cleaning reduced text from', text.length, 'to', cleaned.length, 'characters');
@@ -460,51 +448,345 @@ class TranscriptRestructurer {
     return cleaned;
   }
 
-  extractMeaningfulContent(text) {
-    const sentences = [];
-    const words = text.split(' ').filter(w => w.trim());
+  removeExactSentenceRepetitions(text) {
+    console.log('🎯 Removing exact sentence repetitions...');
     
-    if (words.length === 0) return [];
+    // Split by sentence-ending punctuation, but keep the punctuation
+    const sentences = text.split(/([.!?]+\s*)/).filter(s => s.trim());
+    const cleanedSentences = [];
+    const seenSentences = new Set();
     
-    let currentSentence = [];
-    const usedWords = new Set();
-    
-    for (const word of words) {
-      const cleanWord = word.toLowerCase().replace(/[^\w]/g, '');
+    for (let i = 0; i < sentences.length; i += 2) {
+      const sentence = sentences[i]?.trim();
+      const punctuation = sentences[i + 1] || '';
       
-      // Skip very short words or already heavily used words
-      if (cleanWord.length < 2) continue;
-      
-      currentSentence.push(word);
-      usedWords.add(cleanWord);
-      
-      // Form sentences of reasonable length
-      if (currentSentence.length >= 8 && (
-          word.match(/[.!?]$/) || 
-          currentSentence.length >= 15 ||
-          Math.random() < 0.3 // Add some randomness to break up monotony
-        )) {
+      if (sentence && sentence.length > 5) {
+        // Normalize sentence for comparison (remove extra spaces, convert to lowercase)
+        const normalizedSentence = sentence.toLowerCase().replace(/\s+/g, ' ').trim();
         
-        const sentence = currentSentence.join(' ').trim();
-        
-        // Validate sentence quality
-        if (this.isGoodSentence(sentence)) {
-          sentences.push(sentence);
+        if (!seenSentences.has(normalizedSentence)) {
+          seenSentences.add(normalizedSentence);
+          cleanedSentences.push(sentence + punctuation);
+        } else {
+          console.log('🗑️ Removed duplicate sentence:', sentence.substring(0, 50) + '...');
         }
-        
-        currentSentence = [];
       }
     }
     
-    // Add remaining words as final sentence
-    if (currentSentence.length >= 4) {
-      const sentence = currentSentence.join(' ').trim();
-      if (this.isGoodSentence(sentence)) {
+    return cleanedSentences.join(' ');
+  }
+
+  removePartialSentenceRepetitions(text) {
+    console.log('🎯 Removing partial sentence repetitions...');
+    
+    // Handle patterns like "And because of our meal program, And because of our meal program,"
+    let cleaned = text;
+    
+    // Split into potential sentence fragments by commas and periods
+    const fragments = cleaned.split(/([,.]\s*)/);
+    const processedFragments = [];
+    
+    for (let i = 0; i < fragments.length; i += 2) {
+      const fragment = fragments[i]?.trim();
+      const separator = fragments[i + 1] || '';
+      
+      if (fragment && fragment.length > 10) {
+        // Check if this fragment appears immediately again
+        const nextFragment = fragments[i + 2]?.trim();
+        
+        if (nextFragment && this.areSimilarFragments(fragment, nextFragment)) {
+          // Skip the repetition, keep only the first occurrence
+          console.log('🗑️ Removed duplicate fragment:', fragment.substring(0, 30) + '...');
+          processedFragments.push(fragment + separator);
+          i += 2; // Skip the next fragment since it's a duplicate
+        } else {
+          processedFragments.push(fragment + separator);
+        }
+      } else if (fragment) {
+        processedFragments.push(fragment + separator);
+      }
+    }
+    
+    return processedFragments.join('');
+  }
+
+  areSimilarFragments(fragment1, fragment2) {
+    // Check if two fragments are similar enough to be considered duplicates
+    const norm1 = fragment1.toLowerCase().replace(/\s+/g, ' ').trim();
+    const norm2 = fragment2.toLowerCase().replace(/\s+/g, ' ').trim();
+    
+    // Exact match
+    if (norm1 === norm2) return true;
+    
+    // Check if one is a subset of the other (for partial repetitions)
+    if (norm1.includes(norm2) || norm2.includes(norm1)) {
+      const similarity = Math.min(norm1.length, norm2.length) / Math.max(norm1.length, norm2.length);
+      return similarity > 0.8; // 80% similarity threshold
+    }
+    
+    return false;
+  }
+
+  extractMeaningfulContent(text) {
+    console.log('✨ Extracting meaningful content from cleaned text...');
+    
+    // Step 1: Split into natural sentences first
+    const naturalSentences = this.splitIntoNaturalSentences(text);
+    console.log('📝 Found', naturalSentences.length, 'natural sentences');
+    
+    // Step 2: Filter and clean each sentence
+    const meaningfulSentences = [];
+    const seenNormalizedSentences = new Set();
+    
+    for (const sentence of naturalSentences) {
+      const cleanedSentence = this.cleanSentence(sentence);
+      
+      if (cleanedSentence.length < 10) continue; // Too short
+      
+      // Normalize for duplicate detection
+      const normalized = cleanedSentence.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+      
+      if (seenNormalizedSentences.has(normalized)) {
+        console.log('🗑️ Skipped duplicate sentence:', cleanedSentence.substring(0, 40) + '...');
+        continue;
+      }
+      
+      // Validate sentence quality
+      if (this.isHighQualitySentence(cleanedSentence)) {
+        meaningfulSentences.push(cleanedSentence);
+        seenNormalizedSentences.add(normalized);
+      } else {
+        console.log('🗑️ Filtered low quality sentence:', cleanedSentence.substring(0, 40) + '...');
+      }
+    }
+    
+    console.log('✅ Extracted', meaningfulSentences.length, 'high-quality sentences');
+    return meaningfulSentences.slice(0, 15); // Allow up to 15 good sentences
+  }
+
+  splitIntoNaturalSentences(text) {
+    // Split by strong sentence boundaries but preserve the structure
+    const sentences = [];
+    
+    // First split by clear sentence endings
+    const parts = text.split(/([.!?]+\s+)/);
+    
+    let currentSentence = '';
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      
+      if (part.match(/[.!?]+\s+/)) {
+        // This is punctuation + space
+        currentSentence += part.replace(/\s+$/, ''); // Remove trailing space
+        if (currentSentence.trim().length > 5) {
+          sentences.push(currentSentence.trim());
+        }
+        currentSentence = '';
+      } else {
+        currentSentence += part;
+      }
+    }
+    
+    // Add any remaining content
+    if (currentSentence.trim().length > 5) {
+      sentences.push(currentSentence.trim());
+    }
+    
+    // If we got very few sentences, try splitting by other methods
+    if (sentences.length < 3) {
+      console.log('🔄 Few sentences found, trying alternative splitting...');
+      return this.splitByAlternativeMethod(text);
+    }
+    
+    return sentences;
+  }
+
+  splitByAlternativeMethod(text) {
+    // Alternative splitting when punctuation is poor
+    const words = text.split(' ').filter(w => w.trim());
+    const sentences = [];
+    
+    // Create sentences of reasonable length (10-20 words)
+    for (let i = 0; i < words.length; i += 12) {
+      const sentenceWords = words.slice(i, i + 15);
+      if (sentenceWords.length >= 4) {
+        const sentence = sentenceWords.join(' ').trim();
         sentences.push(sentence);
       }
     }
     
-    return sentences.slice(0, 10); // Limit to max 10 sentences
+    return sentences;
+  }
+
+  cleanSentence(sentence) {
+    return sentence
+      .replace(/\s+/g, ' ') // Normalize spaces
+      .replace(/^[^\w]+/, '') // Remove leading non-word characters
+      .replace(/[^\w]+$/, '') // Remove trailing non-word characters  
+      .trim();
+  }
+
+  isHighQualitySentence(sentence) {
+    const words = sentence.split(' ').filter(w => w.trim());
+    const uniqueWords = new Set(words.map(w => w.toLowerCase().replace(/[^\w]/g, '')));
+    
+    // Quality checks
+    const hasGoodLength = words.length >= 4 && words.length <= 30;
+    const hasGoodUniqueness = uniqueWords.size >= Math.floor(words.length * 0.6); // 60% unique words
+    const hasReasonableLength = sentence.length >= 15 && sentence.length <= 250;
+    const notTooRepetitive = !this.isTooRepetitive(sentence);
+    
+    return hasGoodLength && hasGoodUniqueness && hasReasonableLength && notTooRepetitive;
+  }
+
+  isTooRepetitive(sentence) {
+    const words = sentence.toLowerCase().split(' ');
+    const wordCounts = {};
+    
+    for (const word of words) {
+      const cleanWord = word.replace(/[^\w]/g, '');
+      if (cleanWord.length > 2) {
+        wordCounts[cleanWord] = (wordCounts[cleanWord] || 0) + 1;
+      }
+    }
+    
+    // Check if any significant word appears too many times
+    for (const [word, count] of Object.entries(wordCounts)) {
+      if (count > 2 && word.length > 3) {
+        return true; // Too repetitive
+      }
+    }
+    
+    return false;
+  }
+
+  cleanCollectedSegments(segments) {
+    console.log('🧹 Cleaning collected segments...');
+    
+    if (!segments || segments.length === 0) return [];
+    
+    // Step 1: Clean individual segment texts first
+    const textCleanedSegments = segments.map(segment => ({
+      ...segment,
+      text: this.cleanSingleSegmentText(segment.text)
+    })).filter(segment => segment.text && segment.text.length > 3);
+    
+    // Step 2: Remove exact duplicate segments
+    const uniqueSegments = this.removeExactDuplicateSegments(textCleanedSegments);
+    
+    // Step 3: Group and merge similar segments
+    const mergedSegments = this.mergeRepetitiveSegments(uniqueSegments);
+    
+    console.log(`📊 Segment cleaning: ${segments.length} → ${textCleanedSegments.length} → ${uniqueSegments.length} → ${mergedSegments.length}`);
+    
+    return mergedSegments;
+  }
+
+  cleanSingleSegmentText(text) {
+    if (!text) return '';
+    
+    // Remove exact repetitions within the same text
+    // Pattern: "word word word" -> "word"
+    let cleaned = text.replace(/\b(\w+)(\s+\1)+\b/g, '$1');
+    
+    // Remove phrase repetitions: "hello world hello world" -> "hello world"
+    const words = cleaned.split(' ');
+    const halfLength = Math.floor(words.length / 2);
+    
+    // Check if first half matches second half (common pattern)
+    if (halfLength > 2) {
+      const firstHalf = words.slice(0, halfLength).join(' ');
+      const secondHalf = words.slice(halfLength).join(' ');
+      
+      if (firstHalf.toLowerCase() === secondHalf.toLowerCase()) {
+        console.log('🗑️ Removed half-repetition:', firstHalf);
+        cleaned = firstHalf;
+      }
+    }
+    
+    // Check for 3-part repetitions: "A A A" -> "A"
+    const thirdLength = Math.floor(words.length / 3);
+    if (thirdLength > 2) {
+      const firstThird = words.slice(0, thirdLength).join(' ');
+      const secondThird = words.slice(thirdLength, thirdLength * 2).join(' ');
+      const thirdThird = words.slice(thirdLength * 2).join(' ');
+      
+      if (firstThird.toLowerCase() === secondThird.toLowerCase() && 
+          firstThird.toLowerCase() === thirdThird.toLowerCase()) {
+        console.log('🗑️ Removed triple-repetition:', firstThird);
+        cleaned = firstThird;
+      }
+    }
+    
+    return cleaned.trim();
+  }
+
+  removeExactDuplicateSegments(segments) {
+    const uniqueSegments = [];
+    const seenTexts = new Set();
+    
+    for (const segment of segments) {
+      const normalizedText = segment.text.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+      
+      if (!seenTexts.has(normalizedText) && normalizedText.length > 5) {
+        seenTexts.add(normalizedText);
+        uniqueSegments.push(segment);
+      } else {
+        console.log('🗑️ Removed duplicate segment:', segment.text.substring(0, 40) + '...');
+      }
+    }
+    
+    return uniqueSegments;
+  }
+
+  mergeRepetitiveSegments(segments) {
+    const mergedSegments = [];
+    
+    for (let i = 0; i < segments.length; i++) {
+      const currentSegment = segments[i];
+      let mergedText = currentSegment.text;
+      
+      // Look ahead for similar segments to merge
+      let j = i + 1;
+      while (j < segments.length && j < i + 3) { // Only look 3 segments ahead
+        const nextSegment = segments[j];
+        
+        if (this.areSegmentsSimilar(currentSegment.text, nextSegment.text)) {
+          console.log('🔗 Merging similar segments:', currentSegment.text.substring(0, 30), 'with', nextSegment.text.substring(0, 30));
+          // Take the longer, more complete text
+          if (nextSegment.text.length > mergedText.length) {
+            mergedText = nextSegment.text;
+          }
+          j++;
+        } else {
+          break;
+        }
+      }
+      
+      // Create merged segment
+      mergedSegments.push({
+        ...currentSegment,
+        text: mergedText
+      });
+      
+      // Skip the segments we merged
+      i = j - 1;
+    }
+    
+    return mergedSegments;
+  }
+
+  areSegmentsSimilar(text1, text2) {
+    const norm1 = text1.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+    const norm2 = text2.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+    
+    // Check if one contains the other (partial duplicates)
+    if (norm1.includes(norm2) || norm2.includes(norm1)) {
+      const similarity = Math.min(norm1.length, norm2.length) / Math.max(norm1.length, norm2.length);
+      return similarity > 0.7; // 70% similarity
+    }
+    
+    return false;
   }
 
   isGoodSentence(sentence) {
@@ -653,70 +935,13 @@ class TranscriptRestructurer {
   }
 
   displayTranscript() {
-    // Create a toggle between old view and new reader view
-    const viewToggle = document.createElement('div');
-    viewToggle.className = 'view-toggle';
-    viewToggle.innerHTML = `
-      <button class="view-btn active" data-view="classic">Classic View</button>
-      <button class="view-btn" data-view="reader">📖 Reader Mode</button>
-    `;
-    
-    // Insert toggle if not exists
-    if (!this.container.querySelector('.view-toggle')) {
-      const header = this.container.querySelector('.transcript-header');
-      header.appendChild(viewToggle);
-    }
-    
-    // Handle view toggle
-    viewToggle.addEventListener('click', (e) => {
-      if (e.target.classList.contains('view-btn')) {
-        const view = e.target.dataset.view;
-        viewToggle.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
-        e.target.classList.add('active');
-        
-        if (view === 'reader') {
-          this.showReaderView();
-        } else {
-          this.showClassicView();
-        }
-      }
-    });
-    
-    // Default to classic view
-    this.showClassicView();
+    // ✅ SIMPLIFIED: Only show reader view - no more classic view toggle
+    this.showReaderView();
   }
 
-  showClassicView() {
-    // Hide reader view if exists
-    const readerContainer = this.container.querySelector('.transcript-reader-container');
-    if (readerContainer) {
-      readerContainer.style.display = 'none';
-    }
-    
-    // Display only restructured/clean transcript
-    const restructuredContainer = this.container.querySelector('.restructured-transcript');
-    const sentencesContainer = this.container.querySelector('.transcript-sentences');
-    sentencesContainer.innerHTML = this.restructuredSentences
-      .map((sentence, index) => `
-        <div class="sentence" data-index="${index}">
-          <span class="sentence-number">${index + 1}.</span>
-          <span class="sentence-text" data-start="${sentence.start}" data-end="${sentence.end}">
-            ${sentence.text}
-          </span>
-          <span class="sentence-time">${this.formatTime(sentence.start)}</span>
-        </div>
-      `)
-      .join('');
-    restructuredContainer.style.display = 'block';
-    
-    // Show actions
-    this.container.querySelector('.transcript-actions').style.display = 'flex';
-  }
 
   showReaderView() {
-    // Hide classic views
-    this.container.querySelector('.restructured-transcript').style.display = 'none';
-    this.container.querySelector('.transcript-actions').style.display = 'none';
+    // ✅ SIMPLIFIED: Only reader view exists now
     
     // Create reader container if not exists
     let readerContainer = this.container.querySelector('.transcript-reader-container');
@@ -725,11 +950,15 @@ class TranscriptRestructurer {
       readerContainer.className = 'transcript-reader-container';
       this.container.querySelector('.transcript-content').appendChild(readerContainer);
       
-      // Initialize TranscriptViewer with cleaned transcript
+      // Initialize TranscriptViewer with current transcript data
       if (typeof TranscriptViewer !== 'undefined') {
-        console.log('📖 Initializing TranscriptViewer with', this.restructuredSentences.length, 'sentences');
-        // Use restructured sentences for cleaner reading experience
-        this.transcriptViewer = new TranscriptViewer(readerContainer, this.restructuredSentences);
+        // ✅ FIX: Use current transcript (real-time collected) if available, otherwise restructured
+        const dataToUse = this.currentTranscript && this.currentTranscript.length > 0 ? 
+          this.currentTranscript : 
+          (this.restructuredSentences || []);
+        
+        console.log('📖 Initializing TranscriptViewer with', dataToUse.length, 'items');
+        this.transcriptViewer = new TranscriptViewer(readerContainer, dataToUse);
         console.log('✅ TranscriptViewer initialized successfully');
       } else {
         console.error('❌ TranscriptViewer not loaded - check if transcript-viewer.js is included');
@@ -740,55 +969,24 @@ class TranscriptRestructurer {
           </div>
         `;
       }
+    } else {
+      // ✅ FIX: If reader container exists, update it with latest data
+      if (this.transcriptViewer && typeof this.transcriptViewer.updateTranscriptData === 'function') {
+        const dataToUse = this.currentTranscript && this.currentTranscript.length > 0 ? 
+          this.currentTranscript : 
+          (this.restructuredSentences || []);
+        
+        console.log('🔄 Updating existing transcript viewer with', dataToUse.length, 'items');
+        this.transcriptViewer.updateTranscriptData(dataToUse);
+      }
     }
     
     readerContainer.style.display = 'block';
   }
 
-  copyTranscript() {
-    const text = this.restructuredSentences
-      .map(s => s.text)
-      .join('\n\n');
-    
-    navigator.clipboard.writeText(text).then(() => {
-      const btn = this.container.querySelector('.copy-transcript-btn');
-      const originalText = btn.textContent;
-      btn.textContent = 'Copied!';
-      setTimeout(() => btn.textContent = originalText, 2000);
-    });
-  }
+  // ✅ REMOVED: copyTranscript and exportTranscript - reader mode handles these features
 
-  exportTranscript() {
-    const data = {
-      original: this.currentTranscript,
-      restructured: this.restructuredSentences,
-      metadata: {
-        videoUrl: window.location.href,
-        exportDate: new Date().toISOString()
-      }
-    };
-    
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `transcript-${new Date().getTime()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  toggleView() {
-    const original = this.container.querySelector('.original-transcript');
-    const restructured = this.container.querySelector('.restructured-transcript');
-    
-    if (original.style.display === 'none') {
-      original.style.display = 'block';
-      restructured.style.display = 'none';
-    } else {
-      original.style.display = 'none';
-      restructured.style.display = 'block';
-    }
-  }
+  // ✅ REMOVED: toggleView - no longer needed with single reader mode
 
   async toggleCollection() {
     const collectBtn = this.container.querySelector('.start-collection-btn');
@@ -815,14 +1013,20 @@ class TranscriptRestructurer {
         const result = await chrome.tabs.sendMessage(tab.id, { action: 'stopCaptionCollection' });
         
         if (result.success && result.segments.length > 0) {
-          this.currentTranscript = result.segments;
-          statusEl.textContent = `✅ Collection stopped. Captured ${result.segments.length} segments in ${result.duration.toFixed(1)}s`;
+          console.log('🧹 Starting deduplication of collected segments...');
+          
+          // ✅ FIX: Apply cleaning to collected segments first
+          const cleanedSegments = this.cleanCollectedSegments(result.segments);
+          console.log(`✨ Cleaned segments: ${result.segments.length} → ${cleanedSegments.length}`);
+          
+          this.currentTranscript = cleanedSegments;
+          statusEl.textContent = `✅ Collection stopped. Captured ${cleanedSegments.length} clean segments in ${result.duration.toFixed(1)}s`;
           statusEl.className = 'transcript-status success';
           
-          // ✅ FIX: Update the transcript viewer with new data
+          // ✅ FIX: Update the transcript viewer immediately with cleaned data
           if (this.transcriptViewer && typeof this.transcriptViewer.updateTranscriptData === 'function') {
-            console.log('🔄 Updating transcript viewer with new collection data');
-            this.transcriptViewer.updateTranscriptData(result.segments);
+            console.log('🔄 Updating transcript viewer with cleaned collection data');
+            this.transcriptViewer.updateTranscriptData(cleanedSegments);
           }
           
           // Update button back to play state
@@ -834,7 +1038,7 @@ class TranscriptRestructurer {
             Collect
           `;
           
-          // Restructure and display
+          // Restructure and display (for classic view)
           await this.restructureTranscript();
           this.displayTranscript();
           
@@ -1065,105 +1269,7 @@ class TranscriptRestructurer {
         margin-bottom: 15px;
       }
       
-      .original-transcript,
-      .restructured-transcript {
-        background: white;
-        padding: 15px;
-        border-radius: 4px;
-        margin-bottom: 10px;
-        max-height: 400px;
-        overflow-y: auto;
-      }
-      
-      .transcript-content h4 {
-        margin: 0 0 10px 0;
-        font-size: 16px;
-        color: #333;
-      }
-      
-      .segment {
-        color: #666;
-        font-size: 14px;
-      }
-      
-      .sentence {
-        margin-bottom: 15px;
-        display: flex;
-        align-items: start;
-        gap: 10px;
-      }
-      
-      .sentence-number {
-        color: #999;
-        font-size: 12px;
-        min-width: 30px;
-      }
-      
-      .sentence-text {
-        flex: 1;
-        line-height: 1.6;
-        cursor: pointer;
-        transition: background 0.2s;
-      }
-      
-      .sentence-text:hover {
-        background: #f0f0f0;
-        border-radius: 4px;
-        padding: 2px 5px;
-        margin: -2px -5px;
-      }
-      
-      .sentence-time {
-        color: #4285f4;
-        font-size: 12px;
-        cursor: pointer;
-      }
-      
-      .transcript-actions {
-        display: flex;
-        gap: 10px;
-      }
-      
-      .transcript-actions button {
-        padding: 8px 15px;
-        border: 1px solid #ddd;
-        background: white;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 14px;
-      }
-      
-      .transcript-actions button:hover {
-        background: #f5f5f5;
-      }
-      
-      .view-toggle {
-        display: flex;
-        gap: 8px;
-        margin-left: auto;
-      }
-      
-      .view-btn {
-        padding: 6px 12px;
-        background: white;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 12px;
-        font-weight: 500;
-        transition: all 0.2s;
-      }
-      
-      .view-btn:hover {
-        background: #f5f5f5;
-      }
-      
-      .view-btn.active {
-        background: #2196f3;
-        color: white;
-        border-color: #2196f3;
-      }
-      
+      /* ✅ SIMPLIFIED: Only reader mode styles needed */
       .transcript-reader-container {
         margin-top: 10px;
       }
