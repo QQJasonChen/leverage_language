@@ -3449,13 +3449,20 @@ async function getQuickPronunciation(text, language) {
 async function getQuickDefinition(text, language) {
   try {
     if (language === 'english') {
-      // Try to get real English definition
-      let definition = await getFreeDictionaryDefinition(text);
-      if (definition) return definition;
+      // ✅ FIX: Extract first meaningful word for dictionary lookup
+      const words = text.trim().split(/\s+/).filter(word => 
+        word.length > 2 && /^[a-zA-Z]+$/.test(word)
+      );
       
-      // Fallback to built-in dictionary
-      definition = await getBuiltInDefinition(text);
-      if (definition) return definition;
+      if (words.length > 0) {
+        // Try to get real English definition for the first word
+        let definition = await getFreeDictionaryDefinition(words[0]);
+        if (definition) return `${words[0]}: ${definition}`;
+        
+        // Fallback to built-in dictionary
+        definition = await getBuiltInDefinition(words[0]);
+        if (definition) return `${words[0]}: ${definition}`;
+      }
     }
     
     // For other languages, try to get basic info
@@ -3483,6 +3490,18 @@ async function getFreeDictionaryDefinition(word) {
     
     const cleanWord = word.trim().toLowerCase();
     
+    // ✅ FIX: Only lookup single words, not sentences
+    const wordCount = cleanWord.split(/\s+/).length;
+    if (wordCount > 1) {
+      console.log(`⚠️ Skipping dictionary lookup for multi-word phrase: "${cleanWord}"`);
+      return null;
+    }
+    
+    // Skip very short words or non-alphabetic content
+    if (cleanWord.length < 2 || !/^[a-zA-Z]+$/.test(cleanWord)) {
+      return null;
+    }
+    
     // Use the free dictionary API
     const url = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(cleanWord)}`;
     
@@ -3494,7 +3513,7 @@ async function getFreeDictionaryDefinition(word) {
     });
     
     if (!response.ok) {
-      console.warn(`Dictionary API returned ${response.status} for word: ${cleanWord}`);
+      console.log(`📚 Dictionary: No definition found for word: ${cleanWord}`);
       return null;
     }
     

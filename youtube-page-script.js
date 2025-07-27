@@ -15,7 +15,7 @@ function createYouTubeLearningButton() {
   
   const button = document.createElement('div');
   button.id = 'yt-learning-btn';
-  button.innerHTML = '📚 LEARN';
+  button.textContent = '📚 LEARN';
   button.title = 'YouTube Learning: Click=Copy | Shift+Click=Word Analysis | Alt+Click=Sentence Analysis';
   
   button.style.cssText = `
@@ -68,11 +68,11 @@ function createYouTubeLearningButton() {
     
     if (isLearningEnabled) {
       button.style.backgroundColor = '#44ff44';
-      button.innerHTML = '✅ ON';
+      button.textContent = '✅ ON';
       enableTextLearning();
     } else {
       button.style.backgroundColor = '#ff4444';
-      button.innerHTML = '📚 LEARN';
+      button.textContent = '📚 LEARN';
       disableTextLearning();
     }
   });
@@ -153,7 +153,7 @@ function fallbackCopyToClipboard(text) {
 function addHelpTooltip(subtitleElement) {
   const helpIcon = document.createElement('span');
   helpIcon.className = 'yt-help-icon';
-  helpIcon.innerHTML = ' ❓';
+  helpIcon.textContent = ' ❓';
   helpIcon.style.cssText = `
     cursor: help !important;
     opacity: 0.5 !important;
@@ -491,17 +491,28 @@ function getWordAtPosition(element, clickX) {
       return words[0];
     }
     
-    // Create temporary spans to measure word positions
-    const originalHTML = element.innerHTML;
-    const wordSpans = words.map((word, index) => 
-      `<span data-word-index="${index}">${word}</span>`
-    ).join(' ');
+    // Create temporary spans to measure word positions (TrustedHTML safe)
+    const originalText = element.textContent;
+    const tempContainer = document.createElement('div');
     
-    element.innerHTML = wordSpans;
+    words.forEach((word, index) => {
+      const span = document.createElement('span');
+      span.setAttribute('data-word-index', index.toString());
+      span.textContent = word;
+      tempContainer.appendChild(span);
+      if (index < words.length - 1) {
+        tempContainer.appendChild(document.createTextNode(' '));
+      }
+    });
+    
+    // Replace element content temporarily
+    const parent = element.parentNode;
+    const nextSibling = element.nextSibling;
+    parent.replaceChild(tempContainer, element);
     
     // Find which word was clicked
     let clickedWord = null;
-    const spans = element.querySelectorAll('[data-word-index]');
+    const spans = tempContainer.querySelectorAll('[data-word-index]');
     
     for (const span of spans) {
       const rect = span.getBoundingClientRect();
@@ -515,8 +526,9 @@ function getWordAtPosition(element, clickX) {
       }
     }
     
-    // Restore original HTML
-    element.innerHTML = originalHTML;
+    // Restore original element
+    element.textContent = originalText;
+    parent.replaceChild(element, tempContainer);
     
     return clickedWord || words[0]; // Fallback to first word
   } catch (error) {
@@ -549,7 +561,7 @@ function disableTextLearning() {
   // Clean up enhanced subtitles
   document.querySelectorAll('[data-enhanced="true"]').forEach(el => {
     const text = el.textContent;
-    el.innerHTML = text;
+    el.textContent = text;
     delete el.dataset.enhanced;
   });
 }
