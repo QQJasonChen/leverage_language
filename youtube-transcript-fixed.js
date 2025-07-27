@@ -94,28 +94,74 @@
       let transcriptPanel = document.querySelector('ytd-transcript-renderer, [aria-label*="transcript" i]');
       
       if (!transcriptPanel) {
-        // Try to open via more menu
-        const moreButton = document.querySelector('#expand, [aria-label*="More" i], [aria-label*="Show more" i]');
+        // Try multiple ways to open transcript
+        const transcriptSelectors = [
+          // YouTube's standard more menu
+          'button[aria-label*="More" i]',
+          'button[aria-label*="Show more" i]',
+          '#expand',
+          // Three dots menu
+          'button[aria-label*="actions" i]',
+          '.ytp-more-button',
+          // Direct transcript button (sometimes visible)
+          'button[aria-label*="transcript" i]',
+          // Description area expand
+          '#description-content button',
+          '#expand-description-button'
+        ];
+        
+        let moreButton = null;
+        for (const selector of transcriptSelectors) {
+          moreButton = document.querySelector(selector);
+          if (moreButton) {
+            console.log('🔘 FIXED Found button with selector:', selector);
+            break;
+          }
+        }
+        
         if (moreButton) {
-          console.log('🔘 FIXED Clicking more button...');
+          console.log('🔘 FIXED Clicking more/expand button...');
           moreButton.click();
-          await sleep(500);
+          await sleep(800);
           
-          // Look for transcript option
-          const transcriptButton = Array.from(document.querySelectorAll('*')).find(el => {
-            const text = el.textContent?.toLowerCase() || '';
-            return text.includes('show transcript') || 
-                   text.includes('transcript') || 
-                   text.includes('transcriptie') ||
-                   text.includes('字幕');
-          });
+          // Look for transcript option with multiple strategies
+          const transcriptSearches = [
+            // Text-based search
+            () => Array.from(document.querySelectorAll('*')).find(el => {
+              const text = el.textContent?.toLowerCase() || '';
+              return text.includes('show transcript') || 
+                     text.includes('transcript') || 
+                     text.includes('transcriptie') ||
+                     text.includes('字幕');
+            }),
+            // Menu item search
+            () => document.querySelector('[role="menuitem"] *'),
+            // Button search
+            () => Array.from(document.querySelectorAll('button, [role="button"]')).find(el => {
+              const text = el.textContent?.toLowerCase() || '';
+              return text.includes('transcript');
+            })
+          ];
           
-          if (transcriptButton && transcriptButton.tagName !== 'SCRIPT') {
+          let transcriptButton = null;
+          for (const searchFn of transcriptSearches) {
+            transcriptButton = searchFn();
+            if (transcriptButton && transcriptButton.tagName !== 'SCRIPT') {
+              console.log('📝 FIXED Found transcript button via search strategy');
+              break;
+            }
+          }
+          
+          if (transcriptButton) {
             console.log('📝 FIXED Clicking transcript button...');
             transcriptButton.click();
             await sleep(1500);
             transcriptOpened = true;
+          } else {
+            console.log('❌ FIXED No transcript button found in menu');
           }
+        } else {
+          console.log('❌ FIXED No more/expand button found');
         }
       } else {
         transcriptOpened = true;
@@ -342,20 +388,52 @@
         await sleep(2000);
       }
       
-      // This method would require watching the video and collecting captions over time
-      // For now, just check if captions are visible
-      const captionElements = document.querySelectorAll('.ytp-caption-segment, .captions-text');
-      if (captionElements.length > 0) {
-        console.log('👁️ FIXED Captions are visible, but real-time extraction not implemented');
-        return [{
-          start: 0,
-          end: 3,
-          duration: 3,
-          text: 'Real-time caption extraction would require watching the full video. Use transcript panel method instead.'
-        }];
+      // Try to get current video position and some context
+      const player = document.querySelector('#movie_player');
+      let currentTime = 0;
+      if (player && player.getCurrentTime) {
+        currentTime = player.getCurrentTime();
       }
       
-      return null;
+      // Check if captions are visible
+      const captionElements = document.querySelectorAll('.ytp-caption-segment, .captions-text, .caption-visual-line');
+      if (captionElements.length > 0) {
+        console.log('👁️ FIXED Found', captionElements.length, 'visible caption elements');
+        
+        // Extract current caption text
+        const currentCaptions = Array.from(captionElements).map(el => el.textContent?.trim()).filter(text => text);
+        
+        if (currentCaptions.length > 0) {
+          console.log('📝 FIXED Current caption text:', currentCaptions);
+          
+          // Create a basic transcript entry from current captions
+          const transcript = currentCaptions.map((text, index) => ({
+            start: currentTime + (index * 3),
+            end: currentTime + ((index + 1) * 3),
+            duration: 3,
+            text: text
+          }));
+          
+          // Add a helpful message about limitations
+          transcript.push({
+            start: currentTime + (currentCaptions.length * 3),
+            end: currentTime + ((currentCaptions.length + 1) * 3),
+            duration: 3,
+            text: 'Note: This is a sample from currently visible captions. For full transcript, YouTube\'s transcript panel method is needed.'
+          });
+          
+          return transcript;
+        }
+      }
+      
+      // If no captions visible, return a helpful message
+      console.log('❌ FIXED No visible captions found');
+      return [{
+        start: 0,
+        end: 5,
+        duration: 5,
+        text: 'No captions currently visible. Try opening the transcript panel manually (click "..." button below video, then "Show transcript") or ensure captions are enabled.'
+      }];
       
     } catch (error) {
       console.error('❌ FIXED Displayed captions method failed:', error);
