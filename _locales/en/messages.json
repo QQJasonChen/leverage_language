@@ -67,6 +67,10 @@
     "message": "📚 History",
     "description": "History view button"
   },
+  "transcript_view": {
+    "message": "📝 Transcript",
+    "description": "Transcript restructuring view button"
+  },
   "new_tab": {
     "message": "🔗 New Tab",
     "description": "New tab button"

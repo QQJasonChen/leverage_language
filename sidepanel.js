@@ -1159,6 +1159,7 @@ function initializeViewControls() {
   const showSavedReportsBtn = document.getElementById('showSavedReportsBtn');
   const showFlashcardsBtn = document.getElementById('showFlashcardsBtn');
   const showAnalyticsBtn = document.getElementById('showAnalyticsBtn');
+  const showTranscriptBtn = document.getElementById('showTranscriptBtn');
   const openNewTabBtn = document.getElementById('openNewTabBtn');
   const analysisView = document.getElementById('analysisView');
   const videoView = document.getElementById('videoView');
@@ -1167,6 +1168,7 @@ function initializeViewControls() {
   const savedReportsView = document.getElementById('savedReportsView');
   const flashcardsView = document.getElementById('flashcardsView');
   const analyticsView = document.getElementById('analyticsView');
+  const transcriptView = document.getElementById('transcriptView');
   
   // 分析視圖按鈕
   if (showAnalysisBtn) {
@@ -1183,6 +1185,7 @@ function initializeViewControls() {
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'none';
       if (analyticsView) analyticsView.style.display = 'none';
+      if (transcriptView) transcriptView.style.display = 'none';
       
       log('Switched to analysis view');
     };
@@ -1204,6 +1207,7 @@ function initializeViewControls() {
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'none';
       if (analyticsView) analyticsView.style.display = 'none';
+      if (transcriptView) transcriptView.style.display = 'none';
       
       // Initialize learning dashboard for video tab
       console.log('📹 Video tab clicked - Initializing learning dashboard');
@@ -1234,6 +1238,7 @@ function initializeViewControls() {
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'none';
       if (analyticsView) analyticsView.style.display = 'none';
+      if (transcriptView) transcriptView.style.display = 'none';
       
       // Load pronunciation sites for current query
       console.log('🌐 Website tab clicked. currentQueryData:', currentQueryData);
@@ -1266,6 +1271,7 @@ function initializeViewControls() {
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'none';
       if (analyticsView) analyticsView.style.display = 'none';
+      if (transcriptView) transcriptView.style.display = 'none';
       
       loadHistoryView();
       console.log('Switched to history view');
@@ -1332,6 +1338,29 @@ function initializeViewControls() {
       
       await loadAnalyticsView();
       console.log('Switched to analytics view');
+    };
+  }
+
+  // Transcript view button
+  if (showTranscriptBtn) {
+    showTranscriptBtn.onclick = async () => {
+      // Remove active from all view buttons
+      document.querySelectorAll('.view-button').forEach(btn => btn.classList.remove('active'));
+      showTranscriptBtn.classList.add('active');
+      
+      // Show transcript view, hide all others
+      if (analysisView) analysisView.style.display = 'none';
+      if (videoView) videoView.style.display = 'none';
+      if (websitesView) websitesView.style.display = 'none';
+      if (historyView) historyView.style.display = 'none';
+      if (savedReportsView) savedReportsView.style.display = 'none';
+      if (flashcardsView) flashcardsView.style.display = 'none';
+      if (analyticsView) analyticsView.style.display = 'none';
+      if (transcriptView) transcriptView.style.display = 'none';
+      if (transcriptView) transcriptView.style.display = 'block';
+      
+      await loadTranscriptView();
+      console.log('Switched to transcript view');
     };
   }
   
@@ -3674,6 +3703,71 @@ async function getBuiltInDefinition(word) {
   
   const lowerWord = word.toLowerCase().trim();
   return basicDefinitions[lowerWord] || null;
+}
+
+// ================================
+// Load transcript view
+async function loadTranscriptView() {
+  try {
+    console.log('🎬 Loading transcript view...');
+    const container = document.getElementById('transcriptRestructurerContainer');
+    if (!container) {
+      console.error('❌ Transcript container not found');
+      showTranscriptError();
+      return;
+    }
+
+    console.log('✅ Container found:', container);
+    console.log('🔍 Checking TranscriptRestructurer class:', typeof window.TranscriptRestructurer);
+    console.log('🔍 Checking YouTubeTranscriptFetcher class:', typeof window.YouTubeTranscriptFetcher);
+
+    // Initialize transcript restructurer if not already done
+    if (!window.transcriptRestructurer) {
+      if (window.TranscriptRestructurer) {
+        console.log('🚀 Creating new TranscriptRestructurer...');
+        window.transcriptRestructurer = new TranscriptRestructurer(container, aiService);
+        console.log('✅ TranscriptRestructurer created successfully');
+      } else {
+        console.error('❌ TranscriptRestructurer class not available');
+        showTranscriptError();
+        return;
+      }
+    } else {
+      console.log('♻️ Using existing TranscriptRestructurer');
+    }
+    
+    console.log('✅ Transcript view loaded successfully');
+  } catch (error) {
+    console.error('❌ Error loading transcript view:', error);
+    showTranscriptError();
+  }
+}
+
+function showTranscriptError() {
+  const transcriptView = document.getElementById('transcriptView');
+  if (transcriptView) {
+    transcriptView.innerHTML = `
+      <div style="text-align: center; padding: 40px; color: #666;">
+        <div style="font-size: 48px; margin-bottom: 16px;">📝</div>
+        <h3>無法載入字幕重構功能</h3>
+        <p>字幕重構服務目前無法使用。請確保：</p>
+        <ul style="text-align: left; max-width: 300px; margin: 0 auto;">
+          <li>正在YouTube影片頁面</li>
+          <li>影片有可用的字幕</li>
+          <li>已開啟AI服務</li>
+        </ul>
+        <button onclick="loadTranscriptView()" style="
+          background: #1976d2;
+          color: white;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 8px;
+          cursor: pointer;
+          margin-top: 16px;
+        ">重試</button>
+      </div>
+    `;
+  }
 }
 
 // Saved reports functionality

@@ -51,6 +51,11 @@
       "matches": ["https://*.youtube.com/*"],
       "js": ["youtube-content.js"],
       "run_at": "document_start"
+    },
+    {
+      "matches": ["https://*.youtube.com/*"],
+      "js": ["youtube-transcript-content.js"],
+      "run_at": "document_end"
     }
   ],
   

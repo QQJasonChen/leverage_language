@@ -3740,6 +3740,7 @@
                     <button id="showSavedReportsBtn" class="view-button" data-i18n="saved_reports_view">💾 已保存</button>
                     <button id="showFlashcardsBtn" class="view-button" data-i18n="flashcards_view">🃏 記憶卡</button>
                     <button id="showAnalyticsBtn" class="view-button">📊 學習統計</button>
+                    <button id="showTranscriptBtn" class="view-button" data-i18n="transcript_view">📝 字幕重構</button>
                     <button id="openNewTabBtn" class="view-button" data-i18n="new_tab">🔗 新分頁</button>
                 </div>
             </div>
@@ -4469,6 +4470,11 @@
                 </div>
             </div>
             
+            <!-- 字幕重構視圖 -->
+            <div id="transcriptView" class="transcript-view" style="display: none;">
+                <div id="transcriptRestructurerContainer"></div>
+            </div>
+            
         </div>
     </div>
     
@@ -4491,6 +4497,8 @@
     <script src="lib/cloud-sync-manager.js"></script>
     <script src="lib/analytics-manager.js"></script>
     <script src="lib/subscription-manager.js"></script>
+    <script src="lib/youtube-transcript.js"></script>
+    <script src="components/transcript-restructurer.js"></script>
     <script src="sidepanel.js"></script>
 </body>
 </html>

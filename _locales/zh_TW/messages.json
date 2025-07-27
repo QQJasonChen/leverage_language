@@ -67,6 +67,10 @@
     "message": "📚 歷史",
     "description": "History view button"
   },
+  "transcript_view": {
+    "message": "📝 字幕重構",
+    "description": "Transcript restructuring view button"
+  },
   "new_tab": {
     "message": "🔗 新分頁",
     "description": "New tab button"
