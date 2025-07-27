@@ -31,6 +31,12 @@ class TranscriptRestructurer {
               </svg>
               Check CC
             </button>
+            <button class="list-tabs-btn" title="List all YouTube tabs">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>
+              </svg>
+              List Tabs
+            </button>
             <button class="fetch-transcript-btn" title="Fetch and restructure transcript">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path d="M4 12h16m0 0l-4-4m4 4l-4 4"/>
@@ -79,12 +85,14 @@ class TranscriptRestructurer {
 
   attachEventListeners() {
     const checkBtn = this.container.querySelector('.check-captions-btn');
+    const listTabsBtn = this.container.querySelector('.list-tabs-btn');
     const fetchBtn = this.container.querySelector('.fetch-transcript-btn');
     const copyBtn = this.container.querySelector('.copy-transcript-btn');
     const exportBtn = this.container.querySelector('.export-transcript-btn');
     const toggleBtn = this.container.querySelector('.toggle-view-btn');
     
     checkBtn.addEventListener('click', () => this.checkCaptions());
+    listTabsBtn.addEventListener('click', () => this.listYouTubeTabs());
     fetchBtn.addEventListener('click', () => this.fetchAndRestructure());
     copyBtn.addEventListener('click', () => this.copyTranscript());
     exportBtn.addEventListener('click', () => this.exportTranscript());
@@ -99,23 +107,77 @@ class TranscriptRestructurer {
     });
   }
 
+  async listYouTubeTabs() {
+    const statusEl = this.container.querySelector('.transcript-status');
+    statusEl.textContent = 'Listing YouTube tabs...';
+    statusEl.className = 'transcript-status loading';
+    
+    try {
+      // Get all tabs
+      const allTabs = await chrome.tabs.query({});
+      const youtubeTabs = allTabs.filter(tab => tab.url && tab.url.includes('youtube.com/watch'));
+      
+      console.log('🎬 All YouTube video tabs:', youtubeTabs);
+      
+      if (youtubeTabs.length === 0) {
+        statusEl.textContent = '❌ No YouTube video tabs found';
+        statusEl.className = 'transcript-status error';
+        return;
+      }
+      
+      // Show list of YouTube tabs
+      let tabList = `Found ${youtubeTabs.length} YouTube tab(s):\n`;
+      youtubeTabs.forEach((tab, index) => {
+        const isActive = tab.active ? ' (ACTIVE)' : '';
+        tabList += `${index + 1}. ${tab.title}${isActive}\n`;
+      });
+      
+      statusEl.innerHTML = tabList.replace(/\n/g, '<br>');
+      statusEl.className = 'transcript-status success';
+      
+      console.log('📋 YouTube tabs found:', tabList);
+      
+    } catch (error) {
+      console.error('❌ List tabs error:', error);
+      statusEl.textContent = `Error: ${error.message}`;
+      statusEl.className = 'transcript-status error';
+    }
+  }
+
   async checkCaptions() {
     const statusEl = this.container.querySelector('.transcript-status');
     statusEl.textContent = 'Checking for captions...';
     statusEl.className = 'transcript-status loading';
     
     try {
+      console.log('🔍 Checking tabs...');
       const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-      const tab = tabs[0];
+      console.log('📍 Found tabs:', tabs.length);
       
-      if (!tab.url.includes('youtube.com/watch')) {
-        throw new Error('Please open a YouTube video first');
+      if (tabs.length === 0) {
+        throw new Error('No active tab found');
       }
       
+      const tab = tabs[0];
+      console.log('🎯 Current tab:', {
+        id: tab.id,
+        url: tab.url,
+        title: tab.title
+      });
+      
+      if (!tab.url.includes('youtube.com/watch')) {
+        throw new Error(`Current tab is not a YouTube video. Tab URL: ${tab.url}`);
+      }
+      
+      statusEl.textContent = `Checking captions on: ${tab.title}...`;
+      
       // Send a test message to check caption availability
+      console.log('📡 Sending message to tab:', tab.id);
       const response = await chrome.tabs.sendMessage(tab.id, { 
         action: 'getYouTubeTranscript' 
       });
+      
+      console.log('📨 Response received:', response);
       
       if (response && response.success) {
         statusEl.textContent = `✅ Captions available! Found ${response.transcript.length} segments via ${response.method}`;
@@ -126,6 +188,7 @@ class TranscriptRestructurer {
       }
       
     } catch (error) {
+      console.error('❌ Check captions error:', error);
       statusEl.textContent = `Error: ${error.message}`;
       statusEl.className = 'transcript-status error';
     }
@@ -344,6 +407,23 @@ class TranscriptRestructurer {
       
       .check-captions-btn:hover {
         background: #2d8e47;
+      }
+      
+      .list-tabs-btn {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 12px;
+        background: #ff9800;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      
+      .list-tabs-btn:hover {
+        background: #f57c00;
       }
       
       .fetch-transcript-btn {
