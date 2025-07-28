@@ -982,54 +982,65 @@
     
     console.log('🧽 Cleaning auto-generated text:', text.substring(0, 60) + '...');
     
-    // Ultra-aggressive cleaning for auto-generated text
+    // First, fix broken words with spaces in the middle
     let cleaned = text
-      .replace(/\s+/g, ' ') // Normalize spaces
-      .replace(/([a-z])([A-Z])/g, '$1 $2') // Add spaces between merged words
+      // Fix common broken words first
+      .replace(/\bA\s+nd\b/gi, 'And')
+      .replace(/\bI\s+m\b/gi, "I'm")
+      .replace(/\bthe\s+y\b/gi, 'they')
+      .replace(/\ba\s+bout\b/gi, 'about')
+      .replace(/\ba\s+gain\b/gi, 'again')
+      .replace(/\ba\s+ll\b/gi, 'all')
+      .replace(/\ba\s+lso\b/gi, 'also')
+      .replace(/\ba\s+re\b/gi, 'are')
+      .replace(/\ba\s+s\b/gi, 'as')
+      .replace(/\ba\s+t\b/gi, 'at')
+      .replace(/\ba\s+n\b/gi, 'an')
+      .replace(/\ba\s+ble\b/gi, 'able')
+      .replace(/\bso\s+me\b/gi, 'some')
+      .replace(/\bdo\s+n't\b/gi, "don't")
+      .replace(/\byou\s+re\b/gi, "you're")
+      .replace(/\bI\s+ve\b/gi, "I've")
+      .replace(/\bdoesn\s+t\b/gi, "doesn't")
+      .replace(/\bit\s+s\b/gi, "it's")
+      .replace(/\bI\s+ll\b/gi, "I'll")
+      .replace(/\bthe\s+re\b/gi, "there")
+      .replace(/\byou\s+ll\b/gi, "you'll")
+      .replace(/\bwe\s+ve\b/gi, "we've")
+      .replace(/\byou\s+ve\b/gi, "you've")
+      .replace(/\bso\s+ft\b/gi, 'soft')
       
-      // Aggressive word separation patterns - target specific issues
-      .replace(/\b(\w+)(month|year|day|week|time|where|when|what|how|this|that|like|once|should|understand|change)\b/gi, '$1 $2')
-      .replace(/\b(once|the|a|an|is|are|was|were|and|or|but|so|then|now|you|to|that|just|really)(\w{3,})\b/gi, '$1 $2')
+      // Then normalize spaces
+      .replace(/\s+/g, ' ')
       
-      // Fix specific problematic merges we've seen
-      .replace(/\bamonth\b/gi, 'a month')
-      .replace(/\breallyunderstand\b/gi, 'really understand')
-      .replace(/\brealmwhere\b/gi, 'realm where')
-      .replace(/\bthisis\b/gi, 'this is')
+      // Fix merged words - but be more careful
+      .replace(/\b(\w+)(month|year|day|week)\b/gi, (match, p1, p2) => {
+        // Only split if p1 is a valid word
+        if (p1.length > 1 && /^(a|the|this|that|one|two|three)$/i.test(p1)) {
+          return p1 + ' ' + p2;
+        }
+        return match;
+      })
+      
+      // Fix specific problematic merges seen in examples - be precise
       .replace(/\byoushould\b/gi, 'you should')
+      .replace(/\bbecauseyou\b/gi, 'because you')
       .replace(/\btochange\b/gi, 'to change')
-      .replace(/\bthatsomething\b/gi, 'that something')
-      .replace(/\bjustdon't\b/gi, "just don't")
-      .replace(/\bLittlesoft\b/gi, 'Little soft')
-      .replace(/\bUhbecause\b/gi, 'Uh because')
+      .replace(/\bstillcapping\b/gi, 'still capping')
+      .replace(/\byouknow\b/gi, 'you know')
+      .replace(/\bhavesmaller\b/gi, 'have smaller')
+      .replace(/\bvaluedensity\b/gi, 'value density')
+      .replace(/\bwantpeople\b/gi, 'want people')
+      .replace(/\bmeetupsall\b/gi, 'meetups all')
+      .replace(/\btexaswithout\b/gi, 'texas without')
       
       // Remove excessive repeated characters and words
-      .replace(/\b(\w)\1{2,}\b/g, '$1') // Remove excessive repeated characters
-      .replace(/\b(\w+)\s+\1\b/g, '$1') // Remove immediate word repetitions
-      .replace(/\b(\w{2,})\s+\1\s+\1\b/g, '$1') // Remove triple repetitions
+      .replace(/\b(\w)\1{3,}\b/g, '$1') // Only remove 4+ repeated characters
+      .replace(/\b(\w{3,})\s+\1\b/g, '$1') // Remove immediate word repetitions (3+ chars)
       
-      // Fix fragment patterns and repetitive endings
-      .replace(/\b(\w+)\.\s*\1\.?/g, '$1.') // Fix "on. on." -> "on."
-      .replace(/\b(and|or|but|so|then|now)\s+\1\b/gi, '$1')
-      .replace(/\b(the|a|an)\s+\1\b/gi, '$1')
-      .replace(/\b(is|are|was|were)\s+\1\b/gi, '$1')
-      
-      // Clean up punctuation and spacing
-      .replace(/([a-z])(\d)/g, '$1 $2') // Add space between letters and numbers
-      .replace(/(\d)([a-z])/gi, '$1 $2') // Add space between numbers and letters
-      .replace(/([.!?])([A-Z])/g, '$1 $2') // Add space after punctuation
-      
-      .trim();
     
-    // Multiple passes of phrase-level deduplication
-    for (let i = 0; i < 3; i++) {
-      const beforeLength = cleaned.length;
-      cleaned = removePhraseRepetitions(cleaned);
-      if (cleaned.length === beforeLength) break; // No more changes
-    }
-    
-    // Remove cascading sentence repetitions
-    cleaned = removeSentenceRepetitions(cleaned);
+    // Careful phrase-level deduplication - only one pass to avoid over-processing
+    cleaned = removePhraseRepetitions(cleaned);
     
     // Final cleanup
     cleaned = cleaned.replace(/\s+/g, ' ').trim();
@@ -1040,11 +1051,11 @@
     }
     
     // Add period if missing and text is substantial
-    if (cleaned.length > 20 && !/[.!?]$/.test(cleaned)) {
+    if (cleaned.length > 15 && !/[.!?]$/.test(cleaned)) {
       cleaned += '.';
     }
     
-    if (cleaned !== text) {
+    if (cleaned !== text && cleaned.length > 5) {
       console.log('✨ Cleaned result:', cleaned.substring(0, 60) + '...');
     }
     

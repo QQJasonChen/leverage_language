@@ -267,6 +267,18 @@ class TranscriptViewer {
     
     // Table interaction handlers
     content.addEventListener('click', (e) => {
+      // Handle edit mode clicks on text cells
+      if (this.editMode && e.target.closest('.text-cell') && !e.target.closest('.edit-interface')) {
+        e.preventDefault();
+        e.stopPropagation();
+        const textCell = e.target.closest('.text-cell');
+        const segmentId = textCell.dataset.segmentId;
+        if (segmentId !== null && segmentId !== undefined) {
+          this.startEditingSegment(parseInt(segmentId));
+        }
+        return;
+      }
+      
       // Handle timestamp button clicks
       if (e.target.classList.contains('timestamp-btn')) {
         e.preventDefault();
@@ -585,8 +597,9 @@ class TranscriptViewer {
                     ${segment.timestampDisplay}
                   </button>
                 </td>
-                <td class="text-cell">
+                <td class="text-cell" data-segment-id="${index}">
                   <span class="clean-text">${this.escapeHtml(segment.cleanText)}</span>
+                  ${this.editMode ? '<div class="edit-indicator">✏️ Click to edit</div>' : ''}
                 </td>
                 <td class="actions-cell">
                   <button class="save-sentence-btn" title="Save to learning history" data-text="${this.escapeHtml(segment.cleanText)}" data-timestamp="${segment.timestampDisplay}" data-link="${segment.youtubeLink}">
@@ -1273,8 +1286,263 @@ class TranscriptViewer {
       ::selection {
         background: #b3d4fc;
       }
+      
+      /* Edit Mode Styles */
+      .edit-mode-btn.active {
+        background: #2196F3 !important;
+        color: white !important;
+      }
+      
+      .transcript-content.edit-mode .text-cell {
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+      
+      .transcript-content.edit-mode .text-cell:hover {
+        background-color: rgba(33, 150, 243, 0.1);
+      }
+      
+      .edit-indicator {
+        font-size: 10px;
+        color: #666;
+        opacity: 0.7;
+        margin-top: 2px;
+      }
+      
+      .edit-interface {
+        width: 100%;
+      }
+      
+      .edit-textarea {
+        width: 100%;
+        min-height: 60px;
+        border: 2px solid #2196F3;
+        border-radius: 4px;
+        padding: 8px;
+        font-size: 13px;
+        font-family: inherit;
+        resize: vertical;
+        background: white;
+        box-sizing: border-box;
+      }
+      
+      .edit-actions {
+        display: flex;
+        gap: 4px;
+        margin-top: 4px;
+        justify-content: flex-end;
+      }
+      
+      .edit-actions button {
+        padding: 4px 8px;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.2s;
+        min-width: 24px;
+        height: 24px;
+      }
+      
+      .save-edit-btn {
+        background: #4CAF50;
+        color: white;
+      }
+      
+      .ai-polish-btn {
+        background: #FF9800;
+        color: white;
+      }
+      
+      .cancel-edit-btn {
+        background: #f44336;
+        color: white;
+      }
+      
+      .edit-actions button:hover {
+        transform: scale(1.05);
+        opacity: 0.9;
+      }
+      
+      .edit-actions button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
     `;
     document.head.appendChild(style);
+  }
+
+  toggleEditMode() {
+    this.editMode = !this.editMode;
+    const editBtn = this.container.querySelector('.edit-mode-btn');
+    const content = this.container.querySelector('.transcript-content');
+    
+    if (this.editMode) {
+      editBtn.classList.add('active');
+      editBtn.querySelector('span').textContent = 'Exit Edit';
+      content.classList.add('edit-mode');
+      this.renderTranscript(); // Re-render to show edit indicators
+      console.log('✏️ Edit mode enabled - click any segment to edit');
+    } else {
+      editBtn.classList.remove('active');
+      editBtn.querySelector('span').textContent = 'Edit';
+      content.classList.remove('edit-mode');
+      this.exitEditingSegment();
+      this.renderTranscript(); // Re-render to hide edit indicators
+      console.log('✏️ Edit mode disabled');
+    }
+  }
+
+  startEditingSegment(segmentIndex) {
+    console.log('✏️ Starting to edit segment:', segmentIndex);
+    
+    // Exit any current editing
+    this.exitEditingSegment();
+    
+    const segment = this.transcriptData[segmentIndex];
+    if (!segment) return;
+    
+    this.editingSegmentId = segmentIndex;
+    
+    // Find the row and replace text with input
+    const textCell = this.container.querySelector(`[data-segment-id="${segmentIndex}"]`);
+    if (!textCell) return;
+    
+    const originalText = segment.text || segment.cleanText || '';
+    
+    // Create edit interface
+    textCell.innerHTML = `
+      <div class="edit-interface">
+        <textarea class="edit-textarea" rows="3">${this.escapeHtml(originalText)}</textarea>
+        <div class="edit-actions">
+          <button class="save-edit-btn" title="Save changes">✓</button>
+          <button class="ai-polish-btn" title="Polish with AI">✨</button>
+          <button class="cancel-edit-btn" title="Cancel editing">✖</button>
+        </div>
+      </div>
+    `;
+    
+    // Add event listeners for edit actions
+    const textarea = textCell.querySelector('.edit-textarea');
+    const saveBtn = textCell.querySelector('.save-edit-btn');
+    const aiBtn = textCell.querySelector('.ai-polish-btn');
+    const cancelBtn = textCell.querySelector('.cancel-edit-btn');
+    
+    textarea.focus();
+    textarea.select();
+    
+    saveBtn.addEventListener('click', () => this.saveEdit(segmentIndex, textarea.value));
+    aiBtn.addEventListener('click', () => this.polishWithAI(segmentIndex, textarea.value));
+    cancelBtn.addEventListener('click', () => this.exitEditingSegment());
+    
+    // Save on Enter (Shift+Enter for multiline)
+    textarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        this.saveEdit(segmentIndex, textarea.value);
+      } else if (e.key === 'Escape') {
+        this.exitEditingSegment();
+      }
+    });
+  }
+
+  exitEditingSegment() {
+    if (this.editingSegmentId === null) return;
+    
+    // Restore original text display
+    const textCell = this.container.querySelector(`[data-segment-id="${this.editingSegmentId}"]`);
+    if (textCell) {
+      const segment = this.transcriptData[this.editingSegmentId];
+      const displayText = segment.text || segment.cleanText || '';
+      textCell.innerHTML = `
+        <span class="clean-text">${this.escapeHtml(displayText)}</span>
+        ${this.editMode ? '<div class="edit-indicator">✏️ Click to edit</div>' : ''}
+      `;
+    }
+    
+    this.editingSegmentId = null;
+  }
+
+  saveEdit(segmentIndex, newText) {
+    if (!newText.trim()) return;
+    
+    console.log('✅ Saving edit for segment:', segmentIndex, 'New text:', newText);
+    
+    // Update the segment data
+    const segment = this.transcriptData[segmentIndex];
+    segment.text = newText.trim();
+    segment.cleanText = newText.trim();
+    segment.editedManually = true;
+    segment.editedAt = new Date().toISOString();
+    
+    // Update the display
+    this.exitEditingSegment();
+    
+    // Optional: Save to storage for persistence
+    this.saveEditToStorage(segmentIndex, newText);
+    
+    console.log('✅ Edit saved successfully');
+  }
+
+  async polishWithAI(segmentIndex, currentText) {
+    if (!currentText.trim()) return;
+    
+    const aiBtn = this.container.querySelector('.ai-polish-btn');
+    const textarea = this.container.querySelector('.edit-textarea');
+    
+    if (!aiBtn || !textarea) return;
+    
+    // Show loading state
+    aiBtn.innerHTML = '⏳';
+    aiBtn.disabled = true;
+    
+    try {
+      console.log('✨ Polishing text with AI:', currentText);
+      
+      // Use the existing AI service from the extension
+      if (window.aiService && typeof window.aiService.polishText === 'function') {
+        const polishedText = await window.aiService.polishText(currentText);
+        textarea.value = polishedText;
+        console.log('✨ AI polishing complete:', polishedText);
+      } else {
+        // Fallback: Basic cleaning if AI service not available
+        const cleaned = this.basicTextCleaning(currentText);
+        textarea.value = cleaned;
+        console.log('🧽 Basic cleaning applied:', cleaned);
+      }
+    } catch (error) {
+      console.error('⚠️ AI polishing failed:', error);
+      // Show user-friendly error
+      textarea.value = this.basicTextCleaning(currentText);
+    } finally {
+      // Restore button state
+      aiBtn.innerHTML = '✨';
+      aiBtn.disabled = false;
+    }
+  }
+
+  basicTextCleaning(text) {
+    // Basic cleaning as fallback when AI is not available
+    return text
+      .replace(/\s+/g, ' ')
+      .replace(/\b(\w+)\s+\1\b/g, '$1') // Remove word repetitions
+      .replace(/([.!?])\s*([a-z])/g, (match, punct, letter) => punct + ' ' + letter.toUpperCase())
+      .trim()
+      .replace(/^./, str => str.toUpperCase());
+  }
+
+  saveEditToStorage(segmentIndex, newText) {
+    // Save edit to local storage for persistence
+    const editKey = `edit_${this.videoId}_${segmentIndex}`;
+    chrome.storage.local.set({
+      [editKey]: {
+        originalIndex: segmentIndex,
+        editedText: newText,
+        timestamp: Date.now(),
+        videoId: this.videoId
+      }
+    });
   }
 }
 
