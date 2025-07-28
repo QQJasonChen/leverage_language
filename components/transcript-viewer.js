@@ -8,6 +8,8 @@ class TranscriptViewer {
     this.highlights = [];
     this.videoId = this.getVideoId();
     this.selectedText = null;
+    this.editMode = false;
+    this.editingSegmentId = null;
     
     this.init();
     this.loadSavedHighlights();
@@ -19,6 +21,13 @@ class TranscriptViewer {
         <div class="transcript-header">
           <h3>📖 Transcript Reader</h3>
           <div class="transcript-actions">
+            <button class="edit-mode-btn" title="Toggle edit mode">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="m18.5 2.5 3 3L12 15l-4 1 1-4Z"/>
+              </svg>
+              <span>Edit</span>
+            </button>
             <button class="export-highlights-btn" title="Export saved sentences">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -27,6 +36,13 @@ class TranscriptViewer {
               </svg>
               <span>Export</span>
             </button>
+          </div>
+        </div>
+        
+        <div class="video-info" style="display: none;">
+          <div class="video-title">📹 <span class="title-text"></span></div>
+          <div class="channel-info">
+            <span class="channel-name"></span> • ⏰ <span class="video-duration"></span>
           </div>
         </div>
         
@@ -53,6 +69,145 @@ class TranscriptViewer {
     this.attachEventListeners();
     this.addStyles();
     this.renderTranscript();
+  }
+
+  getVideoTitle(timestampInSeconds) {
+    // Try to get video title from transcript data metadata first
+    if (this.transcriptData && this.transcriptData.length > 0) {
+      // Find a segment near the timestamp that has video metadata
+      const nearbySegment = this.transcriptData.find(segment => 
+        segment.videoTitle && Math.abs(segment.start - timestampInSeconds) < 30
+      );
+      if (nearbySegment && nearbySegment.videoTitle && 
+          nearbySegment.videoTitle !== 'YouTube Video' && 
+          nearbySegment.videoTitle !== 'YouGlish Quick Search') {
+        return nearbySegment.videoTitle;
+      }
+      
+      // Fallback to any segment with video title
+      const segmentWithTitle = this.transcriptData.find(segment => 
+        segment.videoTitle && 
+        segment.videoTitle !== 'YouTube Video' && 
+        segment.videoTitle !== 'YouGlish Quick Search'
+      );
+      if (segmentWithTitle && segmentWithTitle.videoTitle) {
+        return segmentWithTitle.videoTitle;
+      }
+    }
+    
+    // Final fallback - avoid using sidepanel document title
+    return 'YouTube Video';
+  }
+
+  getChannelName(timestampInSeconds) {
+    // Try to get channel name from transcript data metadata first
+    if (this.transcriptData && this.transcriptData.length > 0) {
+      // Find a segment near the timestamp that has channel metadata
+      const nearbySegment = this.transcriptData.find(segment => 
+        segment.channelName && Math.abs(segment.start - timestampInSeconds) < 30
+      );
+      if (nearbySegment && nearbySegment.channelName && 
+          nearbySegment.channelName !== 'Unknown Channel' && 
+          nearbySegment.channelName !== '未知頻道') {
+        return nearbySegment.channelName;
+      }
+      
+      // Fallback to any segment with channel name
+      const segmentWithChannel = this.transcriptData.find(segment => 
+        segment.channelName && 
+        segment.channelName !== 'Unknown Channel' && 
+        segment.channelName !== '未知頻道'
+      );
+      if (segmentWithChannel && segmentWithChannel.channelName) {
+        return segmentWithChannel.channelName;
+      }
+    }
+    
+    // Final fallback - use consistent unknown channel
+    return '未知頻道';
+  }
+
+  getVideoTitleDirect() {
+    // Try to get video title from the active YouTube tab directly
+    return new Promise((resolve) => {
+      try {
+        chrome.tabs.query({ url: "https://*.youtube.com/watch*" }, (tabs) => {
+          if (tabs && tabs.length > 0) {
+            const activeTab = tabs.find(tab => tab.active) || tabs[0];
+            chrome.tabs.sendMessage(activeTab.id, {
+              action: 'getVideoMetadata'
+            }, (response) => {
+              if (response && response.title && response.title !== 'YouTube Video') {
+                resolve(response.title);
+              } else {
+                resolve(null);
+              }
+            });
+          } else {
+            resolve(null);
+          }
+        });
+      } catch (error) {
+        console.log('Could not get direct video title:', error);
+        resolve(null);
+      }
+    });
+  }
+
+  getChannelNameDirect() {
+    // Try to get channel name from the active YouTube tab directly
+    return new Promise((resolve) => {
+      try {
+        chrome.tabs.query({ url: "https://*.youtube.com/watch*" }, (tabs) => {
+          if (tabs && tabs.length > 0) {
+            const activeTab = tabs.find(tab => tab.active) || tabs[0];
+            chrome.tabs.sendMessage(activeTab.id, {
+              action: 'getVideoMetadata'
+            }, (response) => {
+              if (response && response.channel && response.channel !== 'Unknown Channel') {
+                resolve(response.channel);
+              } else {
+                resolve(null);
+              }
+            });
+          } else {
+            resolve(null);
+          }
+        });
+      } catch (error) {
+        console.log('Could not get direct channel name:', error);
+        resolve(null);
+      }
+    });
+  }
+
+  extractChannelNameFallback() {
+    // Fallback method to extract channel name from page title or other elements
+    const title = document.title;
+    if (title && title.includes(' - YouTube')) {
+      const parts = title.split(' - YouTube')[0].split(' - ');
+      if (parts.length > 1) {
+        return parts[parts.length - 1]; // Often the last part is the channel
+      }
+    }
+    
+    // Try to find channel name in DOM (unlikely to work in sidepanel context)
+    const channelSelectors = [
+      'ytd-channel-name a',
+      '.ytd-channel-name',
+      '.channel-name',
+      '#channel-name',
+      '[data-session-api-key]'
+    ];
+    
+    for (const selector of channelSelectors) {
+      const element = document.querySelector(selector);
+      if (element && element.textContent?.trim()) {
+        return element.textContent.trim();
+      }
+    }
+    
+    return null;
   }
 
   getVideoId() {
@@ -249,6 +404,10 @@ class TranscriptViewer {
     const content = this.container.querySelector('.transcript-content');
     const highlightBtn = this.container.querySelector('.highlight-btn');
     const exportBtn = this.container.querySelector('.export-highlights-btn');
+    const editBtn = this.container.querySelector('.edit-mode-btn');
+    
+    // Edit mode toggle
+    editBtn.addEventListener('click', () => this.toggleEditMode());
     
     // Text selection handling
     content.addEventListener('mouseup', (e) => this.handleTextSelection(e));
@@ -272,7 +431,8 @@ class TranscriptViewer {
         e.preventDefault();
         e.stopPropagation();
         const textCell = e.target.closest('.text-cell');
-        const segmentId = textCell.dataset.segmentId;
+        const segmentId = textCell.getAttribute('data-segment-id');
+        console.log('\ud83d\udcdd Edit mode click on segment:', segmentId, 'Edit mode:', this.editMode);
         if (segmentId !== null && segmentId !== undefined) {
           this.startEditingSegment(parseInt(segmentId));
         }
@@ -538,7 +698,7 @@ class TranscriptViewer {
         const timestampInSeconds = this.convertTimestampToSeconds(timestampDisplay);
         const youtubeLink = segment.youtubeLink || this.createYouTubeLink(timestampInSeconds);
         
-        // Clean text: remove embedded timestamps and fragments
+        // Enhanced text cleaning for better quality
         let cleanText = segment.text
           .replace(/\d{1,2}:\d{2}/g, '') // Remove all timestamps
           .replace(/\s+/g, ' ') // Normalize spaces
@@ -547,7 +707,18 @@ class TranscriptViewer {
           .replace(/Turning the Outline Into.*?(Quick.*?Dirty)/g, '') // Remove title fragments
           .replace(/sources \d+ searches/g, '') // Remove search info
           .replace(/CAGR|outpacing/g, '') // Remove business jargon fragments
+          // Enhanced cleaning for auto-generated issues
+          .replace(/\b(\w+)\s+\1\b/g, '$1') // Remove word repetitions
+          .replace(/\b(A\s+nd|I\s+m|the\s+y|a\s+bout|a\s+gain)\b/gi, (match) => {
+            return match.replace(/\s+/g, ''); // Fix broken words
+          })
+          .replace(/([a-z])([A-Z])/g, '$1 $2') // Add space between merged words
           .trim();
+        
+        // If text is still poor quality, try additional fixes
+        if (cleanText.length < 5 || /^[a-z\s]{1,3}$/.test(cleanText)) {
+          cleanText = segment.text.replace(/\s+/g, ' ').trim();
+        }
         
         return {
           ...segment,
@@ -578,7 +749,7 @@ class TranscriptViewer {
             </tr>
           </thead>
           <tbody>
-            ${cleanedSegments.map((segment) => `
+            ${cleanedSegments.map((segment, arrayIndex) => `
               ${segment.isGroupStart ? `
                 <tr class="group-header-row">
                   <td colspan="3" class="group-header">
@@ -601,7 +772,7 @@ class TranscriptViewer {
                     ${segment.timestampDisplay}
                   </button>
                 </td>
-                <td class="text-cell" data-segment-id="${segment.segmentIndex}">
+                <td class="text-cell" data-segment-id="${arrayIndex}" data-original-index="${segment.segmentIndex}">
                   <span class="clean-text">${this.escapeHtml(segment.cleanText)}</span>
                   ${this.editMode ? '<div class="edit-indicator">✏️ Click to edit</div>' : ''}
                 </td>
@@ -622,8 +793,9 @@ class TranscriptViewer {
     
     content.innerHTML = html;
     
-    // Update stats
+    // Update stats and video info
     this.updateStats();
+    this.updateVideoInfo();
   }
 
   updateStats() {
@@ -635,6 +807,38 @@ class TranscriptViewer {
     if (this.transcriptData.length > 0) {
       const lastSegment = this.transcriptData[this.transcriptData.length - 1];
       duration.textContent = this.formatTime(lastSegment.end);
+    }
+  }
+
+  updateVideoInfo() {
+    const videoInfoContainer = this.container.querySelector('.video-info');
+    const titleElement = this.container.querySelector('.title-text');
+    const channelElement = this.container.querySelector('.channel-name');
+    const durationElement = this.container.querySelector('.video-duration');
+    
+    if (!videoInfoContainer || !titleElement || !channelElement || !durationElement) {
+      return;
+    }
+
+    // Get video title and channel from transcript data
+    const videoTitle = this.getVideoTitle(0) || 'YouTube Video';
+    const channelName = this.getChannelName(0) || '未知頻道';
+    
+    // Calculate total duration
+    let totalDuration = '0:00';
+    if (this.transcriptData && this.transcriptData.length > 0) {
+      const lastSegment = this.transcriptData[this.transcriptData.length - 1];
+      totalDuration = this.formatTime(lastSegment.end || lastSegment.start || 0);
+    }
+    
+    // Update the elements
+    titleElement.textContent = videoTitle;
+    channelElement.textContent = channelName;
+    durationElement.textContent = totalDuration;
+    
+    // Show the video info if we have data
+    if (videoTitle !== 'YouTube Video' || channelName !== '未知頻道') {
+      videoInfoContainer.style.display = 'block';
     }
   }
 
@@ -788,6 +992,23 @@ class TranscriptViewer {
     try {
       console.log('💾 Saving sentence to learning history:', { text, timestamp, youtubeLink, timestampInSeconds });
       
+      // Get video metadata directly from YouTube tab if possible
+      let videoTitle = this.getVideoTitle(timestampInSeconds);
+      let channelName = this.getChannelName(timestampInSeconds);
+      
+      try {
+        // Try to get better metadata directly from YouTube tab
+        const directTitle = await this.getVideoTitleDirect();
+        const directChannel = await this.getChannelNameDirect();
+        
+        if (directTitle) videoTitle = directTitle;
+        if (directChannel) channelName = directChannel;
+        
+        console.log('📺 Using video metadata:', { videoTitle, channelName });
+      } catch (error) {
+        console.log('📺 Using fallback video metadata:', { videoTitle, channelName });
+      }
+
       // Prepare learning data with timestamp and replay functionality
       const learningData = {
         searchText: text,
@@ -798,15 +1019,32 @@ class TranscriptViewer {
           timestampInSeconds: timestampInSeconds,
           youtubeLink: youtubeLink,
           videoId: this.videoId,
-          analysis: `YouTube Learning Sentence - ${timestamp}`,
+          analysis: null, // Set to null to allow AI analysis generation
           pronunciation: '', // Will be filled by AI if requested
           definition: '', // Will be filled by AI if requested
           example: text,
           source: 'youtube-transcript-viewer',
           hasReplayFunction: true,
-          replayUrl: youtubeLink // For easy access in learning history
+          replayUrl: youtubeLink, // For easy access in learning history
+          // Enhanced replay functionality
+          replayFunction: {
+            canReplay: true,
+            type: 'youtube-timestamp',
+            videoId: this.videoId,
+            timeInSeconds: timestampInSeconds,
+            displayTime: timestamp,
+            directUrl: youtubeLink
+          }
         },
-        videoSource: youtubeLink,
+        videoSource: {
+          url: youtubeLink,
+          originalUrl: youtubeLink,
+          title: videoTitle,
+          channel: channelName,
+          videoTimestamp: timestampInSeconds,
+          timestamp: Date.now(),
+          learnedAt: new Date().toISOString()
+        },
         timestamp: timestamp,
         timestampInSeconds: timestampInSeconds
       };
@@ -939,6 +1177,36 @@ class TranscriptViewer {
         border-color: #2196f3;
       }
       
+      .video-info {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        padding: 12px;
+        margin-bottom: 10px;
+      }
+      
+      .video-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1a73e8;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      
+      .channel-info {
+        font-size: 12px;
+        color: #5f6368;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      
+      .channel-name {
+        font-weight: 500;
+      }
+
       .transcript-stats {
         display: flex;
         gap: 15px;
@@ -1341,20 +1609,26 @@ class TranscriptViewer {
       
       .edit-actions {
         display: flex;
-        gap: 4px;
-        margin-top: 4px;
+        gap: 6px;
+        margin-top: 6px;
         justify-content: flex-end;
+        align-items: center;
       }
       
       .edit-actions button {
-        padding: 4px 8px;
+        padding: 6px 10px;
         border: none;
-        border-radius: 3px;
+        border-radius: 4px;
         cursor: pointer;
-        font-size: 12px;
+        font-size: 14px;
+        font-weight: bold;
         transition: all 0.2s;
-        min-width: 24px;
-        height: 24px;
+        min-width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       }
       
       .save-edit-btn {
@@ -1407,20 +1681,51 @@ class TranscriptViewer {
     }
   }
 
-  startEditingSegment(segmentIndex) {
-    console.log('✏️ Starting to edit segment:', segmentIndex);
+  startEditingSegment(arrayIndex) {
+    console.log('✏️ Starting to edit segment at array index:', arrayIndex);
     
     // Exit any current editing
     this.exitEditingSegment();
     
-    const segment = this.transcriptData[segmentIndex];
-    if (!segment) return;
+    // Get the cleaned segments array to find the correct segment
+    const groupedSegments = this.groupSegmentsByTimeGaps(this.transcriptData);
+    const cleanedSegments = groupedSegments.map((group, groupIndex) => {
+      return group.segments.map((segment, index) => {
+        const timestampDisplay = segment.originalTimestamp || this.formatTime(segment.start);
+        const timestampInSeconds = this.convertTimestampToSeconds(timestampDisplay);
+        const youtubeLink = segment.youtubeLink || this.createYouTubeLink(timestampInSeconds);
+        
+        return {
+          ...segment,
+          index,
+          segmentIndex: groupIndex * 1000 + index,
+          originalArrayIndex: arrayIndex,
+          groupIndex,
+          timestampDisplay,
+          timestampInSeconds,
+          cleanText: segment.text || segment.cleanText || 'No text',
+          youtubeLink,
+          isGroupStart: index === 0,
+          groupSegmentCount: group.segments.length,
+          timeGapFromPrevious: group.timeGapFromPrevious
+        };
+      });
+    }).flat();
     
-    this.editingSegmentId = segmentIndex;
+    const segment = cleanedSegments[arrayIndex];
+    if (!segment) {
+      console.error('⚠️ Segment not found at index:', arrayIndex);
+      return;
+    }
+    
+    this.editingSegmentId = arrayIndex;
     
     // Find the row and replace text with input
-    const textCell = this.container.querySelector(`[data-segment-id="${segmentIndex}"]`);
-    if (!textCell) return;
+    const textCell = this.container.querySelector(`[data-segment-id="${arrayIndex}"]`);
+    if (!textCell) {
+      console.error('⚠️ Text cell not found for segment:', arrayIndex);
+      return;
+    }
     
     const originalText = segment.text || segment.cleanText || '';
     
@@ -1445,15 +1750,15 @@ class TranscriptViewer {
     textarea.focus();
     textarea.select();
     
-    saveBtn.addEventListener('click', () => this.saveEdit(segmentIndex, textarea.value));
-    aiBtn.addEventListener('click', () => this.polishWithAI(segmentIndex, textarea.value));
+    saveBtn.addEventListener('click', () => this.saveEdit(arrayIndex, textarea.value));
+    aiBtn.addEventListener('click', () => this.polishWithAI(arrayIndex, textarea.value));
     cancelBtn.addEventListener('click', () => this.exitEditingSegment());
     
     // Save on Enter (Shift+Enter for multiline)
     textarea.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        this.saveEdit(segmentIndex, textarea.value);
+        this.saveEdit(arrayIndex, textarea.value);
       } else if (e.key === 'Escape') {
         this.exitEditingSegment();
       }
@@ -1477,28 +1782,33 @@ class TranscriptViewer {
     this.editingSegmentId = null;
   }
 
-  saveEdit(segmentIndex, newText) {
+  saveEdit(arrayIndex, newText) {
     if (!newText.trim()) return;
     
-    console.log('✅ Saving edit for segment:', segmentIndex, 'New text:', newText);
+    console.log('✅ Saving edit for segment:', arrayIndex, 'New text:', newText);
     
-    // Update the segment data
-    const segment = this.transcriptData[segmentIndex];
-    segment.text = newText.trim();
-    segment.cleanText = newText.trim();
-    segment.editedManually = true;
-    segment.editedAt = new Date().toISOString();
+    // Find the actual segment in transcriptData to update
+    // We need to update the original data, not just the display
+    if (this.transcriptData && this.transcriptData[arrayIndex]) {
+      this.transcriptData[arrayIndex].text = newText.trim();
+      this.transcriptData[arrayIndex].cleanText = newText.trim();
+      this.transcriptData[arrayIndex].editedManually = true;
+      this.transcriptData[arrayIndex].editedAt = new Date().toISOString();
+    }
     
     // Update the display
     this.exitEditingSegment();
     
+    // Re-render to reflect changes
+    this.renderTranscript();
+    
     // Optional: Save to storage for persistence
-    this.saveEditToStorage(segmentIndex, newText);
+    this.saveEditToStorage(arrayIndex, newText);
     
     console.log('✅ Edit saved successfully');
   }
 
-  async polishWithAI(segmentIndex, currentText) {
+  async polishWithAI(arrayIndex, currentText) {
     if (!currentText.trim()) return;
     
     const aiBtn = this.container.querySelector('.ai-polish-btn');
@@ -1513,21 +1823,48 @@ class TranscriptViewer {
     try {
       console.log('✨ Polishing text with AI:', currentText);
       
-      // Use the existing AI service from the extension
+      // Try multiple AI service approaches
+      let polishedText = null;
+      
+      // Method 1: Check for AI service in window
       if (window.aiService && typeof window.aiService.polishText === 'function') {
-        const polishedText = await window.aiService.polishText(currentText);
-        textarea.value = polishedText;
-        console.log('✨ AI polishing complete:', polishedText);
-      } else {
-        // Fallback: Basic cleaning if AI service not available
-        const cleaned = this.basicTextCleaning(currentText);
-        textarea.value = cleaned;
-        console.log('🧽 Basic cleaning applied:', cleaned);
+        polishedText = await window.aiService.polishText(currentText);
+        console.log('✨ AI polishing complete (window.aiService):', polishedText);
       }
+      // Method 2: Check for extension AI service
+      else if (typeof chrome !== 'undefined' && chrome.runtime) {
+        try {
+          const response = await chrome.runtime.sendMessage({
+            action: 'polishText',
+            text: currentText
+          });
+          if (response && response.polishedText) {
+            polishedText = response.polishedText;
+            console.log('✨ AI polishing complete (chrome extension):', polishedText);
+          }
+        } catch (chromeError) {
+          console.log('Chrome AI service not available:', chromeError);
+        }
+      }
+      
+      // Fallback to enhanced basic cleaning
+      if (!polishedText) {
+        polishedText = this.advancedTextCleaning(currentText);
+        console.log('🧽 Advanced text cleaning applied:', polishedText);
+        this.showToast('✨ Text polished with advanced cleaning');
+      } else {
+        this.showToast('✨ Text polished with AI');
+      }
+      
+      textarea.value = polishedText;
+      textarea.focus();
+      
     } catch (error) {
       console.error('⚠️ AI polishing failed:', error);
-      // Show user-friendly error
-      textarea.value = this.basicTextCleaning(currentText);
+      // Fallback to basic cleaning
+      const cleaned = this.advancedTextCleaning(currentText);
+      textarea.value = cleaned;
+      this.showToast('⚠️ AI unavailable, used advanced cleaning');
     } finally {
       // Restore button state
       aiBtn.innerHTML = '✨';
@@ -1535,14 +1872,51 @@ class TranscriptViewer {
     }
   }
 
-  basicTextCleaning(text) {
-    // Basic cleaning as fallback when AI is not available
-    return text
-      .replace(/\s+/g, ' ')
-      .replace(/\b(\w+)\s+\1\b/g, '$1') // Remove word repetitions
+  advancedTextCleaning(text) {
+    // Advanced cleaning with multiple passes - better than basic
+    let cleaned = text;
+    
+    // Pass 1: Fix broken words and contractions
+    cleaned = cleaned
+      .replace(/\s+/g, ' ') // Normalize spaces
+      .replace(/\b(A\s+nd|I\s+m|the\s+y|a\s+bout|a\s+gain|so\s+ft)\b/gi, (match) => {
+        return match.replace(/\s+/g, ''); // Fix broken words
+      })
+      .replace(/\b(don\s+t|can\s+t|won\s+t|isn\s+t|aren\s+t)\b/gi, (match) => {
+        return match.replace(/\s+/g, '');
+      });
+    
+    // Pass 2: Remove repetitions  
+    cleaned = cleaned.replace(/\b(\w+)\s+\1\b/g, '$1'); // Remove word repetitions
+    cleaned = cleaned.replace(/\b(\w+\s+\w+)\s+\1\b/g, '$1'); // Remove phrase repetitions
+    
+    // Pass 3: Fix merged words from user examples
+    cleaned = cleaned
+      .replace(/\bamonth\b/gi, 'a month')
+      .replace(/\breallyunderstand\b/gi, 'really understand')
+      .replace(/\brealmwhere\b/gi, 'realm where')
+      .replace(/\bthisis\b/gi, 'this is')
+      .replace(/\bmeaningfulrevenue\b/gi, 'meaningful revenue')
+      .replace(/\beveryweek\b/gi, 'every week');
+    
+    // Pass 4: Add space between merged words
+    cleaned = cleaned.replace(/([a-z])([A-Z])/g, '$1 $2');
+    
+    // Pass 5: Fix punctuation and capitalization
+    cleaned = cleaned
       .replace(/([.!?])\s*([a-z])/g, (match, punct, letter) => punct + ' ' + letter.toUpperCase())
+      .replace(/\b(\w+)(month|year|day|week|where|when|what|how|this|that|like|once|should|understand|change)\b/gi, 
+        (match, p1, p2) => {
+          if (p1.length > 1 && /^(a|the|this|that|one|two|three)$/i.test(p1)) {
+            return p1 + ' ' + p2;
+          }
+          return match;
+        })
       .trim()
-      .replace(/^./, str => str.toUpperCase());
+      .replace(/^./, str => str.toUpperCase())
+      .replace(/^(.{15,}[^.!?])$/, '$1.'); // Add period if needed
+    
+    return cleaned;
   }
 
   saveEditToStorage(segmentIndex, newText) {

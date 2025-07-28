@@ -3049,8 +3049,58 @@ function showAIResult(analysis) {
         rawContent = analysis.analysis;
       } else if (analysis.result) {
         rawContent = analysis.result;
+      } else if (analysis.source === 'youtube-transcript-viewer' && analysis.example) {
+        // Handle transcript segments - extract text and show analysis interface
+        console.log('📺 Detected transcript segment data, extracting text for analysis');
+        const extractedText = analysis.example;
+        
+        // Set up for new analysis instead of showing JSON
+        displayContent = `
+          <div class="analysis-prompt" style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #007bff;">
+            <div style="font-weight: bold; margin-bottom: 12px; color: #007bff;">
+              🤖 AI Language Analysis
+            </div>
+            <div style="margin-bottom: 15px; font-size: 16px; color: #333; background: white; padding: 12px; border-radius: 6px; border: 1px solid #ddd;">
+              "${extractedText}"
+            </div>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+              <button id="generateAnalysisBtn" class="generate-analysis-btn" style="background: #28a745; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                ✨ Generate Analysis
+              </button>
+              <button id="autoSaveBtn" class="auto-save-btn" style="background: #17a2b8; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                💾 Auto-Save
+              </button>
+              <button id="errorDetectionBtn" class="error-detection-btn" style="background: #fd7e14; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                🔍 錯誤檢測
+              </button>
+            </div>
+            ${analysis.replayFunction && analysis.replayFunction.canReplay ? `
+              <div style="margin-top: 15px; padding: 10px; background: #e7f3ff; border-radius: 6px; border-left: 3px solid #007bff;">
+                <div style="font-size: 14px; color: #666; margin-bottom: 8px;">📺 YouTube Segment • ${analysis.replayFunction.displayTime}</div>
+                <button class="replay-video-btn" data-video-url="${analysis.replayFunction.directUrl}" style="background: #ff0000; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                  ⏰ 返回片段
+                </button>
+              </div>
+            ` : ''}
+          </div>
+        `;
+        
+        // Update currentQueryData with the extracted text
+        currentQueryData = {
+          text: extractedText,
+          language: 'english',
+          url: analysis.youtubeLink || analysis.replayFunction?.directUrl || '',
+          title: `YouTube Segment - ${analysis.timestamp || ''}`,
+          source: 'transcript-segment'
+        };
+        
+        // Show search result for the extracted text
+        setTimeout(() => {
+          showSearchResult(currentQueryData);
+        }, 100);
+        
       } else {
-        // If no recognizable content field, format as JSON
+        // If no recognizable content field, format as JSON (fallback)
         displayContent = '<pre>' + JSON.stringify(analysis, null, 2) + '</pre>';
       }
     } else {
@@ -3067,6 +3117,81 @@ function showAIResult(analysis) {
       window.SecurityFixes.safeSetHTML(result, displayContent);
     } else {
       result.innerHTML = displayContent;
+    }
+    
+    // Add event listeners for transcript segment buttons
+    if (analysis && analysis.source === 'youtube-transcript-viewer') {
+      setTimeout(() => {
+        // Generate Analysis button
+        const generateBtn = document.getElementById('generateAnalysisBtn');
+        if (generateBtn) {
+          generateBtn.addEventListener('click', async () => {
+            console.log('🤖 Generating analysis for transcript segment:', currentQueryData.text);
+            generateBtn.textContent = '⏳ Generating...';
+            generateBtn.disabled = true;
+            
+            try {
+              await generateAIAnalysis();
+              console.log('✅ Analysis generated successfully');
+            } catch (error) {
+              console.error('❌ Analysis generation failed:', error);
+              generateBtn.textContent = '❌ Failed - Try Again';
+              generateBtn.disabled = false;
+            }
+          });
+        }
+        
+        // Auto-Save button  
+        const autoSaveBtn = document.getElementById('autoSaveBtn');
+        if (autoSaveBtn) {
+          autoSaveBtn.addEventListener('click', () => {
+            console.log('💾 Auto-save clicked for transcript segment');
+            // Toggle auto-save or trigger save
+            if (typeof toggleAutoSave === 'function') {
+              toggleAutoSave();
+            }
+          });
+        }
+        
+        // Error Detection button
+        const errorBtn = document.getElementById('errorDetectionBtn');
+        if (errorBtn) {
+          errorBtn.addEventListener('click', async () => {
+            console.log('🔍 Error detection clicked for transcript segment');
+            errorBtn.textContent = '⏳ Checking...';
+            errorBtn.disabled = true;
+            
+            try {
+              // Enable error detection and generate analysis
+              if (window.aiService) {
+                await window.aiService.initialize();
+                window.aiService.settings.features.errorDetection = true;
+                await generateAIAnalysis();
+              }
+            } catch (error) {
+              console.error('❌ Error detection failed:', error);
+              errorBtn.textContent = '❌ Failed';
+              setTimeout(() => {
+                errorBtn.textContent = '🔍 錯誤檢測';
+                errorBtn.disabled = false;
+              }, 2000);
+            }
+          });
+        }
+        
+        // Replay video button
+        const replayBtn = document.querySelector('.replay-video-btn');
+        if (replayBtn) {
+          replayBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const videoUrl = replayBtn.dataset.videoUrl;
+            console.log('⏰ Opening YouTube segment:', videoUrl);
+            if (videoUrl) {
+              window.open(videoUrl, '_blank');
+            }
+          });
+        }
+      }, 100);
     }
     log('AI analysis displayed:', typeof analysis, analysis);
     
@@ -3253,6 +3378,61 @@ function showAIError(message) {
     } else {
       result.innerHTML = `<div class="ai-error">❌ ${message}</div>`;
     }
+  }
+}
+
+// Show AI placeholder with generate button for transcript-saved sentences
+function showAIPlaceholderWithButton() {
+  const placeholder = document.getElementById('aiAnalysisPlaceholder');
+  const loading = document.getElementById('aiAnalysisLoading');
+  const result = document.getElementById('aiAnalysisResult');
+  const quickSearch = document.getElementById('quickSearchResults');
+  
+  if (loading) loading.style.display = 'none';
+  if (result) result.style.display = 'none';
+  if (quickSearch) quickSearch.style.display = 'none';
+  
+  if (placeholder && currentQueryData && currentQueryData.text) {
+    placeholder.style.display = 'block';
+    placeholder.innerHTML = `
+      <div class="analysis-prompt" style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #007bff;">
+        <div style="font-weight: bold; margin-bottom: 12px; color: #007bff;">
+          🤖 AI Language Analysis
+        </div>
+        <div style="margin-bottom: 15px; font-size: 16px; color: #333; background: white; padding: 12px; border-radius: 6px; border: 1px solid #ddd;">
+          "${currentQueryData.text}"
+        </div>
+        <div style="margin-bottom: 10px; color: #666; font-size: 14px;">
+          📝 This sentence was saved from transcript but hasn't been analyzed yet.
+        </div>
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+          <button id="generateAnalysisBtn" class="generate-analysis-btn" style="background: #28a745; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: bold;">
+            ✨ Generate Analysis
+          </button>
+        </div>
+      </div>
+    `;
+    
+    // Add event listener for generate button
+    setTimeout(() => {
+      const generateBtn = document.getElementById('generateAnalysisBtn');
+      if (generateBtn) {
+        generateBtn.addEventListener('click', async () => {
+          console.log('🤖 Generating analysis for transcript-saved sentence:', currentQueryData.text);
+          generateBtn.textContent = '⏳ Generating...';
+          generateBtn.disabled = true;
+          
+          try {
+            await generateAIAnalysis();
+            console.log('✅ Analysis generated successfully');
+          } catch (error) {
+            console.error('❌ Analysis generation failed:', error);
+            generateBtn.textContent = '❌ Failed - Try Again';
+            generateBtn.disabled = false;
+          }
+        });
+      }
+    }, 100);
   }
 }
 
@@ -3820,19 +4000,36 @@ async function viewSavedReport(reportId) {
         primaryUrl: `https://youglish.com/pronounce/${encodeURIComponent(report.searchText)}/${report.language}`,
         autoAnalysis: false // Don't auto-generate new analysis
       };
-      currentAIAnalysis = report.analysisData;
-      
-      // Show search result with the report data
-      showSearchResult(currentQueryData);
-      
-      // Display the saved analysis
-      showAIResult(report.analysisData);
+
+      // Check if this is a transcript-saved sentence with no actual analysis
+      const hasActualAnalysis = report.analysisData && (
+        typeof report.analysisData === 'string' || // Old format: string analysis
+        (report.analysisData.analysis && report.analysisData.analysis !== null) || // New format: has analysis content
+        (report.analysisData.content && report.analysisData.content.trim()) // Alternative content field
+      );
+
+      if (hasActualAnalysis) {
+        // Has real analysis data - display it
+        currentAIAnalysis = report.analysisData;
+        // Show search result with the report data
+        showSearchResult(currentQueryData);
+        // Display the saved analysis
+        showAIResult(report.analysisData);
+      } else {
+        // No actual analysis (transcript-saved sentence) - clear analysis and show generate button
+        console.log('📝 Transcript-saved sentence detected - no analysis data, showing generate button');
+        currentAIAnalysis = null; // Clear to allow generation
+        // Show search result with the report data
+        showSearchResult(currentQueryData);
+        // Show placeholder with generate button instead of empty result
+        showAIPlaceholderWithButton();
+      }
       
       // Switch to analysis view
       const analysisBtn = document.getElementById('showAnalysisBtn');
       if (analysisBtn) analysisBtn.click();
       
-      console.log('Loaded saved report:', report.searchText);
+      console.log('Loaded saved report:', report.searchText, 'Has analysis:', hasActualAnalysis);
     } else {
       console.error('Report not found:', reportId);
       showAIError('找不到已保存的報告');
