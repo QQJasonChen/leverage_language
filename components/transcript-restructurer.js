@@ -36,6 +36,27 @@ class TranscriptRestructurer {
         </div>
         
         <div class="transcript-options">
+          <div class="subtitle-mode-selection">
+            <label>📹 Video subtitle type:</label>
+            <div class="subtitle-mode-buttons">
+              <label class="subtitle-mode-option">
+                <input type="radio" name="subtitle-mode" value="with-subtitles" id="with-subtitles">
+                <span>📝 Has Creator Subtitles</span>
+                <small>Use original method (fast & accurate)</small>
+              </label>
+              <label class="subtitle-mode-option">
+                <input type="radio" name="subtitle-mode" value="without-subtitles" id="without-subtitles">
+                <span>🎙️ No Subtitles / Auto-only</span>
+                <small>Use Whisper transcription</small>
+              </label>
+              <label class="subtitle-mode-option">
+                <input type="radio" name="subtitle-mode" value="auto-detect" id="auto-detect" checked>
+                <span>🤖 Auto-detect</span>
+                <small>Let system decide (hybrid mode)</small>
+              </label>
+            </div>
+          </div>
+          
           <label>
             <input type="checkbox" id="use-ai-restructure" checked>
             Use AI for better punctuation
@@ -1344,11 +1365,18 @@ class TranscriptRestructurer {
         if (this.needsAIPolish(segment.text)) {
           try {
             const polishedText = await this.polishSingleSentence(segment.text, aiService);
-            polishedSegments.push({
-              ...segment,
-              text: polishedText.trim(),
-              aiPolished: true
-            });
+            
+            // ✅ Skip empty segments (meta-commentary was removed entirely)
+            if (polishedText && polishedText.trim().length > 0) {
+              polishedSegments.push({
+                ...segment,
+                text: polishedText.trim(),
+                aiPolished: true
+              });
+            } else {
+              console.log('🗑️ Segment removed entirely (was only meta-commentary)');
+              // Don't add empty segments
+            }
           } catch (error) {
             console.log('⚠️ Failed to polish segment, keeping original:', error.message);
             // Keep original if AI fails for this segment
@@ -1377,7 +1405,12 @@ class TranscriptRestructurer {
       
       // Update status
       const statusEl = this.container.querySelector('.transcript-status');
-      statusEl.textContent = `✨ AI Polish completed! Enhanced ${polishedSegments.length} segments (preserved original count)`;
+      const removedCount = segments.length - polishedSegments.length;
+      if (removedCount > 0) {
+        statusEl.textContent = `✨ AI Polish completed! Enhanced ${polishedSegments.length} segments, removed ${removedCount} meta-commentary segments`;
+      } else {
+        statusEl.textContent = `✨ AI Polish completed! Enhanced ${polishedSegments.length} segments`;
+      }
       statusEl.className = 'transcript-status success';
       
       // Remove the AI polish button (already done)
@@ -1504,25 +1537,40 @@ class TranscriptRestructurer {
     // ✅ Pre-clean obvious issues before sending to AI
     let preCleanedText = this.preCleanSentence(text);
     
+    // If pre-cleaning removed everything (meta-commentary only), return empty
+    if (!preCleanedText || preCleanedText.trim().length < 5) {
+      console.log('🗑️ Pre-cleaning removed entire sentence (meta-commentary only)');
+      return '';
+    }
+    
     // If pre-cleaning already fixed everything, don't waste AI call
     if (preCleanedText !== text && !this.needsAIPolish(preCleanedText)) {
       console.log('✅ Pre-cleaning fixed issues:', text.substring(0, 40), '→', preCleanedText.substring(0, 40));
       return preCleanedText;
     }
     
-    const prompt = `Fix this transcript sentence. It may have spacing issues, repetitions, or poor grammar.
+    const prompt = `Fix this transcript sentence. It may have spacing issues, repetitions, poor grammar, or YouTube meta-commentary.
 
 EXAMPLES:
 - "changea family" → "change a family"
 - "and each home is going to change a family's life. and each home is going to change a family's life." → "And each home is going to change a family's life."
 - "This is how they alllooked like at some point. This is how they all looked like at some point." → "This is how they all looked like at some point."
+- "I'm gonna tell you what I think this meansthen you tell me what it means, okay?" → "I'm going to tell you what I think this means."
+- "In this video, we're gonna be exploringdozens of ancient temples," → "We're exploring dozens of ancient temples."
 
 RULES:
 1. Fix spacing issues (like "changea" → "change a", "alllooked" → "all looked")
 2. If sentence repeats itself completely, keep only ONE copy
 3. Remove duplicate phrases within the sentence
 4. Fix grammar, punctuation, and capitalization
-5. Return ONLY the fixed sentence, nothing else
+5. Remove YouTube meta-commentary and instructions:
+   - Remove "then you tell me what it means, okay?"
+   - Remove "let me know what you think"
+   - Remove "tell me in the comments"
+   - Remove "make sure to like and subscribe"
+   - Simplify "In this video, we're gonna be..." to just the main content
+6. Keep the educational content, remove the video housekeeping
+7. Return ONLY the fixed sentence, nothing else
 
 Sentence to fix: "${preCleanedText}"`;
 
@@ -1552,6 +1600,9 @@ Sentence to fix: "${preCleanedText}"`;
   preCleanSentence(text) {
     let cleaned = text;
     
+    // ✅ FIRST: Remove YouTube meta-commentary before other processing
+    cleaned = this.removeYouTubeMetaCommentary(cleaned);
+    
     // Fix common spacing issues in transcripts
     cleaned = cleaned
       .replace(/\b(\w+)([a-z])(\s+)([A-Z])/g, '$1$2 $4') // "changea family" → "change a family"
@@ -1570,6 +1621,54 @@ Sentence to fix: "${preCleanedText}"`;
         cleaned = firstSentence;
         console.log('🧹 Pre-cleaned repetition:', text.substring(0, 40), '→', cleaned.substring(0, 40));
       }
+    }
+    
+    return cleaned;
+  }
+
+  removeYouTubeMetaCommentary(text) {
+    let cleaned = text;
+    
+    console.log('🎬 Removing YouTube meta-commentary from:', text.substring(0, 50) + '...');
+    
+    // Remove specific meta-commentary patterns
+    cleaned = cleaned
+      // Remove audience interaction phrases
+      .replace(/\bthen you tell me what it means,?\s*(okay|alright)?\s*[.!?]?/gi, '')
+      .replace(/\blet me know what (you think|it means|this means)\s*[.!?]?/gi, '')
+      .replace(/\btell me in the comments\s*[.!?]?/gi, '')
+      .replace(/\bmake sure to like and subscribe\s*[.!?]?/gi, '')
+      .replace(/\blet me know in the comments\s*[.!?]?/gi, '')
+      .replace(/\bwhat do you think\?\s*/gi, '')
+      .replace(/\bsmash that like button\s*[.!?]?/gi, '')
+      .replace(/\bdon't forget to subscribe\s*[.!?]?/gi, '')
+      
+      // Simplify video intro patterns
+      .replace(/\bin this video,?\s*we're\s*(going to|gonna)\s*be\s*(exploring|looking at|talking about|discussing)\s*/gi, "We're exploring ")
+      .replace(/\bin today's video,?\s*we're\s*(going to|gonna)\s*/gi, "We're ")
+      .replace(/\btoday we're\s*(going to|gonna)\s*(be\s*)?(exploring|looking at|talking about|discussing)\s*/gi, "We're exploring ")
+      .replace(/\bso today\s*we're\s*(going to|gonna)\s*/gi, "We're ")
+      
+      // Remove video housekeeping
+      .replace(/\bbefore we get started\s*[,.]?\s*/gi, '')
+      .replace(/\bif you're new here\s*[,.]?\s*/gi, '')
+      .replace(/\bwelcome back to (my|the) channel\s*[,.]?\s*/gi, '')
+      .replace(/\bthank you for watching\s*[.!?]?/gi, '')
+      .replace(/\bi'll see you in the next (video|one)\s*[.!?]?/gi, '')
+      
+      // Clean up extra punctuation and spaces
+      .replace(/\s*[,.]?\s*[,.]?\s*/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    // Remove sentence if it becomes too short or meaningless after cleaning
+    if (cleaned.length < 10 || /^(we're|today|so|now|here)\s*$/i.test(cleaned)) {
+      console.log('🗑️ Sentence too short after meta-commentary removal, removing entirely');
+      return '';
+    }
+    
+    if (cleaned !== text) {
+      console.log('✨ Removed meta-commentary:', text.substring(0, 40), '→', cleaned.substring(0, 40));
     }
     
     return cleaned;
@@ -1708,18 +1807,36 @@ Sentence to fix: "${preCleanedText}"`;
         const chunkDurationInput = this.container.querySelector('#chunk-duration');
         const chunkDuration = chunkDurationInput ? parseInt(chunkDurationInput.value) || 45 : 45;
         
+        // ✅ NEW: Get user's subtitle mode choice
+        const subtitleModeRadio = this.container.querySelector('input[name="subtitle-mode"]:checked');
+        const subtitleMode = subtitleModeRadio ? subtitleModeRadio.value : 'auto-detect';
+        
+        console.log('🎯 User selected subtitle mode:', subtitleMode);
+        
         const result = await chrome.tabs.sendMessage(tab.id, { 
           action: 'startCaptionCollection',
-          chunkDuration: chunkDuration 
+          chunkDuration: chunkDuration,
+          subtitleMode: subtitleMode  // Pass user choice to content script
         });
         
         if (result.success) {
-          // ✅ NEW: Show caption type in status
-          const captionTypeText = result.captionType === 'auto-generated' ? 
-            '🤖 Auto-generated captions detected - using smart stream processing' : 
-            '📝 Manual captions detected - using standard collection';
+          // ✅ NEW: Show subtitle mode based on user choice
+          let modeText = '';
+          switch (subtitleMode) {
+            case 'with-subtitles':
+              modeText = '📝 Creator subtitles mode - using original fast method';
+              break;
+            case 'without-subtitles':
+              modeText = '🎙️ Whisper transcription mode - capturing audio';
+              break;
+            case 'auto-detect':
+              modeText = '🤖 Auto-detect mode - will determine best method';
+              break;
+            default:
+              modeText = '🔴 Collection started';
+          }
           
-          statusEl.textContent = `🔴 ${captionTypeText}. Play the video to capture captions.`;
+          statusEl.textContent = `🔴 ${modeText}. Play the video to capture captions.`;
           statusEl.className = 'transcript-status success';
           
           // Update button to show stop state
@@ -1889,6 +2006,66 @@ Sentence to fix: "${preCleanedText}"`;
       .transcript-options input[type="number"] {
         width: 60px;
         padding: 2px 5px;
+      }
+      
+      /* NEW: Subtitle mode selection styles */
+      .subtitle-mode-selection {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        padding: 12px;
+        margin-bottom: 15px;
+      }
+      
+      .subtitle-mode-selection > label {
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 10px;
+        display: block !important;
+      }
+      
+      .subtitle-mode-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      
+      .subtitle-mode-option {
+        display: flex !important;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 8px;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      
+      .subtitle-mode-option:hover {
+        background: #f0f0f0;
+        border-color: #2196F3;
+      }
+      
+      .subtitle-mode-option input[type="radio"] {
+        margin: 0;
+        margin-top: 2px;
+      }
+      
+      .subtitle-mode-option span {
+        font-weight: 500;
+        color: #333;
+      }
+      
+      .subtitle-mode-option small {
+        display: block;
+        color: #666;
+        font-size: 11px;
+        margin-top: 2px;
+      }
+      
+      .subtitle-mode-option input[type="radio"]:checked + span {
+        color: #2196F3;
+        font-weight: bold;
       }
       
       .transcript-status {
