@@ -685,40 +685,170 @@ class TranscriptRestructurer {
   cleanSingleSegmentText(text) {
     if (!text) return '';
     
-    // Remove exact repetitions within the same text
-    // Pattern: "word word word" -> "word"
-    let cleaned = text.replace(/\b(\w+)(\s+\1)+\b/g, '$1');
+    console.log('🧽 Cleaning segment text:', text.substring(0, 100) + '...');
     
-    // Remove phrase repetitions: "hello world hello world" -> "hello world"
-    const words = cleaned.split(' ');
-    const halfLength = Math.floor(words.length / 2);
+    let cleaned = text;
     
-    // Check if first half matches second half (common pattern)
-    if (halfLength > 2) {
-      const firstHalf = words.slice(0, halfLength).join(' ');
-      const secondHalf = words.slice(halfLength).join(' ');
-      
-      if (firstHalf.toLowerCase() === secondHalf.toLowerCase()) {
-        console.log('🗑️ Removed half-repetition:', firstHalf);
-        cleaned = firstHalf;
-      }
-    }
+    // Step 1: Remove word-level repetitions: "word word word" -> "word"
+    cleaned = cleaned.replace(/\b(\w+)(\s+\1)+\b/g, '$1');
     
-    // Check for 3-part repetitions: "A A A" -> "A"
-    const thirdLength = Math.floor(words.length / 3);
-    if (thirdLength > 2) {
-      const firstThird = words.slice(0, thirdLength).join(' ');
-      const secondThird = words.slice(thirdLength, thirdLength * 2).join(' ');
-      const thirdThird = words.slice(thirdLength * 2).join(' ');
-      
-      if (firstThird.toLowerCase() === secondThird.toLowerCase() && 
-          firstThird.toLowerCase() === thirdThird.toLowerCase()) {
-        console.log('🗑️ Removed triple-repetition:', firstThird);
-        cleaned = firstThird;
-      }
-    }
+    // Step 2: Ultra-aggressive pattern matching for complex repetitions
+    cleaned = this.removeComplexRepetitions(cleaned);
     
+    // Step 3: Remove phrase repetitions: "hello world hello world" -> "hello world"
+    const words = cleaned.split(' ').filter(w => w.trim());
+    
+    // Check various repetition patterns
+    cleaned = this.detectAndRemovePatternRepetitions(words);
+    
+    console.log('✨ Cleaned result:', cleaned.substring(0, 100) + '...');
     return cleaned.trim();
+  }
+
+  removeComplexRepetitions(text) {
+    // Handle patterns like "families but let me start going after families but let me start going after weddings"
+    let cleaned = text;
+    
+    // Find all sequences of 3-15 words and remove repetitions
+    const words = text.split(' ').filter(w => w.trim());
+    
+    for (let patternLength = 3; patternLength <= Math.min(15, Math.floor(words.length / 2)); patternLength++) {
+      for (let i = 0; i <= words.length - patternLength * 2; i++) {
+        const pattern = words.slice(i, i + patternLength);
+        const patternText = pattern.join(' ');
+        
+        // Check if this pattern repeats immediately after
+        const nextPattern = words.slice(i + patternLength, i + patternLength * 2);
+        const nextPatternText = nextPattern.join(' ');
+        
+        if (this.arePatternsSimilar(patternText, nextPatternText)) {
+          // Found repetition - remove all but first occurrence
+          const beforePattern = words.slice(0, i).join(' ');
+          const afterPattern = words.slice(i + patternLength * 2).join(' ');
+          
+          console.log('🗑️ Removed complex repetition:', patternText);
+          cleaned = [beforePattern, patternText, afterPattern].filter(p => p.trim()).join(' ');
+          
+          // Re-split for next iteration
+          words.splice(0, words.length, ...cleaned.split(' ').filter(w => w.trim()));
+          break;
+        }
+      }
+    }
+    
+    return cleaned;
+  }
+
+  detectAndRemovePatternRepetitions(words) {
+    if (words.length < 6) return words.join(' ');
+    
+    // Strategy 1: Check if first half matches second half
+    const halfLength = Math.floor(words.length / 2);
+    if (halfLength >= 3) {
+      const firstHalf = words.slice(0, halfLength);
+      const secondHalf = words.slice(halfLength, halfLength * 2);
+      
+      if (this.areWordArraysSimilar(firstHalf, secondHalf)) {
+        console.log('🗑️ Removed half-repetition:', firstHalf.join(' '));
+        return firstHalf.join(' ');
+      }
+    }
+    
+    // Strategy 2: Check for triple repetitions
+    const thirdLength = Math.floor(words.length / 3);
+    if (thirdLength >= 3) {
+      const firstThird = words.slice(0, thirdLength);
+      const secondThird = words.slice(thirdLength, thirdLength * 2);
+      const thirdThird = words.slice(thirdLength * 2, thirdLength * 3);
+      
+      if (this.areWordArraysSimilar(firstThird, secondThird) && 
+          this.areWordArraysSimilar(firstThird, thirdThird)) {
+        console.log('🗑️ Removed triple-repetition:', firstThird.join(' '));
+        return firstThird.join(' ');
+      }
+    }
+    
+    // Strategy 3: Look for any repeating subsequences
+    for (let patternLength = 4; patternLength <= Math.floor(words.length / 2); patternLength++) {
+      for (let start = 0; start <= words.length - patternLength * 2; start++) {
+        const pattern = words.slice(start, start + patternLength);
+        const nextPattern = words.slice(start + patternLength, start + patternLength * 2);
+        
+        if (this.areWordArraysSimilar(pattern, nextPattern)) {
+          // Found repetition - keep only the first occurrence
+          const before = words.slice(0, start);
+          const after = words.slice(start + patternLength * 2);
+          
+          console.log('🗑️ Removed pattern repetition:', pattern.join(' '));
+          return [...before, ...pattern, ...after].join(' ');
+        }
+      }
+    }
+    
+    return words.join(' ');
+  }
+
+  arePatternsSimilar(pattern1, pattern2) {
+    const norm1 = pattern1.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+    const norm2 = pattern2.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+    
+    // Exact match
+    if (norm1 === norm2) return true;
+    
+    // High similarity (90%+ overlap)
+    if (norm1.length > 10 && norm2.length > 10) {
+      const similarity = this.calculateSimilarity(norm1, norm2);
+      return similarity > 0.9;
+    }
+    
+    return false;
+  }
+
+  areWordArraysSimilar(arr1, arr2) {
+    if (arr1.length !== arr2.length) return false;
+    
+    const norm1 = arr1.map(w => w.toLowerCase().replace(/[^\w]/g, '')).join(' ');
+    const norm2 = arr2.map(w => w.toLowerCase().replace(/[^\w]/g, '')).join(' ');
+    
+    return norm1 === norm2;
+  }
+
+  calculateSimilarity(str1, str2) {
+    const longer = str1.length > str2.length ? str1 : str2;
+    const shorter = str1.length > str2.length ? str2 : str1;
+    
+    if (longer.length === 0) return 1.0;
+    
+    const editDistance = this.levenshteinDistance(longer, shorter);
+    return (longer.length - editDistance) / longer.length;
+  }
+
+  levenshteinDistance(str1, str2) {
+    const matrix = [];
+    
+    for (let i = 0; i <= str2.length; i++) {
+      matrix[i] = [i];
+    }
+    
+    for (let j = 0; j <= str1.length; j++) {
+      matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= str2.length; i++) {
+      for (let j = 1; j <= str1.length; j++) {
+        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1,
+            matrix[i][j - 1] + 1,
+            matrix[i - 1][j] + 1
+          );
+        }
+      }
+    }
+    
+    return matrix[str2.length][str1.length];
   }
 
   removeExactDuplicateSegments(segments) {
@@ -988,6 +1118,359 @@ class TranscriptRestructurer {
 
   // ✅ REMOVED: toggleView - no longer needed with single reader mode
 
+  showAIPolishButton(segments) {
+    // Remove existing AI polish button if any
+    const existingBtn = this.container.querySelector('.ai-polish-btn');
+    if (existingBtn) existingBtn.remove();
+    
+    // Calculate estimated cost and word count
+    const totalWords = segments.map(s => s.text.split(' ').length).reduce((a, b) => a + b, 0);
+    const estimatedCost = this.calculateAICost(totalWords);
+    
+    // Create AI Polish button
+    const statusEl = this.container.querySelector('.transcript-status');
+    const aiPolishBtn = document.createElement('button');
+    aiPolishBtn.className = 'ai-polish-btn';
+    aiPolishBtn.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+      </svg>
+      🤖 AI Polish (~$${estimatedCost}, ${totalWords} words)
+    `;
+    aiPolishBtn.title = `Use AI to improve grammar and remove any remaining repetitions. Estimated cost: $${estimatedCost}`;
+    
+    // Insert after status
+    statusEl.parentNode.insertBefore(aiPolishBtn, statusEl.nextSibling);
+    
+    // Add click handler
+    aiPolishBtn.addEventListener('click', () => this.performAIPolish(segments, aiPolishBtn));
+  }
+
+  calculateAICost(wordCount) {
+    // Estimate tokens (roughly 0.75 tokens per word)
+    const estimatedTokens = Math.ceil(wordCount * 0.75);
+    
+    // Use Gemini Flash pricing (cheapest option)
+    const inputCost = (estimatedTokens / 1000000) * 0.075; // $0.075 per 1M tokens
+    const outputCost = (estimatedTokens / 1000000) * 0.30;  // $0.30 per 1M tokens (assuming similar output size)
+    
+    const totalCost = inputCost + outputCost;
+    return totalCost.toFixed(4);
+  }
+
+  async performAIPolish(segments, button) {
+    const originalText = button.innerHTML;
+    button.innerHTML = '🤖 AI Polishing...';
+    button.disabled = true;
+    
+    try {
+      console.log('🤖 Starting AI polish of', segments.length, 'segments');
+      
+      // Check if AI service is available
+      let aiService = null;
+      if (this.aiService && typeof this.aiService.generateAnalysis === 'function') {
+        aiService = this.aiService;
+      } else if (window.aiService && typeof window.aiService.generateAnalysis === 'function') {
+        aiService = window.aiService;
+      } else {
+        throw new Error('AI service not available. Please configure OpenAI or Gemini API in settings.');
+      }
+      
+      // ✅ FIX: Process each segment individually to preserve count
+      const polishedSegments = [];
+      
+      for (let i = 0; i < segments.length; i++) {
+        const segment = segments[i];
+        button.innerHTML = `🤖 AI Polishing... (${Math.floor((i/segments.length)*100)}%)`;
+        
+        // Only polish if the segment has repetitive patterns or poor grammar
+        if (this.needsAIPolish(segment.text)) {
+          try {
+            const polishedText = await this.polishSingleSentence(segment.text, aiService);
+            polishedSegments.push({
+              ...segment,
+              text: polishedText.trim(),
+              aiPolished: true
+            });
+          } catch (error) {
+            console.log('⚠️ Failed to polish segment, keeping original:', error.message);
+            // Keep original if AI fails for this segment
+            polishedSegments.push(segment);
+          }
+        } else {
+          // Keep original if it doesn't need polishing
+          polishedSegments.push(segment);
+        }
+        
+        // Small delay to prevent API rate limiting (every 5 segments)
+        if (i % 5 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+      
+      console.log('✅ AI polish completed:', polishedSegments.length, 'segments (same count preserved)');
+      
+      // Update the transcript data
+      this.currentTranscript = polishedSegments;
+      
+      // Update the reader view
+      if (this.transcriptViewer && typeof this.transcriptViewer.updateTranscriptData === 'function') {
+        this.transcriptViewer.updateTranscriptData(polishedSegments);
+      }
+      
+      // Update status
+      const statusEl = this.container.querySelector('.transcript-status');
+      statusEl.textContent = `✨ AI Polish completed! Enhanced ${polishedSegments.length} segments (preserved original count)`;
+      statusEl.className = 'transcript-status success';
+      
+      // Remove the AI polish button (already done)
+      button.remove();
+      
+    } catch (error) {
+      console.error('❌ AI polish failed:', error);
+      
+      // Restore button
+      button.innerHTML = originalText;
+      button.disabled = false;
+      
+      // Show error
+      const statusEl = this.container.querySelector('.transcript-status');
+      statusEl.textContent = `❌ AI Polish failed: ${error.message}`;
+      statusEl.className = 'transcript-status error';
+    }
+  }
+
+  needsAIPolish(text) {
+    // Check if text has issues that need AI polishing
+    const normalizedText = text.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    
+    const issues = [
+      // Has repetitive words (3+ times)
+      /\b(\w+)\s+\1\s+\1\b/i.test(text),
+      
+      // ✅ FIX: Detect sentence-level repetitions like your examples
+      this.hasSentenceRepetition(normalizedText),
+      
+      // Has very poor grammar (multiple issues)
+      text.split(' ').length > 15 && !/[.!?]$/.test(text.trim()),
+      
+      // Still has some repetitive patterns the rules missed
+      /(.{10,})\s+\1/.test(text),
+      
+      // Has obvious transcript artifacts
+      /\b(um|uh|like|you know)\s+(um|uh|like|you know)\b/i.test(text),
+      
+      // ✅ NEW: Detect phrase repetitions
+      this.hasPhraseRepetition(normalizedText),
+      
+      // ✅ NEW: Detect word duplications within sentence
+      this.hasWordDuplication(normalizedText)
+    ];
+    
+    return issues.some(issue => issue);
+  }
+
+  hasSentenceRepetition(normalizedText) {
+    // Check if the sentence is essentially repeated
+    // Example: "this is how they all looked like at some point this is how they all looked like at some point"
+    
+    const words = normalizedText.split(' ');
+    const length = words.length;
+    
+    // Check if first half matches second half (90%+ similarity)
+    if (length >= 8) { // Only check for sentences with 8+ words
+      const halfLength = Math.floor(length / 2);
+      const firstHalf = words.slice(0, halfLength).join(' ');
+      const secondHalf = words.slice(-halfLength).join(' ');
+      
+      // Calculate similarity
+      const similarity = this.calculateTextSimilarity(firstHalf, secondHalf);
+      if (similarity > 0.85) {
+        console.log('🔍 Detected sentence repetition:', firstHalf, '≈', secondHalf);
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  hasPhraseRepetition(normalizedText) {
+    // Check for repeated phrases of 4-8 words
+    const words = normalizedText.split(' ');
+    
+    for (let phraseLength = 4; phraseLength <= 8; phraseLength++) {
+      for (let i = 0; i <= words.length - phraseLength * 2; i++) {
+        const phrase1 = words.slice(i, i + phraseLength).join(' ');
+        const phrase2 = words.slice(i + phraseLength, i + phraseLength * 2).join(' ');
+        
+        if (this.calculateTextSimilarity(phrase1, phrase2) > 0.9) {
+          console.log('🔍 Detected phrase repetition:', phrase1);
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+
+  hasWordDuplication(normalizedText) {
+    // Check for immediate word duplications that rules might have missed
+    const patterns = [
+      /\b(\w{3,})\s+\1\b/g, // Same word repeated immediately
+      /\b(\w+)\s+(\w+)\s+\1\s+\2\b/g, // Two-word pattern repeated
+    ];
+    
+    return patterns.some(pattern => pattern.test(normalizedText));
+  }
+
+  calculateTextSimilarity(text1, text2) {
+    if (text1 === text2) return 1;
+    if (!text1 || !text2) return 0;
+    
+    const longer = text1.length > text2.length ? text1 : text2;
+    const shorter = text1.length > text2.length ? text2 : text1;
+    
+    if (longer.length === 0) return 1;
+    
+    // Simple similarity: count matching characters in order
+    let matches = 0;
+    const minLength = Math.min(text1.length, text2.length);
+    
+    for (let i = 0; i < minLength; i++) {
+      if (text1[i] === text2[i]) matches++;
+    }
+    
+    return matches / longer.length;
+  }
+
+  async polishSingleSentence(text, aiService) {
+    // ✅ Pre-clean obvious issues before sending to AI
+    let preCleanedText = this.preCleanSentence(text);
+    
+    // If pre-cleaning already fixed everything, don't waste AI call
+    if (preCleanedText !== text && !this.needsAIPolish(preCleanedText)) {
+      console.log('✅ Pre-cleaning fixed issues:', text.substring(0, 40), '→', preCleanedText.substring(0, 40));
+      return preCleanedText;
+    }
+    
+    const prompt = `Fix this transcript sentence. It may have spacing issues, repetitions, or poor grammar.
+
+EXAMPLES:
+- "changea family" → "change a family"
+- "and each home is going to change a family's life. and each home is going to change a family's life." → "And each home is going to change a family's life."
+- "This is how they alllooked like at some point. This is how they all looked like at some point." → "This is how they all looked like at some point."
+
+RULES:
+1. Fix spacing issues (like "changea" → "change a", "alllooked" → "all looked")
+2. If sentence repeats itself completely, keep only ONE copy
+3. Remove duplicate phrases within the sentence
+4. Fix grammar, punctuation, and capitalization
+5. Return ONLY the fixed sentence, nothing else
+
+Sentence to fix: "${preCleanedText}"`;
+
+    try {
+      const response = await aiService.generateAnalysis(prompt, 'en');
+      let cleaned = response.content || response.text || response;
+      
+      // Clean up the AI response
+      cleaned = this.cleanAIResponse(cleaned);
+      
+      // ✅ Additional validation for your specific patterns
+      if (this.isValidCleanedSentence(preCleanedText, cleaned)) {
+        console.log('✅ AI polished:', preCleanedText.substring(0, 40), '→', cleaned.substring(0, 40));
+        return cleaned;
+      } else {
+        console.log('⚠️ AI response invalid, using pre-cleaned:', preCleanedText.substring(0, 40));
+        return preCleanedText;
+      }
+      
+    } catch (error) {
+      console.error('AI polish error:', error);
+      // Return pre-cleaned version if AI fails
+      return preCleanedText;
+    }
+  }
+
+  preCleanSentence(text) {
+    let cleaned = text;
+    
+    // Fix common spacing issues in transcripts
+    cleaned = cleaned
+      .replace(/\b(\w+)([a-z])(\s+)([A-Z])/g, '$1$2 $4') // "changea family" → "change a family"
+      .replace(/\b(\w+)([a-z]{2,})([A-Z]\w+)/g, '$1$2 $3') // "alllooked" → "all looked"
+      .replace(/([a-z])([A-Z])/g, '$1 $2') // Fix missing spaces between words
+      .replace(/\s+/g, ' ') // Normalize spaces
+      .trim();
+    
+    // Handle exact sentence repetitions
+    const sentences = cleaned.split(/([.!?]+)/).filter(s => s.trim());
+    if (sentences.length >= 4) { // At least 2 sentences
+      const firstSentence = (sentences[0] + (sentences[1] || '')).trim();
+      const secondSentence = (sentences[2] + (sentences[3] || '')).trim();
+      
+      if (this.areSentencesSimilar(firstSentence, secondSentence)) {
+        cleaned = firstSentence;
+        console.log('🧹 Pre-cleaned repetition:', text.substring(0, 40), '→', cleaned.substring(0, 40));
+      }
+    }
+    
+    return cleaned;
+  }
+
+  areSentencesSimilar(sent1, sent2) {
+    const norm1 = sent1.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+    const norm2 = sent2.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+    
+    // Check exact match or very high similarity
+    if (norm1 === norm2) return true;
+    
+    const similarity = this.calculateTextSimilarity(norm1, norm2);
+    return similarity > 0.9;
+  }
+
+  cleanAIResponse(response) {
+    let cleaned = response;
+    
+    // Remove common AI response patterns
+    cleaned = cleaned
+      .replace(/^["'`]|["'`]$/g, '') // Remove quotes
+      .replace(/^(cleaned|result|fixed|answer):\s*/i, '') // Remove prefixes
+      .replace(/\n.*$/s, '') // Remove everything after first line
+      .trim();
+    
+    // Ensure proper capitalization
+    if (cleaned.length > 0) {
+      cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+    }
+    
+    return cleaned;
+  }
+
+  isValidCleanedSentence(original, cleaned) {
+    // Validate that the AI response is reasonable
+    if (!cleaned || cleaned.length < 5) return false;
+    
+    // Length should be 30%-150% of original (allowing for repetition removal)
+    if (cleaned.length < original.length * 0.3 || cleaned.length > original.length * 1.5) {
+      return false;
+    }
+    
+    // Should still contain some key words from original
+    const originalWords = original.toLowerCase().match(/\b\w{4,}\b/g) || [];
+    const cleanedWords = cleaned.toLowerCase().match(/\b\w{4,}\b/g) || [];
+    
+    if (originalWords.length > 0) {
+      const commonWords = originalWords.filter(word => cleanedWords.includes(word));
+      const overlap = commonWords.length / originalWords.length;
+      
+      // At least 50% of significant words should remain
+      if (overlap < 0.5) return false;
+    }
+    
+    return true;
+  }
+
   async toggleCollection() {
     const collectBtn = this.container.querySelector('.start-collection-btn');
     const statusEl = this.container.querySelector('.transcript-status');
@@ -1037,6 +1520,9 @@ class TranscriptRestructurer {
             </svg>
             Collect
           `;
+          
+          // ✅ NEW: Show AI Polish button after successful collection
+          this.showAIPolishButton(cleanedSegments);
           
           // Restructure and display (for classic view)
           await this.restructureTranscript();
@@ -1272,6 +1758,46 @@ class TranscriptRestructurer {
       /* ✅ SIMPLIFIED: Only reader mode styles needed */
       .transcript-reader-container {
         margin-top: 10px;
+      }
+      
+      /* ✅ NEW: AI Polish button styling */
+      .ai-polish-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        margin: 10px 0;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+      }
+      
+      .ai-polish-btn:hover:not(:disabled) {
+        background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      }
+      
+      .ai-polish-btn:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+        transform: none;
+      }
+      
+      .ai-polish-btn svg {
+        flex-shrink: 0;
+        animation: sparkle 2s ease-in-out infinite;
+      }
+      
+      @keyframes sparkle {
+        0%, 100% { transform: scale(1) rotate(0deg); }
+        50% { transform: scale(1.1) rotate(5deg); }
       }
     `;
     document.head.appendChild(style);
