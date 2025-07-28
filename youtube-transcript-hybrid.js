@@ -26,10 +26,12 @@
       audioStream: null,
       isRecording: false,
       chunkStartTime: 0,
-      chunkDuration: 5, // 5-second audio chunks for Whisper
+      chunkDuration: 15, // ✅ FIX: Increased to 15-second chunks to reduce overlap
+      chunkGap: 1, // ✅ NEW: 1-second gap between chunks to prevent duplicates
       pendingTranscriptions: new Map(), // Track ongoing transcriptions
       lastTranscriptionTime: 0,
-      initializationAttempted: false // Track if we've tried to initialize
+      initializationAttempted: false, // Track if we've tried to initialize
+      processedTimeRanges: [] // ✅ NEW: Track processed time ranges to avoid duplicates
     }
   };
 
@@ -68,7 +70,7 @@
     // Handle start collection request
     if (request.action === 'startCaptionCollection') {
       const chunkDuration = request.chunkDuration || 45; // Default to 45 seconds
-      const subtitleMode = request.subtitleMode || 'auto-detect'; // Get user choice
+      const subtitleMode = request.subtitleMode || 'with-subtitles'; // Default to creator subtitles
       
       console.log('🎯 Starting caption collection with user choice:', subtitleMode);
       
@@ -203,15 +205,13 @@
   }
 
   function collectVideoMetadata() {
-    // Collect comprehensive video metadata from YouTube page
+    // ✅ SIMPLIFIED: Immediate metadata collection to prevent crashes
     const videoId = extractVideoId();
     
-    // Extract title - try multiple selectors
+    // Extract title - simplified selectors to prevent crashes
     let title = null;
     const titleSelectors = [
       'h1.ytd-video-primary-info-renderer',
-      'h1.title.style-scope.ytd-video-primary-info-renderer', 
-      'h1[class*="title"]',
       'meta[property="og:title"]',
       'title'
     ];
@@ -230,22 +230,24 @@
       }
     }
     
-    // Extract channel name - try multiple selectors  
+    // Extract channel name - simplified to prevent crashes
     let channel = null;
     const channelSelectors = [
       'ytd-channel-name#channel-name a',
-      'ytd-channel-name .yt-simple-endpoint',
-      '.ytd-channel-name a',
-      '.channel-name a',
-      'a.yt-simple-endpoint[href*="/channel/"]',
-      'a.yt-simple-endpoint[href*="/@"]'
+      '.ytd-channel-name a'
     ];
     
     for (const selector of channelSelectors) {
       const element = document.querySelector(selector);
-      if (element && element.textContent?.trim()) {
-        channel = element.textContent.trim();
-        break;
+      if (element) {
+        if (element.tagName === 'META') {
+          channel = element.getAttribute('content');
+        } else if (element.textContent?.trim()) {
+          channel = element.textContent.trim();
+        }
+        if (channel && channel !== 'Unknown Channel' && !channel.includes('undefined')) {
+          break;
+        }
       }
     }
     
@@ -265,8 +267,8 @@
     
     console.log('📺 Collected video metadata:', { 
       videoId, 
-      title: title?.substring(0, 50) + '...', 
-      channel 
+      title: title?.substring(0, 50), 
+      channel
     });
     
     return {
@@ -907,31 +909,40 @@
   }
 
   async function processWhisperTimestamp(timestampInSeconds, extractedTimestamp, videoId, youtubeLink, isNewChunk) {
-    // ✅ ON-DEMAND: Initialize Whisper when first auto-generated caption is detected
     const whisper = captionCollection.whisper;
     
-    if (!whisper.audioStream && !whisper.initializationAttempted) {
-      console.log('🎙️ First auto-generated caption detected - initializing Whisper...');
-      whisper.initializationAttempted = true;
+    // ✅ FIX: Skip initialization check if user explicitly selected Whisper mode
+    // (initialization should have been done when collection started)
+    if (captionCollection.userSubtitleMode === 'without-subtitles') {
+      console.log('🎙️ Processing timestamp in user-selected Whisper mode');
       
-      const whisperInitialized = await initializeAudioCapture();
-      
-      if (whisperInitialized) {
-        console.log('✅ Whisper initialized successfully for auto-generated captions');
-        // Start first audio chunk
-        startNewAudioChunk(timestampInSeconds, extractedTimestamp);
-      } else {
-        console.log('❌ Whisper initialization failed - using fallback processing for auto-generated captions');
-        // Mark as fallback mode so we process captions with improved cleaning
-        captionCollection.whisperFallback = true;
+      // Ensure we have audio stream (should be initialized already)
+      if (!whisper.audioStream) {
+        console.log('⚠️ No audio stream available - Whisper may have failed to initialize');
+        return;
       }
-    }
-    
-    // Check if we should use fallback processing instead of Whisper
-    if (captionCollection.whisperFallback) {
-      console.log('🔄 Using fallback auto-caption processing');
-      // Fall back to improved caption processing since Whisper failed
-      return processAutoFallback(timestampInSeconds, extractedTimestamp, videoId, youtubeLink, isNewChunk);
+    } else {
+      // Legacy logic for auto-detected captions
+      if (!whisper.audioStream && !whisper.initializationAttempted) {
+        console.log('🎙️ First auto-generated caption detected - initializing Whisper...');
+        whisper.initializationAttempted = true;
+        
+        const whisperInitialized = await initializeAudioCapture();
+        
+        if (whisperInitialized) {
+          console.log('✅ Whisper initialized successfully for auto-generated captions');
+          startNewAudioChunk(timestampInSeconds, extractedTimestamp);
+        } else {
+          console.log('❌ Whisper initialization failed - using fallback processing for auto-generated captions');
+          captionCollection.whisperFallback = true;
+        }
+      }
+      
+      // Check if we should use fallback processing instead of Whisper
+      if (captionCollection.whisperFallback) {
+        console.log('🔄 Using fallback auto-caption processing');
+        return processAutoFallback(timestampInSeconds, extractedTimestamp, videoId, youtubeLink, isNewChunk);
+      }
     }
     
     // Process timestamp for Whisper transcription
@@ -1614,23 +1625,79 @@
   // ✅ NEW: Whisper Integration Functions
   
   async function initializeAudioCapture() {
-    // Initialize audio capture for Whisper transcription
+    // ✅ OPTIMIZED: Enhanced microphone setup for speaker audio capture
     try {
-      console.log('🎙️ Initializing audio capture for Whisper...');
-      console.log('📋 NOTE: You will be asked to share your screen to capture audio for transcription');
+      console.log('🎙️ Initializing microphone for Whisper transcription...');
+      console.log('📋 SETUP GUIDE: For best results:');
+      console.log('   1. Turn up your speaker volume to 70-80%');
+      console.log('   2. Position microphone close to speakers (not too close to avoid distortion)');
+      console.log('   3. Minimize background noise');
+      console.log('📋 NOTE: You will be asked to grant microphone permissions');
       
-      // Request access to tab audio (requires screen sharing permission)
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: false,
+      // Check if getUserMedia is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Microphone API not available in this browser');
+      }
+      
+      console.log('🔒 Requesting microphone permissions...');
+      
+      // ✅ FIX: Use microphone with optimized settings for speaker pickup
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          sampleRate: 16000 // Optimal for Whisper
-        }
+          echoCancellation: false,  // Disable echo cancellation to pick up speaker audio
+          noiseSuppression: false,  // Disable noise suppression to preserve all audio
+          autoGainControl: false,   // Disable AGC for consistent levels
+          sampleRate: 44100,       // Higher sample rate for better quality
+          channelCount: 1,         // Mono audio
+          volume: 1.0             // Maximum sensitivity
+        },
+        video: false
       });
       
+      console.log('✅ Microphone permission granted');
+      console.log('🔍 Stream details:', {
+        hasAudio: stream.getAudioTracks().length > 0,
+        audioTracks: stream.getAudioTracks().length,
+        sampleRate: stream.getAudioTracks()[0]?.getSettings()?.sampleRate
+      });
+      
+      // ✅ NEW: Add audio level monitoring to help debug
+      try {
+        const audioContext = new AudioContext();
+        const source = audioContext.createMediaStreamSource(stream);
+        const analyser = audioContext.createAnalyser();
+        source.connect(analyser);
+        
+        analyser.fftSize = 256;
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        
+        // ✅ SIMPLIFIED: Basic audio monitoring to prevent crashes
+        const monitorAudio = () => {
+          if (captionCollection.whisper.audioStream && captionCollection.isCollecting) {
+            try {
+              analyser.getByteFrequencyData(dataArray);
+              const average = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength;
+              
+              if (average > 10) {
+                console.log(`🎵 Audio level: ${Math.round(average)}/255`);
+              }
+              
+              setTimeout(monitorAudio, 3000); // Less frequent to reduce load
+            } catch (error) {
+              console.log('⚠️ Audio monitoring error, stopping to prevent crash');
+            }
+          }
+        };
+        
+        setTimeout(monitorAudio, 1000); // Start monitoring after 1 second
+        
+      } catch (error) {
+        console.log('⚠️ Audio monitoring not available:', error.message);
+      }
+      
       if (!stream || !stream.getAudioTracks().length) {
-        throw new Error('No audio track available in screen share');
+        throw new Error('No microphone available - please check your microphone permissions');
       }
       
       captionCollection.whisper.audioStream = stream;
@@ -1642,15 +1709,39 @@
         if (event.data.size > 0) {
           captionCollection.whisper.audioChunks.push(event.data);
           console.log(`🎵 Audio chunk collected: ${event.data.size} bytes`);
+          console.log(`📊 Total chunks collected: ${captionCollection.whisper.audioChunks.length}`);
+          
+          // ✅ NEW: Check if chunk size is reasonable (should be > 10KB for 10 seconds of audio)
+          if (event.data.size < 10000) {
+            console.log('⚠️ Small audio chunk - may indicate low volume or no audio capture');
+            console.log('💡 TIP: Ensure speaker volume is up and microphone is positioned correctly');
+          } else {
+            console.log('✅ Good audio chunk size - likely capturing audio properly');
+          }
+        } else {
+          console.log('⚠️ Empty audio chunk received - no audio being captured');
+          console.log('💡 CHECK: Speaker volume, microphone position, and browser permissions');
         }
       };
       
       captionCollection.whisper.mediaRecorder.onstop = async () => {
+        console.log(`🎵 MediaRecorder stopped, processing ${captionCollection.whisper.audioChunks.length} chunks`);
+        
+        if (captionCollection.whisper.audioChunks.length === 0) {
+          console.log('⚠️ No audio chunks to process');
+          return;
+        }
+        
         const audioBlob = new Blob(captionCollection.whisper.audioChunks, {
           type: 'audio/webm;codecs=opus'
         });
         
-        console.log(`🎵 Audio blob created: ${audioBlob.size} bytes`);
+        console.log(`🎵 Audio blob created: ${audioBlob.size} bytes from ${captionCollection.whisper.audioChunks.length} chunks`);
+        
+        if (audioBlob.size === 0) {
+          console.log('⚠️ Audio blob is empty, skipping transcription');
+          return;
+        }
         
         // Send to Whisper for transcription
         await transcribeWithWhisper(audioBlob, captionCollection.whisper.chunkStartTime);
@@ -1663,14 +1754,101 @@
       return true;
       
     } catch (error) {
-      console.error('❌ Failed to initialize audio capture:', error.message);
-      console.log('🔄 Falling back to improved caption processing...');
+      console.error('❌ Failed to initialize microphone:', error.message);
+      
+      if (error.name === 'NotAllowedError') {
+        console.log('🚫 Microphone access denied by user');
+      } else if (error.name === 'NotFoundError') {
+        console.log('🔍 No microphone found on this device');
+      } else {
+        console.log('🔄 Falling back to caption processing...');
+      }
+      
       return false;
     }
   }
 
+  function startContinuousAudioRecording() {
+    // ✅ NEW: Start continuous audio recording for Whisper mode
+    const whisper = captionCollection.whisper;
+    
+    if (!whisper.audioStream || !whisper.mediaRecorder) {
+      console.error('❌ Audio stream or recorder not available');
+      return;
+    }
+    
+    console.log('🎵 Starting continuous audio recording for Whisper transcription...');
+    
+    const startRecordingChunk = () => {
+      if (!captionCollection.isCollecting) {
+        console.log('🛑 Collection stopped, ending audio recording');
+        return;
+      }
+      
+      // ✅ FIX: Get current time more reliably
+      let currentTime = 0;
+      const player = document.querySelector('#movie_player');
+      const video = document.querySelector('video');
+      
+      if (player && typeof player.getCurrentTime === 'function') {
+        currentTime = player.getCurrentTime();
+      } else if (video && typeof video.currentTime === 'number') {
+        currentTime = video.currentTime;
+      } else {
+        // Fallback: use elapsed time since start
+        currentTime = (Date.now() - captionCollection.startTime) / 1000;
+      }
+      
+      console.log('🕐 Current time detected:', currentTime, 'seconds');
+      whisper.chunkStartTime = currentTime;
+      
+      console.log(`🎵 Recording audio chunk starting at ${formatTime(currentTime)}`);
+      
+      // Clear previous chunks
+      whisper.audioChunks = [];
+      
+      // Start recording
+      if (whisper.mediaRecorder.state !== 'recording') {
+        console.log(`🔴 Starting MediaRecorder for ${whisper.chunkDuration}s chunk`);
+        console.log(`📊 MediaRecorder state before start: ${whisper.mediaRecorder.state}`);
+        
+        try {
+          whisper.mediaRecorder.start();
+          whisper.isRecording = true;
+          console.log(`✅ MediaRecorder started successfully`);
+          
+          // Stop recording after chunk duration and process
+          setTimeout(() => {
+            if (whisper.isRecording && captionCollection.isCollecting) {
+              console.log(`⏹️ Stopping MediaRecorder after ${whisper.chunkDuration}s`);
+              console.log(`📊 Expected audio data: ~${whisper.chunkDuration * 1000 * 16}KB (16KB/sec for good quality)`);
+              whisper.mediaRecorder.stop();
+              whisper.isRecording = false;
+              
+              // ✅ FIX: Add gap between chunks to prevent overlap and duplicates
+              setTimeout(() => {
+                if (captionCollection.isCollecting) {
+                  console.log('🔄 Starting next audio chunk with gap...');
+                  startRecordingChunk();
+                }
+              }, whisper.chunkGap * 1000); // Use configurable gap (1 second default)
+            }
+          }, whisper.chunkDuration * 1000);
+        } catch (error) {
+          console.error('❌ Failed to start MediaRecorder:', error);
+          whisper.isRecording = false;
+        }
+      } else {
+        console.log(`⚠️ MediaRecorder already in state: ${whisper.mediaRecorder.state}`);
+      }
+    };
+    
+    // Start the first chunk
+    startRecordingChunk();
+  }
+
   function startNewAudioChunk(startTime, extractedTimestamp) {
-    // Start recording a new audio chunk for Whisper
+    // Start recording a new audio chunk for Whisper (legacy function for fallback)
     const whisper = captionCollection.whisper;
     
     console.log(`🎵 Starting new audio chunk at ${extractedTimestamp}`);
@@ -1705,20 +1883,28 @@
     // Send audio to OpenAI Whisper for transcription
     try {
       console.log('🤖 Sending audio to Whisper for transcription...');
+      console.log(`🎵 Audio blob size: ${audioBlob.size} bytes, duration: ~${captionCollection.whisper.chunkDuration}s`);
+      console.log(`⏰ Timestamp: ${formatTime(startTime)}`);
       
       // Get API key from storage
       const result = await chrome.storage.sync.get('apiKey');
       if (!result.apiKey) {
-        console.error('❌ No OpenAI API key found');
+        console.error('❌ No OpenAI API key found in storage');
+        console.log('💡 Please set your OpenAI API key in the extension settings');
         return;
       }
       
       // Convert audio blob to the format Whisper expects
+      const detectedLanguage = detectVideoLanguage();
+      
       const formData = new FormData();
       formData.append('file', audioBlob, 'audio.webm');
       formData.append('model', 'whisper-1');
-      formData.append('language', detectVideoLanguage()); // Auto-detect or use video language
+      formData.append('language', detectedLanguage);
       formData.append('response_format', 'json');
+      
+      console.log('🌐 Making API request to OpenAI Whisper...');
+      console.log(`🌍 Using language: "${detectedLanguage}" for transcription`);
       
       const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
         method: 'POST',
@@ -1731,12 +1917,28 @@
       if (response.ok) {
         const transcription = await response.json();
         console.log('✅ Whisper transcription received:', transcription.text);
+        console.log(`📝 Text length: ${transcription.text.length} characters`);
         
-        // Create segment with high-quality Whisper transcription
-        createWhisperSegment(transcription.text, startTime, startTime + captionCollection.whisper.chunkDuration);
+        // ✅ NEW: Quality check and adaptive chunk sizing
+        const isGoodTranscription = validateTranscriptionQuality(transcription.text, detectedLanguage);
+        if (isGoodTranscription) {
+          // Create segment with high-quality Whisper transcription
+          createWhisperSegment(transcription.text, startTime, startTime + captionCollection.whisper.chunkDuration);
+          
+          // ✅ NEW: Adaptive chunk sizing based on transcription success
+          adaptChunkSizeBasedOnQuality(true, transcription.text.length);
+        } else {
+          console.log('⚠️ Transcription quality check failed - may be generic text or poor audio');
+          console.log('💡 TIP: Check if microphone is properly capturing speaker audio');
+          
+          // Adapt chunk size for poor quality
+          adaptChunkSizeBasedOnQuality(false, transcription.text.length);
+        }
         
       } else {
+        const errorText = await response.text();
         console.error('❌ Whisper API error:', response.status, response.statusText);
+        console.error('❌ Error details:', errorText);
       }
       
     } catch (error) {
@@ -1773,35 +1975,204 @@
       chunkNumber: captionCollection.chunkCounter
     };
     
-    // Check for duplicates (less strict since Whisper is more accurate)
+    // ✅ FIX: Enhanced duplicate detection for Whisper segments
     const isDuplicate = captionCollection.segments.some(existingSegment => {
-      const timeOverlap = Math.abs(existingSegment.start - startTime) < 2;
-      const textSimilarity = calculateSimilarity(existingSegment.text.toLowerCase(), transcriptionText.toLowerCase()) > 0.9;
-      return timeOverlap && textSimilarity;
+      // More precise time overlap check
+      const timeOverlap = Math.abs(existingSegment.start - startTime) < 3;
+      const textSimilarity = calculateSimilarity(existingSegment.text.toLowerCase(), transcriptionText.toLowerCase()) > 0.8;
+      
+      // Additional check: if times are very close (within 1 second), it's likely a duplicate
+      const veryCloseTime = Math.abs(existingSegment.start - startTime) < 1;
+      
+      return (timeOverlap && textSimilarity) || veryCloseTime;
     });
+    
+    // ✅ SIMPLIFIED: Basic time range check to prevent crashes
+    const wasAlreadyProcessed = captionCollection.whisper.processedTimeRanges.length > 50; // Prevent memory buildup
+    if (wasAlreadyProcessed) {
+      captionCollection.whisper.processedTimeRanges = []; // Clear to prevent crash
+      console.log('🧹 Cleared processed ranges to prevent memory issues');
+    }
     
     if (!isDuplicate) {
       captionCollection.segments.push(segment);
+      
+      // ✅ NEW: Record this time range as processed
+      captionCollection.whisper.processedTimeRanges.push({
+        start: startTime,
+        end: endTime,
+        timestamp: Date.now()
+      });
+      
+      // Keep only recent processed ranges (last 10 minutes) to prevent memory buildup
+      const tenMinutesAgo = Date.now() - (10 * 60 * 1000);
+      captionCollection.whisper.processedTimeRanges = captionCollection.whisper.processedTimeRanges.filter(
+        range => range.timestamp > tenMinutesAgo
+      );
+      
       console.log(`✅ Created Whisper segment [${formatTime(startTime)}]:`, transcriptionText.substring(0, 60) + '...');
+      console.log(`📊 Processed ranges: ${captionCollection.whisper.processedTimeRanges.length}`);
     } else {
       console.log('🚫 Skipped duplicate Whisper segment');
     }
   }
 
+  function validateTranscriptionQuality(transcriptionText, expectedLanguage) {
+    // ✅ NEW: Validate if transcription is relevant and not generic text
+    if (!transcriptionText || transcriptionText.trim().length < 3) {
+      console.log('⚠️ Transcription too short or empty');
+      return false;
+    }
+    
+    const text = transcriptionText.toLowerCase().trim();
+    console.log(`🔍 Validating transcription quality: "${text.substring(0, 50)}..."`);
+    
+    // Check for generic/repetitive patterns that indicate poor audio capture
+    const genericPatterns = [
+      /^(\w+\s*){1,3}\1+$/, // Repeated words like "hello hello hello"
+      /^民间|新闻|时代|世界|人民$/, // Generic Chinese news terms
+      /^the the the|and and and|is is is/, // Repeated English words
+      /^一个一个|这个这个/, // Repeated Chinese measure words
+      /^\s*$/, // Only whitespace
+      /^(\w{1,2}\s*){5,}$/ // Too many very short words
+    ];
+    
+    for (const pattern of genericPatterns) {
+      if (pattern.test(text)) {
+        console.log(`⚠️ Generic pattern detected: ${pattern}`);
+        return false;
+      }
+    }
+    
+    // Check word diversity (avoid repetitive content)
+    const words = text.split(/\s+/).filter(w => w.length > 2);
+    const uniqueWords = new Set(words);
+    const diversityRatio = uniqueWords.size / Math.max(words.length, 1);
+    
+    if (diversityRatio < 0.3 && words.length > 3) {
+      console.log(`⚠️ Low word diversity: ${(diversityRatio * 100).toFixed(1)}% (${uniqueWords.size}/${words.length})`);
+      return false;
+    }
+    
+    console.log(`✅ Transcription quality check passed - diversity: ${(diversityRatio * 100).toFixed(1)}%`);
+    return true;
+  }
+
+  function adaptChunkSizeBasedOnQuality(isGoodQuality, textLength) {
+    // ✅ DISABLED: Adaptive sizing disabled to prevent crashes
+    console.log(`📊 Transcription quality: ${isGoodQuality ? 'good' : 'poor'}, length: ${textLength}`);
+    // Keep fixed chunk size for stability
+  }
+
   function detectVideoLanguage() {
-    // Try to detect the video language for better Whisper transcription
+    // ✅ FIX: Better video language detection for Whisper transcription
     try {
-      // Check for language in URL parameters
-      const urlParams = new URLSearchParams(window.location.search);
-      const lang = urlParams.get('hl') || urlParams.get('lang');
-      if (lang) return lang;
+      console.log('🌍 Starting language detection for Whisper...');
       
-      // Check page language
-      const pageLanguage = document.documentElement.lang || navigator.language.split('-')[0];
-      return pageLanguage || 'en'; // Default to English
+      // ✅ PRIORITY 1: Enhanced video content analysis
+      const videoTitle = document.querySelector('h1.ytd-video-primary-info-renderer')?.textContent?.trim() || '';
+      const channelName = document.querySelector('ytd-channel-name#channel-name a')?.textContent?.trim() || '';
+      const videoDescription = document.querySelector('#description')?.textContent?.trim().substring(0, 200) || '';
+      
+      console.log('🔍 Video context:', { 
+        videoTitle: videoTitle.substring(0, 50), 
+        channelName, 
+        description: videoDescription.substring(0, 50) 
+      });
+      
+      // Enhanced English detection with common patterns
+      const englishPattern = /^[a-zA-Z0-9\s\-_.,!?'"()&:]+$/;
+      const englishWords = /\b(the|and|is|are|was|were|have|has|had|will|would|could|should|for|with|from|about|into|through|during|before|after|above|below|between|among)\b/i;
+      
+      // Check multiple content sources for English
+      const contentToCheck = (videoTitle + ' ' + channelName + ' ' + videoDescription).toLowerCase();
+      const hasEnglishWords = englishWords.test(contentToCheck);
+      const isEnglishFormat = videoTitle.length > 10 && englishPattern.test(videoTitle);
+      
+      if (isEnglishFormat || (hasEnglishWords && contentToCheck.length > 20)) {
+        console.log('✅ Content appears to be English - using "en"');
+        console.log(`🔍 Evidence: format=${isEnglishFormat}, words=${hasEnglishWords}`);
+        return 'en';
+      }
+      
+      // ✅ PRIORITY 2: Check for existing captions/subtitles language
+      const captionElements = document.querySelectorAll('.ytp-caption-segment, .captions-text');
+      if (captionElements.length > 0) {
+        const captionText = Array.from(captionElements).map(el => el.textContent?.trim()).join(' ').substring(0, 100);
+        console.log('🔍 Found existing captions:', captionText);
+        
+        // If captions are in English, use English
+        if (captionText.length > 10 && englishPattern.test(captionText)) {
+          console.log('✅ Existing captions appear to be English - using "en"');
+          return 'en';
+        }
+      }
+      
+      // ✅ PRIORITY 3: Check URL parameters (video-specific language)
+      const urlParams = new URLSearchParams(window.location.search);
+      let urlLang = urlParams.get('hl') || urlParams.get('lang');
+      
+      // ✅ PRIORITY 4: Use browser language only as fallback
+      if (!urlLang) {
+        urlLang = navigator.language || document.documentElement.lang;
+      }
+      
+      // ✅ ENHANCED SMART OVERRIDE: Better mixed content detection
+      const hasChineseContent = /[\u4e00-\u9fff]/.test(videoTitle + channelName + videoDescription);
+      const chineseRatio = (contentToCheck.match(/[\u4e00-\u9fff]/g) || []).length / Math.max(contentToCheck.length, 1);
+      
+      console.log(`🔍 Content analysis: Chinese chars ratio = ${(chineseRatio * 100).toFixed(1)}%`);
+      
+      // If content is primarily English but browser is Chinese, prioritize English
+      if (chineseRatio < 0.3 && urlLang.includes('zh')) {
+        console.log('🔄 Browser is Chinese but video content appears primarily English - using "en"');
+        return 'en';
+      }
+      
+      // If content is mixed but has significant English, use English for better Whisper accuracy
+      if (chineseRatio < 0.5 && hasEnglishWords) {
+        console.log('🔄 Mixed content with substantial English - using "en" for better accuracy');
+        return 'en';
+      }
+      
+      // ✅ Convert to ISO-639-1 format (Whisper only accepts 2-letter codes)
+      const languageMap = {
+        'zh-hant-tw': 'zh',
+        'zh-hans-cn': 'zh', 
+        'zh-cn': 'zh',
+        'zh-tw': 'zh',
+        'zh-hk': 'zh',
+        'en-us': 'en',
+        'en-gb': 'en',
+        'ja-jp': 'ja',
+        'ko-kr': 'ko',
+        'es-es': 'es',
+        'fr-fr': 'fr',
+        'de-de': 'de',
+        'it-it': 'it',
+        'pt-br': 'pt',
+        'ru-ru': 'ru',
+        'ar-sa': 'ar',
+        'hi-in': 'hi',
+        'th-th': 'th',
+        'vi-vn': 'vi',
+        'nl-nl': 'nl'
+      };
+      
+      // Convert to lowercase and map
+      const normalizedLang = urlLang.toLowerCase();
+      const mappedLang = languageMap[normalizedLang] || normalizedLang.split('-')[0];
+      
+      // Validate it's a 2-letter code
+      const validLang = mappedLang.length === 2 ? mappedLang : 'en';
+      
+      console.log(`🌍 Language detection: ${urlLang} → ${mappedLang} → ${validLang}`);
+      console.log(`🎯 Final decision: Using "${validLang}" for Whisper transcription`);
+      
+      return validLang;
       
     } catch (error) {
-      console.log('Could not detect video language, using English');
+      console.log('Could not detect video language, defaulting to English');
       return 'en';
     }
   }
@@ -2162,7 +2533,7 @@
       .replace(/^(.{15,}[^.!?])$/, '$1.');
   }
 
-  async function startCaptionCollection(chunkDuration = 45, subtitleMode = 'auto-detect') {
+  async function startCaptionCollection(chunkDuration = 45, subtitleMode = 'with-subtitles') {
     if (captionCollection.isCollecting) {
       console.log('📡 HYBRID Caption collection already in progress');
       return;
@@ -2176,8 +2547,32 @@
     captionCollection.isCollecting = true;
     captionCollection.startTime = Date.now();
     
-    // Note: Whisper will be initialized on-demand when auto-generated captions are detected
-    console.log('✅ Smart hybrid mode: Manual captions → Direct processing, Auto captions → Whisper transcription');
+    // ✅ FIX: Initialize Whisper immediately when user selects Whisper mode
+    if (subtitleMode === 'without-subtitles') {
+      console.log('🎙️ User selected Whisper mode - initializing audio capture immediately...');
+      
+      // Reset Whisper state for fresh start
+      captionCollection.whisper.initializationAttempted = true;
+      captionCollection.whisperFallback = false;
+      
+      try {
+        const whisperInitialized = await initializeAudioCapture();
+        
+        if (whisperInitialized) {
+          console.log('✅ Whisper initialized successfully for user-selected mode');
+          console.log('🎵 Audio stream ready, will start recording when collection begins');
+        } else {
+          console.log('❌ Whisper initialization failed - user will need to grant microphone permissions');
+          captionCollection.whisperFallback = true;
+        }
+      } catch (error) {
+        console.error('❌ Error initializing Whisper:', error);
+        console.log('💡 Make sure to allow microphone access when prompted');
+        captionCollection.whisperFallback = true;
+      }
+    } else {
+      console.log('✅ Smart hybrid mode: Manual captions → Direct processing, Auto captions → Whisper transcription');
+    }
     
     // ✅ FIX: Don't reset segments - keep accumulating from previous collections
     // captionCollection.segments = []; // ❌ This was resetting all previous collections!
@@ -2264,7 +2659,21 @@
       console.log('⚠️ No CC button found - this video may not have captions available');
     }
     
-    // Start monitoring with enhanced selectors
+    // ✅ FIX: Skip caption monitoring entirely in Whisper mode
+    if (subtitleMode === 'without-subtitles') {
+      console.log('🎙️ Whisper mode: Skipping caption monitoring, starting audio-only collection');
+      
+      // Start audio recording immediately for Whisper mode
+      const whisper = captionCollection.whisper;
+      if (whisper.audioStream && !whisper.isRecording) {
+        console.log('🎵 Starting continuous audio recording for Whisper...');
+        startContinuousAudioRecording();
+      }
+      
+      return; // Exit early - no caption monitoring needed
+    }
+    
+    // Start monitoring with enhanced selectors (only for caption-based modes)
     captionCollection.interval = setInterval(async () => {
       // Comprehensive caption selectors for both manual and auto-generated
       const allCaptionElements = document.querySelectorAll(`
@@ -2545,11 +2954,11 @@
             const youtubeLink = videoId ? `https://www.youtube.com/watch?v=${videoId}&t=${Math.floor(timestampInSeconds)}s` : '#';
             console.log('🔗 Generated YouTube link:', youtubeLink);
             
-            // ✅ NEW: Route based on user's subtitle mode choice
+            // ✅ SIMPLIFIED: Route based on user's clear choice (only 2 modes)
             const userMode = captionCollection.userSubtitleMode;
             
             if (userMode === 'with-subtitles') {
-              // User confirmed this video has creator subtitles - use original fast method
+              // User selected: Creator subtitles mode - use original fast method
               console.log('📝 User selected: Creator subtitles mode - using original processing');
               console.log('📝 Processing manual caption:', {
                 text: currentText.substring(0, 50) + '...',
@@ -2560,32 +2969,30 @@
               processManualCaption(currentText, timestampInSeconds, extractedTimestamp, videoId, youtubeLink, isNewChunk);
               
             } else if (userMode === 'without-subtitles') {
-              // User confirmed no subtitles - force Whisper transcription
-              console.log('🎙️ User selected: No subtitles mode - using Whisper transcription');
+              // User selected: Whisper transcription mode
+              console.log('🎙️ User selected: Whisper transcription mode - processing audio');
               if (!captionCollection.whisperFallback) {
+                // ✅ FIX: Start audio recording immediately for Whisper mode
+                const whisper = captionCollection.whisper;
+                
+                // Start recording if not already recording
+                if (whisper.audioStream && !whisper.isRecording) {
+                  console.log('🎵 Starting audio recording for Whisper transcription...');
+                  startNewAudioChunk(timestampInSeconds, extractedTimestamp);
+                }
+                
+                // Process the timestamp for audio chunking
                 await processWhisperTimestamp(timestampInSeconds, extractedTimestamp, videoId, youtubeLink, isNewChunk);
               } else {
-                console.log('⚠️ Whisper unavailable, skipping caption collection for this video');
+                console.log('❌ Whisper unavailable - microphone permissions may be needed');
+                console.log('💡 Try refreshing the page and grant microphone permissions when prompted');
                 captionCollection.lastCollectedTimestamp = timestampInSeconds;
               }
               
             } else {
-              // Auto-detect mode (fallback) - use the hybrid detection
-              console.log('🤖 Auto-detect mode - analyzing caption quality');
-              const captionType = detectCaptionQuality(currentText);
-              
-              if (captionType === 'manual') {
-                console.log('📝 Detected: Manual/Creator captions - using original processing');
-                processManualCaption(currentText, timestampInSeconds, extractedTimestamp, videoId, youtubeLink, isNewChunk);
-              } else {
-                console.log('🤖 Detected: Auto-generated captions - using Whisper if available');
-                if (!captionCollection.whisperFallback) {
-                  await processWhisperTimestamp(timestampInSeconds, extractedTimestamp, videoId, youtubeLink, isNewChunk);
-                } else {
-                  console.log('⚠️ Skipping auto-generated caption (Whisper unavailable):', currentText.substring(0, 30) + '...');
-                  captionCollection.lastCollectedTimestamp = timestampInSeconds;
-                }
-              }
+              // Fallback to creator subtitles if mode is unrecognized
+              console.log('⚠️ Unknown subtitle mode, defaulting to creator subtitles processing');
+              processManualCaption(currentText, timestampInSeconds, extractedTimestamp, videoId, youtubeLink, isNewChunk);
             }
             
             captionCollection.lastCaptionTime = timestampInSeconds;

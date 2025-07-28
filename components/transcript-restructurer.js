@@ -36,42 +36,104 @@ class TranscriptRestructurer {
         </div>
         
         <div class="transcript-options">
-          <div class="subtitle-mode-selection">
-            <label>📹 Video subtitle type:</label>
-            <div class="subtitle-mode-buttons">
-              <label class="subtitle-mode-option">
-                <input type="radio" name="subtitle-mode" value="with-subtitles" id="with-subtitles">
-                <span>📝 Has Creator Subtitles</span>
-                <small>Use original method (fast & accurate)</small>
-              </label>
-              <label class="subtitle-mode-option">
-                <input type="radio" name="subtitle-mode" value="without-subtitles" id="without-subtitles">
-                <span>🎙️ No Subtitles / Auto-only</span>
-                <small>Use Whisper transcription</small>
-              </label>
-              <label class="subtitle-mode-option">
-                <input type="radio" name="subtitle-mode" value="auto-detect" id="auto-detect" checked>
-                <span>🤖 Auto-detect</span>
-                <small>Let system decide (hybrid mode)</small>
-              </label>
+          <div class="options-layout">
+            <!-- ✅ LEFT SIDE: AI Settings -->
+            <div class="ai-settings-section">
+              <h4>⚙️ Processing Settings</h4>
+              <div class="settings-group">
+                <label class="setting-item">
+                  <div class="setting-header">
+                    <span class="setting-icon">🤖</span>
+                    <span class="setting-title">AI Enhancement</span>
+                  </div>
+                  <input type="checkbox" id="use-ai-restructure" checked>
+                  <span class="setting-description">Use AI for better punctuation and grammar</span>
+                </label>
+                
+                <label class="setting-item">
+                  <div class="setting-header">
+                    <span class="setting-icon">⏱️</span>
+                    <span class="setting-title">Pause Threshold</span>
+                  </div>
+                  <input type="number" id="pause-threshold" value="2.2" min="0.5" max="5" step="0.1">
+                  <span class="setting-description">Seconds of silence to detect sentence breaks</span>
+                </label>
+                
+                <label class="setting-item">
+                  <div class="setting-header">
+                    <span class="setting-icon">📦</span>
+                    <span class="setting-title">Chunk Duration</span>
+                  </div>
+                  <input type="number" id="chunk-duration" value="75" min="20" max="120" step="5" title="Automatically create new chunks every X seconds">
+                  <span class="setting-description">Automatically create new chunks every X seconds</span>
+                </label>
+              </div>
+            </div>
+            
+            <!-- ✅ RIGHT SIDE: Transcription Method -->
+            <div class="transcription-method-section">
+              <h4>🎯 Choose Transcription Method</h4>
+              <div class="subtitle-mode-buttons">
+                <label class="subtitle-mode-card active" data-mode="with-subtitles">
+                  <input type="radio" name="subtitle-mode" value="with-subtitles" id="with-subtitles" checked>
+                  <div class="card-header">
+                    <span class="mode-icon">📝</span>
+                    <span class="mode-title">Creator Subtitles</span>
+                  </div>
+                  <div class="card-description">
+                    Video has professional subtitles from the creator. Fast and accurate collection.
+                  </div>
+                  <div class="card-tags">
+                    <span class="tag tag-fast">⚡ Fast</span>
+                    <span class="tag tag-accurate">✅ Accurate</span>
+                  </div>
+                </label>
+                
+                <label class="subtitle-mode-card" data-mode="without-subtitles">
+                  <input type="radio" name="subtitle-mode" value="without-subtitles" id="without-subtitles">
+                  <div class="card-header">
+                    <span class="mode-icon">🎙️</span>
+                    <span class="mode-title">Whisper Transcription</span>
+                  </div>
+                  <div class="card-description">
+                    No subtitles or poor auto-generated ones. Use AI to transcribe audio directly from your microphone.
+                    <br><br>
+                    <div class="whisper-info">
+                      <strong>🔊 Critical Setup Steps:</strong>
+                      <br>1. 🔊 Turn speaker volume to <strong>70-80%</strong>
+                      <br>2. 🎙️ Position microphone 6-12 inches from speakers
+                      <br>3. 🔇 Minimize background noise
+                      <br>4. ✨ Use headphones if available (best option)
+                      <br><br>
+                      <button class="test-audio-btn" id="test-audio-permissions">
+                        🎙️ Test Microphone & Audio Levels
+                      </button>
+                      <div class="audio-quality-indicator" id="audio-quality-status" style="display: none;">
+                        <div class="quality-bar"></div>
+                        <span class="quality-text">Audio Quality: Testing...</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="card-tags">
+                    <span class="tag tag-ai">🤖 AI-Powered</span>
+                    <span class="tag tag-audio">🔊 Audio</span>
+                  </div>
+                </label>
+              </div>
             </div>
           </div>
-          
-          <label>
-            <input type="checkbox" id="use-ai-restructure" checked>
-            Use AI for better punctuation
-          </label>
-          <label>
-            Pause threshold (seconds):
-            <input type="number" id="pause-threshold" value="2.2" min="0.5" max="5" step="0.1">
-          </label>
-          <label>
-            ✅ Chunk duration (seconds):
-            <input type="number" id="chunk-duration" value="75" min="20" max="120" step="5" title="Automatically create new chunks every X seconds">
-          </label>
         </div>
         
         <div class="transcript-status"></div>
+        
+        <!-- ✅ NEW: Real-time audio quality indicator during recording -->
+        <div class="live-audio-monitor" id="live-audio-monitor" style="display: none;">
+          <div class="monitor-header">
+            🎙️ Live Audio Monitor
+            <div class="monitor-level-bar" id="monitor-level-bar"></div>
+          </div>
+          <div class="monitor-text" id="monitor-text">Initializing audio monitoring...</div>
+        </div>
         
         <div class="transcript-content">
           <!-- ✅ SIMPLIFIED: Only reader mode container -->
@@ -88,8 +150,57 @@ class TranscriptRestructurer {
     
     collectBtn.addEventListener('click', () => this.toggleCollection());
     
+    // ✅ NEW: Add interactive card selection for subtitle modes
+    this.setupSubtitleModeCards();
+    
+    // ✅ NEW: Add test audio permissions button
+    const testAudioBtn = this.container.querySelector('#test-audio-permissions');
+    if (testAudioBtn) {
+      testAudioBtn.addEventListener('click', () => this.testAudioPermissions());
+    }
+    
     // ✅ SIMPLIFIED: Reader mode handles its own interactions
     // No more classic view buttons to attach
+  }
+  
+  setupSubtitleModeCards() {
+    const cards = this.container.querySelectorAll('.subtitle-mode-card');
+    const radios = this.container.querySelectorAll('input[name="subtitle-mode"]');
+    
+    // Handle card clicks
+    cards.forEach(card => {
+      card.addEventListener('click', () => {
+        const radio = card.querySelector('input[type="radio"]');
+        if (radio) {
+          radio.checked = true;
+          this.updateCardActiveStates();
+        }
+      });
+    });
+    
+    // Handle radio changes (for keyboard navigation)
+    radios.forEach(radio => {
+      radio.addEventListener('change', () => {
+        this.updateCardActiveStates();
+      });
+    });
+    
+    // Initial state
+    this.updateCardActiveStates();
+  }
+  
+  updateCardActiveStates() {
+    const cards = this.container.querySelectorAll('.subtitle-mode-card');
+    const checkedRadio = this.container.querySelector('input[name="subtitle-mode"]:checked');
+    
+    cards.forEach(card => {
+      const radio = card.querySelector('input[type="radio"]');
+      if (radio === checkedRadio) {
+        card.classList.add('active');
+      } else {
+        card.classList.remove('active');
+      }
+    });
   }
 
   async listYouTubeTabs() {
@@ -1248,6 +1359,39 @@ class TranscriptRestructurer {
   }
 
 
+  displayTranscriptInReader(segments) {
+    // ✅ NEW: Force display segments in reader
+    console.log('📖 Forcing display of', segments.length, 'segments in reader');
+    
+    // Create reader container if not exists
+    let readerContainer = this.container.querySelector('.transcript-reader-container');
+    if (!readerContainer) {
+      readerContainer = document.createElement('div');
+      readerContainer.className = 'transcript-reader-container';
+      this.container.querySelector('.transcript-content').appendChild(readerContainer);
+    }
+    
+    // Initialize or update TranscriptViewer
+    if (typeof TranscriptViewer !== 'undefined') {
+      if (!this.transcriptViewer) {
+        console.log('📖 Creating new TranscriptViewer with', segments.length, 'segments');
+        this.transcriptViewer = new TranscriptViewer(readerContainer, segments);
+        console.log('✅ TranscriptViewer created successfully');
+      } else {
+        console.log('📖 Updating existing TranscriptViewer with', segments.length, 'segments');
+        this.transcriptViewer.updateTranscriptData(segments);
+        console.log('✅ TranscriptViewer updated successfully');
+      }
+    } else {
+      console.error('❌ TranscriptViewer not loaded - check if transcript-viewer.js is included');
+      readerContainer.innerHTML = `
+        <div style="color: red; padding: 20px; text-align: center;">
+          TranscriptViewer not loaded. Please check console for errors.
+        </div>
+      `;
+    }
+  }
+
   showReaderView() {
     // ✅ SIMPLIFIED: Only reader view exists now
     
@@ -1763,9 +1907,20 @@ Sentence to fix: "${preCleanedText}"`;
           statusEl.className = 'transcript-status success';
           
           // ✅ FIX: Update the transcript viewer immediately with cleaned data
+          console.log('🔍 Transcript viewer check:', {
+            hasTranscriptViewer: !!this.transcriptViewer,
+            hasUpdateMethod: this.transcriptViewer && typeof this.transcriptViewer.updateTranscriptData === 'function',
+            segmentsToUpdate: cleanedSegments.length,
+            sampleSegment: cleanedSegments[0]
+          });
+          
           if (this.transcriptViewer && typeof this.transcriptViewer.updateTranscriptData === 'function') {
             console.log('🔄 Updating transcript viewer with cleaned collection data');
             this.transcriptViewer.updateTranscriptData(cleanedSegments);
+          } else {
+            console.log('⚠️ Transcript viewer not available, creating new one...');
+            // ✅ FIX: Create transcript viewer if it doesn't exist
+            this.displayTranscriptInReader(cleanedSegments);
           }
           
           // Update button back to play state
@@ -1827,7 +1982,7 @@ Sentence to fix: "${preCleanedText}"`;
               modeText = '📝 Creator subtitles mode - using original fast method';
               break;
             case 'without-subtitles':
-              modeText = '🎙️ Whisper transcription mode - capturing audio';
+              modeText = '🎙️ Whisper transcription mode - will request audio permission when needed';
               break;
             case 'auto-detect':
               modeText = '🤖 Auto-detect mode - will determine best method';
@@ -1858,6 +2013,169 @@ Sentence to fix: "${preCleanedText}"`;
       console.error('❌ Toggle collection error:', error);
       statusEl.textContent = `❌ Error: ${error.message}`;
       statusEl.className = 'transcript-status error';
+    }
+  }
+
+  // ✅ NEW: Show audio quality indicator with visual feedback
+  showQualityIndicator(indicatorEl, quality, text) {
+    if (!indicatorEl) return;
+    
+    indicatorEl.style.display = 'block';
+    const qualityBar = indicatorEl.querySelector('.quality-bar');
+    const qualityText = indicatorEl.querySelector('.quality-text');
+    
+    // Remove existing quality classes
+    qualityBar.className = 'quality-bar';
+    
+    // Add new quality class and update text
+    switch (quality) {
+      case 'excellent':
+        qualityBar.classList.add('quality-excellent');
+        qualityText.textContent = `✅ ${text} - Perfect for transcription!`;
+        break;
+      case 'moderate':
+        qualityBar.classList.add('quality-moderate');
+        qualityText.textContent = `⚠️ ${text} - Consider increasing volume`;
+        break;
+      case 'poor':
+        qualityBar.classList.add('quality-poor');
+        qualityText.textContent = `🔴 ${text} - Increase volume or use headphones`;
+        break;
+    }
+    
+    // Hide after 8 seconds
+    setTimeout(() => {
+      indicatorEl.style.display = 'none';
+    }, 8000);
+  }
+
+  async testAudioPermissions() {
+    const testBtn = this.container.querySelector('#test-audio-permissions');
+    const originalText = testBtn.textContent;
+    
+    try {
+      testBtn.textContent = '🔄 Testing...';
+      testBtn.disabled = true;
+      
+      // Test microphone permissions
+      console.log('🧪 Testing microphone permissions for Whisper...');
+      
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,  // Disable to pick up speaker audio
+          noiseSuppression: false,  // Disable to preserve all audio
+          autoGainControl: false,   // Disable for consistent levels
+          sampleRate: 44100,       // Higher sample rate
+          channelCount: 1,         // Mono audio
+          volume: 1.0             // Maximum sensitivity
+        },
+        video: false
+      });
+      
+      const hasAudio = stream.getAudioTracks().length > 0;
+      
+      if (hasAudio) {
+        testBtn.textContent = '🎵 Testing Audio Levels...';
+        testBtn.style.background = '#3b82f6';
+        
+        // ✅ NEW: Test audio levels for 3 seconds
+        try {
+          const audioContext = new AudioContext();
+          const source = audioContext.createMediaStreamSource(stream);
+          const analyser = audioContext.createAnalyser();
+          source.connect(analyser);
+          
+          analyser.fftSize = 256;
+          const bufferLength = analyser.frequencyBinCount;
+          const dataArray = new Uint8Array(bufferLength);
+          
+          let maxLevel = 0;
+          let levelCount = 0;
+          
+          const testAudioLevels = () => {
+            analyser.getByteFrequencyData(dataArray);
+            const average = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength;
+            maxLevel = Math.max(maxLevel, average);
+            levelCount++;
+            
+            console.log(`🧪 Test audio level: ${Math.round(average)}/255`);
+            
+            if (levelCount < 15) { // Test for 3 seconds (15 * 200ms)
+              setTimeout(testAudioLevels, 200);
+            } else {
+              // Show detailed results with specific guidance
+              const qualityIndicator = this.container.querySelector('#audio-quality-status');
+              
+              if (maxLevel > 30) {
+                testBtn.textContent = '✅ Excellent - Ready for Whisper!';
+                testBtn.style.background = '#22c55e';
+                console.log(`✅ Excellent audio level: ${Math.round(maxLevel)}/255 - perfect for transcription`);
+                this.showQualityIndicator(qualityIndicator, 'excellent', `Excellent: ${Math.round(maxLevel)}/255`);
+              } else if (maxLevel > 15) {
+                testBtn.textContent = '⚠️ OK - Could be Better';
+                testBtn.style.background = '#f59e0b';
+                console.log(`⚠️ Moderate audio level: ${Math.round(maxLevel)}/255 - try increasing volume slightly`);
+                this.showQualityIndicator(qualityIndicator, 'moderate', `Moderate: ${Math.round(maxLevel)}/255`);
+              } else {
+                testBtn.textContent = '🔴 Too Low - Fix Setup!';
+                testBtn.style.background = '#ef4444';
+                console.log(`🔴 Audio level too low: ${Math.round(maxLevel)}/255`);
+                console.log('💡 Solutions: 1) Increase speaker volume 2) Move microphone closer 3) Use headphones');
+                this.showQualityIndicator(qualityIndicator, 'poor', `Too Low: ${Math.round(maxLevel)}/255`);
+              }
+              
+              // Clean up
+              audioContext.close();
+              stream.getTracks().forEach(track => track.stop());
+              
+              // Reset button after 4 seconds
+              setTimeout(() => {
+                testBtn.textContent = originalText;
+                testBtn.style.background = '';
+                testBtn.disabled = false;
+              }, 4000);
+            }
+          };
+          
+          testAudioLevels();
+          
+        } catch (error) {
+          console.log('⚠️ Audio level testing not available:', error.message);
+          testBtn.textContent = '✅ Audio Ready!';
+          testBtn.style.background = '#22c55e';
+          
+          // Clean up test stream
+          stream.getTracks().forEach(track => track.stop());
+          
+          setTimeout(() => {
+            testBtn.textContent = originalText;
+            testBtn.style.background = '';
+            testBtn.disabled = false;
+          }, 3000);
+        }
+        
+      } else {
+        testBtn.textContent = '❌ No Microphone';
+        testBtn.style.background = '#ef4444';
+        console.log('❌ No microphone available - check microphone permissions');
+        
+        setTimeout(() => {
+          testBtn.textContent = originalText;
+          testBtn.style.background = '';
+          testBtn.disabled = false;
+        }, 3000);
+      }
+      
+    } catch (error) {
+      console.error('❌ Microphone permission test failed:', error);
+      testBtn.textContent = '❌ Permission Denied';
+      testBtn.style.background = '#ef4444';
+      
+      setTimeout(() => {
+        testBtn.textContent = originalText;
+        testBtn.style.background = '';
+        testBtn.disabled = false;
+      }, 3000);
     }
   }
 
@@ -2008,64 +2326,122 @@ Sentence to fix: "${preCleanedText}"`;
         padding: 2px 5px;
       }
       
-      /* NEW: Subtitle mode selection styles */
+      /* ✨ NEW: Modern subtitle mode selection styles */
       .subtitle-mode-selection {
-        background: #fff;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        padding: 12px;
-        margin-bottom: 15px;
+        background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+        border: 1px solid #e1e8ff;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
       }
       
-      .subtitle-mode-selection > label {
-        font-weight: bold;
-        color: #333;
-        margin-bottom: 10px;
-        display: block !important;
+      .subtitle-mode-selection h4 {
+        margin: 0 0 16px 0;
+        color: #2d3748;
+        font-size: 16px;
+        font-weight: 600;
+        text-align: center;
       }
       
       .subtitle-mode-buttons {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
       }
       
-      .subtitle-mode-option {
-        display: flex !important;
-        align-items: flex-start;
-        gap: 8px;
-        padding: 8px;
-        border: 1px solid #e0e0e0;
-        border-radius: 4px;
+      .subtitle-mode-card {
+        display: block !important;
+        background: white;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 16px;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
       }
       
-      .subtitle-mode-option:hover {
-        background: #f0f0f0;
-        border-color: #2196F3;
+      .subtitle-mode-card:hover {
+        border-color: #4299e1;
+        box-shadow: 0 4px 12px rgba(66, 153, 225, 0.15);
+        transform: translateY(-1px);
       }
       
-      .subtitle-mode-option input[type="radio"] {
-        margin: 0;
-        margin-top: 2px;
+      .subtitle-mode-card.active,
+      .subtitle-mode-card:has(input:checked) {
+        border-color: #3182ce;
+        background: linear-gradient(135deg, #ebf8ff 0%, #bee3f8 100%);
+        box-shadow: 0 4px 16px rgba(49, 130, 206, 0.2);
       }
       
-      .subtitle-mode-option span {
+      .subtitle-mode-card input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+      
+      .card-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      
+      .mode-icon {
+        font-size: 24px;
+        line-height: 1;
+      }
+      
+      .mode-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #2d3748;
+      }
+      
+      .card-description {
+        font-size: 12px;
+        color: #4a5568;
+        line-height: 1.4;
+        margin-bottom: 12px;
+      }
+      
+      .card-tags {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      
+      .tag {
+        font-size: 10px;
+        padding: 3px 8px;
+        border-radius: 12px;
         font-weight: 500;
-        color: #333;
+        line-height: 1;
       }
       
-      .subtitle-mode-option small {
-        display: block;
-        color: #666;
-        font-size: 11px;
-        margin-top: 2px;
+      .tag-fast {
+        background: #fef5e7;
+        color: #d69e2e;
+        border: 1px solid #fbb040;
       }
       
-      .subtitle-mode-option input[type="radio"]:checked + span {
-        color: #2196F3;
-        font-weight: bold;
+      .tag-accurate {
+        background: #f0fff4;
+        color: #38a169;
+        border: 1px solid #68d391;
+      }
+      
+      .tag-ai {
+        background: #faf5ff;
+        color: #805ad5;
+        border: 1px solid #b794f6;
+      }
+      
+      .tag-audio {
+        background: #e6fffa;
+        color: #319795;
+        border: 1px solid #4fd1c7;
       }
       
       .transcript-status {
@@ -2137,6 +2513,237 @@ Sentence to fix: "${preCleanedText}"`;
       @keyframes sparkle {
         0%, 100% { transform: scale(1) rotate(0deg); }
         50% { transform: scale(1.1) rotate(5deg); }
+      }
+      
+      /* ✅ NEW: Whisper info styling */
+      .whisper-info {
+        background: #f0f8ff;
+        border: 1px solid #b6d7ff;
+        border-radius: 4px;
+        padding: 8px 12px;
+        font-size: 12px;
+        color: #0066cc;
+        margin-top: 8px;
+      }
+      
+      .whisper-info strong {
+        color: #004499;
+      }
+      
+      .test-audio-btn {
+        background: #4f46e5;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 6px 12px;
+        font-size: 11px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-top: 8px;
+      }
+      
+      .test-audio-btn:hover:not(:disabled) {
+        background: #4338ca;
+        transform: translateY(-1px);
+      }
+      
+      .test-audio-btn:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+        transform: none;
+      }
+      
+      /* ✅ NEW: Audio quality indicator styles */
+      .audio-quality-indicator {
+        margin-top: 10px;
+        padding: 8px;
+        border-radius: 4px;
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+      }
+      
+      .quality-bar {
+        height: 4px;
+        border-radius: 2px;
+        margin-bottom: 4px;
+        transition: all 0.3s ease;
+      }
+      
+      .quality-bar.quality-excellent {
+        background: linear-gradient(to right, #22c55e, #16a34a);
+        width: 100%;
+      }
+      
+      .quality-bar.quality-moderate {
+        background: linear-gradient(to right, #f59e0b, #d97706);
+        width: 60%;
+      }
+      
+      .quality-bar.quality-poor {
+        background: linear-gradient(to right, #ef4444, #dc2626);
+        width: 30%;
+      }
+      
+      .quality-text {
+        font-size: 11px;
+        font-weight: 500;
+        color: #374151;
+      }
+      
+      /* ✅ NEW: Live audio monitor styles */
+      .live-audio-monitor {
+        background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+        color: white;
+        padding: 12px;
+        border-radius: 6px;
+        margin: 10px 0;
+        border: 1px solid #2563eb;
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+      }
+      
+      .monitor-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-weight: 600;
+        font-size: 13px;
+        margin-bottom: 8px;
+      }
+      
+      .monitor-level-bar {
+        width: 100px;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 3px;
+        overflow: hidden;
+        position: relative;
+      }
+      
+      .monitor-level-bar::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        background: linear-gradient(to right, #ef4444, #f59e0b, #22c55e);
+        border-radius: 3px;
+        width: 0%;
+        transition: width 0.3s ease;
+      }
+      
+      .monitor-text {
+        font-size: 11px;
+        opacity: 0.9;
+        font-weight: 400;
+      }
+      
+      /* ✅ NEW: Two-column layout for options */
+      .options-layout {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-top: 15px;
+      }
+      
+      @media (max-width: 768px) {
+        .options-layout {
+          grid-template-columns: 1fr;
+          gap: 15px;
+        }
+      }
+      
+      /* ✅ LEFT SIDE: AI Settings styling */
+      .ai-settings-section {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 16px;
+      }
+      
+      .ai-settings-section h4 {
+        margin: 0 0 15px 0;
+        color: #374151;
+        font-size: 14px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      
+      .settings-group {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      
+      .setting-item {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 10px;
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+      }
+      
+      .setting-item:hover {
+        border-color: #3b82f6;
+        box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
+      }
+      
+      .setting-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 500;
+        color: #374151;
+      }
+      
+      .setting-icon {
+        font-size: 16px;
+      }
+      
+      .setting-title {
+        font-size: 13px;
+      }
+      
+      .setting-description {
+        font-size: 11px;
+        color: #6b7280;
+        margin-top: 2px;
+      }
+      
+      .setting-item input[type="checkbox"] {
+        align-self: flex-start;
+        margin: 4px 0;
+      }
+      
+      .setting-item input[type="number"] {
+        padding: 4px 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        font-size: 12px;
+        width: 80px;
+      }
+      
+      /* ✅ RIGHT SIDE: Transcription method styling */
+      .transcription-method-section {
+        background: #fefefe;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 16px;
+      }
+      
+      .transcription-method-section h4 {
+        margin: 0 0 15px 0;
+        color: #374151;
+        font-size: 14px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
       }
     `;
     document.head.appendChild(style);
