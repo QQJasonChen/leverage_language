@@ -56,6 +56,15 @@
       "matches": ["https://*.youtube.com/*"],
       "js": ["youtube-transcript-hybrid.js"],
       "run_at": "document_end"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "exclude_matches": [
+        "https://*.youtube.com/*",
+        "https://youglish.com/*"
+      ],
+      "js": ["article-collector.js"],
+      "run_at": "document_idle"
     }
   ],
   

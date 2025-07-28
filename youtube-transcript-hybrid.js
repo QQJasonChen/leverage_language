@@ -31,7 +31,8 @@
       pendingTranscriptions: new Map(), // Track ongoing transcriptions
       lastTranscriptionTime: 0,
       initializationAttempted: false, // Track if we've tried to initialize
-      processedTimeRanges: [] // ✅ NEW: Track processed time ranges to avoid duplicates
+      processedTimeRanges: [], // ✅ NEW: Track processed time ranges to avoid duplicates
+      languageOverride: 'auto' // ✅ NEW: User language override
     }
   };
 
@@ -72,10 +73,21 @@
       const chunkDuration = request.chunkDuration || 45; // Default to 45 seconds
       const subtitleMode = request.subtitleMode || 'with-subtitles'; // Default to creator subtitles
       
-      console.log('🎯 Starting caption collection with user choice:', subtitleMode);
+      // ✅ NEW: Handle Whisper timing settings
+      const whisperSettings = request.whisperSettings || {
+        chunkDuration: 15,
+        chunkGap: 1,
+        sentenceGrouping: 'medium'
+      };
       
-      // ✅ NEW: Start collection based on user choice
-      startCaptionCollection(chunkDuration, subtitleMode);
+      console.log('🎯 Starting caption collection with settings:', {
+        subtitleMode,
+        chunkDuration,
+        whisperSettings
+      });
+      
+      // ✅ NEW: Start collection with enhanced settings
+      startCaptionCollection(chunkDuration, subtitleMode, whisperSettings);
       
       sendResponse({ 
         success: true, 
@@ -2065,11 +2077,17 @@
   }
 
   function detectVideoLanguage() {
-    // ✅ FIX: Better video language detection for Whisper transcription
+    // ✅ ENHANCED: Multi-language detection for Whisper transcription
     try {
-      console.log('🌍 Starting language detection for Whisper...');
+      console.log('🌍 Starting comprehensive language detection for Whisper...');
       
-      // ✅ PRIORITY 1: Enhanced video content analysis
+      // ✅ PRIORITY 0: Check if user has manually overridden language
+      if (captionCollection.whisper.languageOverride && captionCollection.whisper.languageOverride !== 'auto') {
+        console.log(`🎯 User forced language: ${captionCollection.whisper.languageOverride.toUpperCase()}`);
+        return captionCollection.whisper.languageOverride;
+      }
+      
+      // ✅ PRIORITY 1: Get video content for analysis
       const videoTitle = document.querySelector('h1.ytd-video-primary-info-renderer')?.textContent?.trim() || '';
       const channelName = document.querySelector('ytd-channel-name#channel-name a')?.textContent?.trim() || '';
       const videoDescription = document.querySelector('#description')?.textContent?.trim().substring(0, 200) || '';
@@ -2080,83 +2098,118 @@
         description: videoDescription.substring(0, 50) 
       });
       
-      // Enhanced English detection with common patterns
-      const englishPattern = /^[a-zA-Z0-9\s\-_.,!?'"()&:]+$/;
-      const englishWords = /\b(the|and|is|are|was|were|have|has|had|will|would|could|should|for|with|from|about|into|through|during|before|after|above|below|between|among)\b/i;
-      
-      // Check multiple content sources for English
       const contentToCheck = (videoTitle + ' ' + channelName + ' ' + videoDescription).toLowerCase();
-      const hasEnglishWords = englishWords.test(contentToCheck);
-      const isEnglishFormat = videoTitle.length > 10 && englishPattern.test(videoTitle);
       
-      if (isEnglishFormat || (hasEnglishWords && contentToCheck.length > 20)) {
-        console.log('✅ Content appears to be English - using "en"');
-        console.log(`🔍 Evidence: format=${isEnglishFormat}, words=${hasEnglishWords}`);
-        return 'en';
-      }
+      // ✅ NEW: Multi-language detection patterns
+      const languagePatterns = {
+        'en': {
+          words: /\b(the|and|is|are|was|were|have|has|had|will|would|could|should|for|with|from|about|into|through|during|before|after|above|below|between|among)\b/i,
+          chars: /^[a-zA-Z0-9\s\-_.,!?'"()&:]+$/
+        },
+        'nl': {
+          words: /\b(de|het|en|is|zijn|was|waren|hebben|heeft|had|zal|zou|kunnen|moeten|voor|met|van|over|in|door|tijdens|voordat|na|boven|onder|tussen)\b/i,
+          chars: /[a-zA-ZÀ-ſ\s\-_.,!?'"()&:]/,
+          specific: /\b(dit|dat|deze|die|hier|daar|waar|hoe|wat|wie|wanneer|waarom|omdat|maar|dus|ook|nog|wel|niet|geen|alle|veel|weinig|goed|slecht|groot|klein)\b/i
+        },
+        'de': {
+          words: /\b(der|die|das|und|ist|sind|war|waren|haben|hat|hatte|wird|würde|könnte|sollte|für|mit|von|über|in|durch|während|vor|nach|über|unter|zwischen)\b/i,
+          chars: /[a-zA-ZÀ-ſß\s\-_.,!?'"()&:]/
+        },
+        'fr': {
+          words: /\b(le|la|les|et|est|sont|était|étaient|avoir|a|avait|sera|serait|pourrait|devrait|pour|avec|de|sur|dans|à|travers|pendant|avant|après|au-dessus|sous|entre)\b/i,
+          chars: /[a-zA-ZÀ-ſ\s\-_.,!?'"()&:]/
+        },
+        'es': {
+          words: /\b(el|la|los|las|y|es|son|era|eran|tener|tiene|tenía|será|sería|podría|debería|para|con|de|sobre|en|a|través|durante|antes|después|arriba|abajo|entre)\b/i,
+          chars: /[a-zA-ZÀ-ſñ\s\-_.,!?¡¿'"()&:]/
+        },
+        'zh': {
+          words: /[一-鿿]/,
+          chars: /[一-鿿]/
+        },
+        'ja': {
+          words: /[぀-ゟ゠-ヿ一-鿿]/,
+          chars: /[぀-ゟ゠-ヿ一-鿿]/
+        }
+      };
       
-      // ✅ PRIORITY 2: Check for existing captions/subtitles language
-      const captionElements = document.querySelectorAll('.ytp-caption-segment, .captions-text');
-      if (captionElements.length > 0) {
-        const captionText = Array.from(captionElements).map(el => el.textContent?.trim()).join(' ').substring(0, 100);
-        console.log('🔍 Found existing captions:', captionText);
+      // ✅ NEW: Score each language based on content
+      const languageScores = {};
+      
+      for (const [lang, patterns] of Object.entries(languagePatterns)) {
+        let score = 0;
         
-        // If captions are in English, use English
-        if (captionText.length > 10 && englishPattern.test(captionText)) {
-          console.log('✅ Existing captions appear to be English - using "en"');
-          return 'en';
+        // Check for characteristic words
+        const wordMatches = (contentToCheck.match(patterns.words) || []).length;
+        score += wordMatches * 10;
+        
+        // Check for specific language features (for Dutch)
+        if (patterns.specific) {
+          const specificMatches = (contentToCheck.match(patterns.specific) || []).length;
+          score += specificMatches * 15; // Higher weight for specific patterns
+        }
+        
+        // Check character patterns
+        if (patterns.chars.test(contentToCheck)) {
+          score += 5;
+        }
+        
+        languageScores[lang] = score;
+        
+        if (score > 0) {
+          console.log(`🔍 ${lang.toUpperCase()} score: ${score} (words: ${wordMatches})`);
         }
       }
       
-      // ✅ PRIORITY 3: Check URL parameters (video-specific language)
+      // Find language with highest score
+      const detectedLang = Object.entries(languageScores)
+        .filter(([lang, score]) => score > 0)
+        .sort(([,a], [,b]) => b - a)[0];
+      
+      if (detectedLang && detectedLang[1] > 10) {
+        console.log(`✅ Detected language: ${detectedLang[0].toUpperCase()} (confidence: ${detectedLang[1]})`);
+        return detectedLang[0];
+      }
+      
+      // ✅ FALLBACK 1: Check existing captions for language clues
+      const captionElements = document.querySelectorAll('.ytp-caption-segment, .captions-text');
+      if (captionElements.length > 0) {
+        const captionText = Array.from(captionElements).map(el => el.textContent?.trim()).join(' ').substring(0, 100);
+        console.log('🔍 Found existing captions, analyzing language...');
+        
+        // Analyze captions with same multi-language detection
+        for (const [lang, patterns] of Object.entries(languagePatterns)) {
+          if (patterns.words.test(captionText)) {
+            console.log(`✅ Captions detected as ${lang.toUpperCase()}`);
+            return lang;
+          }
+        }
+      }
+      
+      // ✅ FALLBACK 2: Check URL and browser language
       const urlParams = new URLSearchParams(window.location.search);
-      let urlLang = urlParams.get('hl') || urlParams.get('lang');
+      let urlLang = urlParams.get('hl') || urlParams.get('lang') || navigator.language || document.documentElement.lang;
       
-      // ✅ PRIORITY 4: Use browser language only as fallback
-      if (!urlLang) {
-        urlLang = navigator.language || document.documentElement.lang;
-      }
+      console.log(`🔍 Browser/URL language: ${urlLang}`);
       
-      // ✅ ENHANCED SMART OVERRIDE: Better mixed content detection
-      const hasChineseContent = /[\u4e00-\u9fff]/.test(videoTitle + channelName + videoDescription);
-      const chineseRatio = (contentToCheck.match(/[\u4e00-\u9fff]/g) || []).length / Math.max(contentToCheck.length, 1);
-      
-      console.log(`🔍 Content analysis: Chinese chars ratio = ${(chineseRatio * 100).toFixed(1)}%`);
-      
-      // If content is primarily English but browser is Chinese, prioritize English
-      if (chineseRatio < 0.3 && urlLang.includes('zh')) {
-        console.log('🔄 Browser is Chinese but video content appears primarily English - using "en"');
-        return 'en';
-      }
-      
-      // If content is mixed but has significant English, use English for better Whisper accuracy
-      if (chineseRatio < 0.5 && hasEnglishWords) {
-        console.log('🔄 Mixed content with substantial English - using "en" for better accuracy');
-        return 'en';
-      }
-      
-      // ✅ Convert to ISO-639-1 format (Whisper only accepts 2-letter codes)
+      // ✅ ENHANCED: Convert to ISO-639-1 format (Whisper supports 99+ languages)
       const languageMap = {
-        'zh-hant-tw': 'zh',
-        'zh-hans-cn': 'zh', 
-        'zh-cn': 'zh',
-        'zh-tw': 'zh',
-        'zh-hk': 'zh',
-        'en-us': 'en',
-        'en-gb': 'en',
-        'ja-jp': 'ja',
-        'ko-kr': 'ko',
-        'es-es': 'es',
-        'fr-fr': 'fr',
-        'de-de': 'de',
-        'it-it': 'it',
-        'pt-br': 'pt',
+        // Chinese variants
+        'zh-hant-tw': 'zh', 'zh-hans-cn': 'zh', 'zh-cn': 'zh', 'zh-tw': 'zh', 'zh-hk': 'zh',
+        // English variants  
+        'en-us': 'en', 'en-gb': 'en', 'en-au': 'en', 'en-ca': 'en',
+        // European languages
+        'nl-nl': 'nl', 'nl-be': 'nl',  // ✅ DUTCH SUPPORT
+        'de-de': 'de', 'de-at': 'de', 'de-ch': 'de',
+        'fr-fr': 'fr', 'fr-ca': 'fr', 'fr-be': 'fr',
+        'es-es': 'es', 'es-mx': 'es', 'es-ar': 'es',
+        'it-it': 'it', 'it-ch': 'it',
+        'pt-br': 'pt', 'pt-pt': 'pt',
         'ru-ru': 'ru',
-        'ar-sa': 'ar',
-        'hi-in': 'hi',
-        'th-th': 'th',
-        'vi-vn': 'vi',
-        'nl-nl': 'nl'
+        // Asian languages
+        'ja-jp': 'ja', 'ko-kr': 'ko', 'th-th': 'th', 'vi-vn': 'vi', 'hi-in': 'hi',
+        // Other languages  
+        'ar-sa': 'ar', 'sv-se': 'sv', 'no-no': 'no', 'da-dk': 'da', 'fi-fi': 'fi'
       };
       
       // Convert to lowercase and map
@@ -2533,16 +2586,36 @@
       .replace(/^(.{15,}[^.!?])$/, '$1.');
   }
 
-  async function startCaptionCollection(chunkDuration = 45, subtitleMode = 'with-subtitles') {
+  async function startCaptionCollection(chunkDuration = 45, subtitleMode = 'with-subtitles', whisperSettings = {}) {
     if (captionCollection.isCollecting) {
       console.log('📡 HYBRID Caption collection already in progress');
       return;
     }
     
+    // ✅ NEW: Apply user's Whisper timing settings
+    const defaultWhisperSettings = {
+      chunkDuration: 15,
+      chunkGap: 1,
+      sentenceGrouping: 'medium',
+      languageOverride: 'auto'
+    };
+    const finalWhisperSettings = { ...defaultWhisperSettings, ...whisperSettings };
+    
     console.log(`🚀 HYBRID Starting caption collection with ${chunkDuration}s chunks in ${subtitleMode} mode...`);
+    console.log('⚙️ Whisper settings applied:', finalWhisperSettings);
     
     // Store user's subtitle mode choice
     captionCollection.userSubtitleMode = subtitleMode;
+    
+    // ✅ NEW: Apply Whisper settings to collection state
+    if (subtitleMode === 'without-subtitles') {
+      captionCollection.whisper.chunkDuration = finalWhisperSettings.chunkDuration;
+      captionCollection.whisper.chunkGap = finalWhisperSettings.chunkGap;
+      captionCollection.whisper.sentenceGrouping = finalWhisperSettings.sentenceGrouping;
+      captionCollection.whisper.languageOverride = finalWhisperSettings.languageOverride;
+      
+      console.log(`🎙️ Whisper configured: ${finalWhisperSettings.chunkDuration}s chunks, ${finalWhisperSettings.chunkGap}s gap, language: ${finalWhisperSettings.languageOverride}`);
+    }
     
     captionCollection.isCollecting = true;
     captionCollection.startTime = Date.now();

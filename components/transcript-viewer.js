@@ -36,6 +36,13 @@ class TranscriptViewer {
               </svg>
               <span>Export</span>
             </button>
+            <button class="bulk-export-btn" title="Selective export with checkboxes">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M9 11l3 3L22 4"/>
+                <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+              </svg>
+              <span>Select & Export</span>
+            </button>
           </div>
         </div>
         
@@ -50,6 +57,21 @@ class TranscriptViewer {
           <span class="segment-count">0 segments</span>
           <span class="highlight-count">0 highlights</span>
           <span class="duration">0:00</span>
+        </div>
+        
+        <!-- ✅ NEW: Bulk export controls -->
+        <div class="bulk-export-controls" style="display: none;">
+          <div class="export-header">
+            <div class="select-controls">
+              <button class="select-all-btn">Select All</button>
+              <button class="select-none-btn">Select None</button>
+              <span class="selected-count">0 selected</span>
+            </div>
+            <div class="export-actions">
+              <button class="export-selected-btn" disabled>Export Selected</button>
+              <button class="cancel-bulk-export-btn">Cancel</button>
+            </div>
+          </div>
         </div>
         
         <div class="transcript-content"></div>
@@ -404,6 +426,7 @@ class TranscriptViewer {
     const content = this.container.querySelector('.transcript-content');
     const highlightBtn = this.container.querySelector('.highlight-btn');
     const exportBtn = this.container.querySelector('.export-highlights-btn');
+    const bulkExportBtn = this.container.querySelector('.bulk-export-btn');
     const editBtn = this.container.querySelector('.edit-mode-btn');
     
     // Edit mode toggle
@@ -539,6 +562,20 @@ class TranscriptViewer {
     
     // Export highlights
     exportBtn.addEventListener('click', () => this.exportHighlights());
+    
+    // ✅ NEW: Bulk export mode
+    bulkExportBtn.addEventListener('click', () => this.toggleBulkExportMode());
+    
+    // ✅ NEW: Bulk export controls
+    const selectAllBtn = this.container.querySelector('.select-all-btn');
+    const selectNoneBtn = this.container.querySelector('.select-none-btn');
+    const exportSelectedBtn = this.container.querySelector('.export-selected-btn');
+    const cancelBulkBtn = this.container.querySelector('.cancel-bulk-export-btn');
+    
+    if (selectAllBtn) selectAllBtn.addEventListener('click', () => this.selectAllSegments());
+    if (selectNoneBtn) selectNoneBtn.addEventListener('click', () => this.selectNoneSegments());
+    if (exportSelectedBtn) exportSelectedBtn.addEventListener('click', () => this.exportSelectedSegments());
+    if (cancelBulkBtn) cancelBulkBtn.addEventListener('click', () => this.toggleBulkExportMode());
     
     // Remove tooltip on click outside
     document.addEventListener('click', (e) => {
@@ -964,28 +1001,172 @@ class TranscriptViewer {
       return;
     }
     
-    const videoTitle = document.querySelector('h1.ytd-video-primary-info-renderer')?.textContent || 'YouTube Video';
+    this.performExport(this.highlights, 'highlights');
+  }
+  
+  // ✅ NEW: Centralized export function
+  performExport(items, type = 'items') {
+    const videoTitle = this.getVideoTitle() || 'YouTube Video';
+    const channelName = this.getChannelName() || 'Unknown Channel';
     const videoUrl = window.location.href;
     
     let markdown = `# ${videoTitle}\n\n`;
+    markdown += `**Channel**: ${channelName}\n`;
     markdown += `**Video**: ${videoUrl}\n`;
-    markdown += `**Date**: ${new Date().toLocaleDateString()}\n\n`;
-    markdown += `## Highlights\n\n`;
+    markdown += `**Date**: ${new Date().toLocaleDateString()}\n`;
+    markdown += `**Exported**: ${items.length} ${type}\n\n`;
+    markdown += `## Content\n\n`;
     
-    this.highlights.forEach((highlight, index) => {
-      // Use stored YouTube link if available, otherwise create one
-      const youtubeLink = highlight.youtubeLink || this.createYouTubeLink(highlight.timestamp);
-      const timestampDisplay = highlight.originalTimestamp || this.formatTime(highlight.timestamp);
-      const createdDate = new Date(highlight.created).toLocaleDateString();
+    items.forEach((item, index) => {
+      // Handle both highlights and transcript segments
+      const text = item.text || item.content || item.caption || '';
+      const timestamp = item.timestamp || item.start || 0;
+      const youtubeLink = item.youtubeLink || this.createYouTubeLink(timestamp);
+      const timestampDisplay = item.originalTimestamp || this.formatTime(timestamp);
       
-      markdown += `${index + 1}. **[${timestampDisplay}](${youtubeLink})** - ${highlight.text}\n`;
-      markdown += `   *Saved: ${createdDate}*\n\n`;
+      markdown += `${index + 1}. **[${timestampDisplay}](${youtubeLink})** - ${text}\n`;
+      
+      // Add metadata if available
+      if (item.created) {
+        const createdDate = new Date(item.created).toLocaleDateString();
+        markdown += `   *Saved: ${createdDate}*`;
+      }
+      if (item.whisperTranscribed) {
+        markdown += ` 🎙️ *Whisper transcribed*`;
+      }
+      if (item.aiPolished) {
+        markdown += ` ✨ *AI polished*`;
+      }
+      markdown += `\n\n`;
     });
     
-    // Copy to clipboard
+    // Copy to clipboard and download as file
     navigator.clipboard.writeText(markdown).then(() => {
-      this.showToast('✅ Highlights copied to clipboard!');
+      this.showToast(`✅ ${items.length} ${type} copied to clipboard!`);
+      
+      // Also offer file download
+      this.downloadAsFile(markdown, `${videoTitle.replace(/[^a-z0-9]/gi, '_')}_${type}.md`);
+    }).catch(error => {
+      console.error('Failed to copy to clipboard:', error);
+      // Fallback: just download file
+      this.downloadAsFile(markdown, `${videoTitle.replace(/[^a-z0-9]/gi, '_')}_${type}.md`);
+      this.showToast(`✅ ${items.length} ${type} downloaded as file!`);
     });
+  }
+  
+  // ✅ NEW: Download markdown as file
+  downloadAsFile(content, filename) {
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  
+  // ✅ NEW: Toggle bulk export mode
+  toggleBulkExportMode() {
+    const bulkControls = this.container.querySelector('.bulk-export-controls');
+    const isVisible = bulkControls.style.display !== 'none';
+    
+    if (isVisible) {
+      // Exit bulk mode
+      bulkControls.style.display = 'none';
+      this.removeBulkCheckboxes();
+      this.isBulkExportMode = false;
+    } else {
+      // Enter bulk mode
+      bulkControls.style.display = 'block';
+      this.addBulkCheckboxes();
+      this.isBulkExportMode = true;
+      this.updateSelectedCount();
+    }
+  }
+  
+  // ✅ NEW: Add checkboxes to all transcript segments
+  addBulkCheckboxes() {
+    const segments = this.container.querySelectorAll('.transcript-segment');
+    segments.forEach((segment, index) => {
+      if (!segment.querySelector('.bulk-checkbox')) {
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'bulk-checkbox';
+        checkbox.dataset.index = index;
+        checkbox.addEventListener('change', () => this.updateSelectedCount());
+        
+        const label = document.createElement('label');
+        label.className = 'bulk-checkbox-label';
+        label.appendChild(checkbox);
+        
+        segment.insertBefore(label, segment.firstChild);
+      }
+    });
+  }
+  
+  // ✅ NEW: Remove checkboxes
+  removeBulkCheckboxes() {
+    const checkboxes = this.container.querySelectorAll('.bulk-checkbox-label');
+    checkboxes.forEach(label => label.remove());
+  }
+  
+  // ✅ NEW: Select all segments
+  selectAllSegments() {
+    const checkboxes = this.container.querySelectorAll('.bulk-checkbox');
+    checkboxes.forEach(checkbox => checkbox.checked = true);
+    this.updateSelectedCount();
+  }
+  
+  // ✅ NEW: Select no segments
+  selectNoneSegments() {
+    const checkboxes = this.container.querySelectorAll('.bulk-checkbox');
+    checkboxes.forEach(checkbox => checkbox.checked = false);
+    this.updateSelectedCount();
+  }
+  
+  // ✅ NEW: Update selected count and export button state
+  updateSelectedCount() {
+    const checkboxes = this.container.querySelectorAll('.bulk-checkbox');
+    const checkedBoxes = this.container.querySelectorAll('.bulk-checkbox:checked');
+    
+    const selectedCountEl = this.container.querySelector('.selected-count');
+    const exportSelectedBtn = this.container.querySelector('.export-selected-btn');
+    
+    if (selectedCountEl) {
+      selectedCountEl.textContent = `${checkedBoxes.length} of ${checkboxes.length} selected`;
+    }
+    
+    if (exportSelectedBtn) {
+      exportSelectedBtn.disabled = checkedBoxes.length === 0;
+      exportSelectedBtn.textContent = checkedBoxes.length > 0 ? 
+        `Export Selected (${checkedBoxes.length})` : 'Export Selected';
+    }
+  }
+  
+  // ✅ NEW: Export selected segments
+  exportSelectedSegments() {
+    const checkedBoxes = this.container.querySelectorAll('.bulk-checkbox:checked');
+    
+    if (checkedBoxes.length === 0) {
+      this.showToast('❌ No segments selected');
+      return;
+    }
+    
+    const selectedItems = [];
+    checkedBoxes.forEach(checkbox => {
+      const index = parseInt(checkbox.dataset.index);
+      const segment = this.transcriptData[index];
+      if (segment) {
+        selectedItems.push(segment);
+      }
+    });
+    
+    this.performExport(selectedItems, 'segments');
+    
+    // Exit bulk mode after export
+    this.toggleBulkExportMode();
   }
 
   async saveSentenceToHistory(text, timestamp, youtubeLink, timestampInSeconds) {
@@ -1566,6 +1747,137 @@ class TranscriptViewer {
       
       ::selection {
         background: #b3d4fc;
+      }
+      
+      /* ✅ NEW: Bulk export controls styles */
+      .bulk-export-controls {
+        background: #f0f8ff;
+        border: 1px solid #b3d9ff;
+        border-radius: 6px;
+        padding: 12px;
+        margin: 10px 0;
+      }
+      
+      .export-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+      }
+      
+      .select-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      
+      .select-all-btn, .select-none-btn {
+        background: #e3f2fd;
+        border: 1px solid #2196f3;
+        color: #1976d2;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 11px;
+        transition: all 0.2s;
+      }
+      
+      .select-all-btn:hover, .select-none-btn:hover {
+        background: #2196f3;
+        color: white;
+      }
+      
+      .selected-count {
+        font-size: 12px;
+        color: #666;
+        font-weight: 500;
+      }
+      
+      .export-actions {
+        display: flex;
+        gap: 8px;
+      }
+      
+      .export-selected-btn {
+        background: #4CAF50;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 500;
+        transition: all 0.2s;
+      }
+      
+      .export-selected-btn:hover:not(:disabled) {
+        background: #45a049;
+        transform: translateY(-1px);
+      }
+      
+      .export-selected-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        transform: none;
+      }
+      
+      .cancel-bulk-export-btn {
+        background: #f44336;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.2s;
+      }
+      
+      .cancel-bulk-export-btn:hover {
+        background: #d32f2f;
+      }
+      
+      .bulk-checkbox-label {
+        display: inline-flex;
+        align-items: center;
+        margin-right: 8px;
+        cursor: pointer;
+      }
+      
+      .bulk-checkbox {
+        margin: 0;
+        cursor: pointer;
+        transform: scale(1.2);
+      }
+      
+      .transcript-segment.bulk-mode {
+        padding-left: 35px;
+        position: relative;
+      }
+      
+      .transcript-segment .bulk-checkbox-label {
+        position: absolute;
+        left: 8px;
+        top: 8px;
+      }
+      
+      .bulk-export-btn {
+        background: #ff9800;
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        transition: all 0.2s;
+      }
+      
+      .bulk-export-btn:hover {
+        background: #f57c00;
+        transform: translateY(-1px);
       }
       
       /* Edit Mode Styles */

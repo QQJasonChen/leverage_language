@@ -67,6 +67,72 @@ class TranscriptRestructurer {
                   <input type="number" id="chunk-duration" value="75" min="20" max="120" step="5" title="Automatically create new chunks every X seconds">
                   <span class="setting-description">Automatically create new chunks every X seconds</span>
                 </label>
+                
+                <!-- ✅ NEW: Whisper-specific timing controls -->
+                <div class="whisper-timing-controls" style="margin-top: 15px; padding: 12px; background: #f0f8ff; border-radius: 6px; border: 1px solid #b3d9ff;">
+                  <h5 style="margin: 0 0 10px 0; color: #0066cc; font-size: 13px;">🎙️ Whisper Timing Settings</h5>
+                  
+                  <label class="setting-item">
+                    <div class="setting-header">
+                      <span class="setting-icon">⏰</span>
+                      <span class="setting-title">Timestamp Interval</span>
+                    </div>
+                    <input type="number" id="whisper-chunk-duration" value="15" min="8" max="30" step="1" title="How often timestamps appear (seconds)">
+                    <span class="setting-description">Seconds between timestamps (8s = frequent, 30s = less frequent)</span>
+                  </label>
+                  
+                  <label class="setting-item">
+                    <div class="setting-header">
+                      <span class="setting-icon">📝</span>
+                      <span class="setting-title">Sentence Grouping</span>
+                    </div>
+                    <select id="sentence-grouping" title="How much text to group together">
+                      <option value="short">Short (1-2 sentences)</option>
+                      <option value="medium" selected>Medium (2-3 sentences)</option>
+                      <option value="long">Long (3-4 sentences)</option>
+                    </select>
+                    <span class="setting-description">Amount of text between each timestamp</span>
+                  </label>
+                  
+                  <label class="setting-item">
+                    <div class="setting-header">
+                      <span class="setting-icon">🔄</span>
+                      <span class="setting-title">Chunk Gap</span>
+                    </div>
+                    <input type="number" id="whisper-chunk-gap" value="1" min="0.5" max="3" step="0.5" title="Gap between audio recordings">
+                    <span class="setting-description">Seconds to pause between recordings (prevents overlaps)</span>
+                  </label>
+                  
+                  <label class="setting-item">
+                    <div class="setting-header">
+                      <span class="setting-icon">🌍</span>
+                      <span class="setting-title">Force Language</span>
+                    </div>
+                    <select id="whisper-language-override" title="Override automatic language detection">
+                      <option value="auto">Auto-detect</option>
+                      <option value="en">English</option>
+                      <option value="nl">Dutch (Nederlands)</option>
+                      <option value="de">German (Deutsch)</option>
+                      <option value="fr">French (Français)</option>
+                      <option value="es">Spanish (Español)</option>
+                      <option value="it">Italian (Italiano)</option>
+                      <option value="pt">Portuguese (Português)</option>
+                      <option value="ru">Russian (Русский)</option>
+                      <option value="zh">Chinese (中文)</option>
+                      <option value="ja">Japanese (日本語)</option>
+                      <option value="ko">Korean (한국어)</option>
+                      <option value="ar">Arabic (العربية)</option>
+                      <option value="hi">Hindi (हिन्दी)</option>
+                      <option value="th">Thai (ไทย)</option>
+                      <option value="vi">Vietnamese (Tiếng Việt)</option>
+                      <option value="sv">Swedish (Svenska)</option>
+                      <option value="no">Norwegian (Norsk)</option>
+                      <option value="da">Danish (Dansk)</option>
+                      <option value="fi">Finnish (Suomi)</option>
+                    </select>
+                    <span class="setting-description">Override automatic detection (useful for Dutch videos)</span>
+                  </label>
+                </div>
               </div>
             </div>
             
@@ -158,6 +224,9 @@ class TranscriptRestructurer {
     if (testAudioBtn) {
       testAudioBtn.addEventListener('click', () => this.testAudioPermissions());
     }
+    
+    // ✅ NEW: Add event listeners for Whisper timing controls
+    this.setupWhisperTimingControls();
     
     // ✅ SIMPLIFIED: Reader mode handles its own interactions
     // No more classic view buttons to attach
@@ -1966,12 +2035,39 @@ Sentence to fix: "${preCleanedText}"`;
         const subtitleModeRadio = this.container.querySelector('input[name="subtitle-mode"]:checked');
         const subtitleMode = subtitleModeRadio ? subtitleModeRadio.value : 'auto-detect';
         
+        // ✅ NEW: Get Whisper-specific timing parameters
+        const whisperChunkDurationInput = this.container.querySelector('#whisper-chunk-duration');
+        const whisperChunkDuration = whisperChunkDurationInput ? parseInt(whisperChunkDurationInput.value) || 15 : 15;
+        
+        const whisperChunkGapInput = this.container.querySelector('#whisper-chunk-gap');
+        const whisperChunkGap = whisperChunkGapInput ? parseFloat(whisperChunkGapInput.value) || 1 : 1;
+        
+        const sentenceGroupingSelect = this.container.querySelector('#sentence-grouping');
+        const sentenceGrouping = sentenceGroupingSelect ? sentenceGroupingSelect.value : 'medium';
+        
+        const languageOverrideSelect = this.container.querySelector('#whisper-language-override');
+        const languageOverride = languageOverrideSelect ? languageOverrideSelect.value : 'auto';
+        
+        console.log('⚙️ Whisper timing settings:', {
+          whisperChunkDuration,
+          whisperChunkGap,
+          sentenceGrouping,
+          languageOverride
+        });
+        
         console.log('🎯 User selected subtitle mode:', subtitleMode);
         
         const result = await chrome.tabs.sendMessage(tab.id, { 
           action: 'startCaptionCollection',
           chunkDuration: chunkDuration,
-          subtitleMode: subtitleMode  // Pass user choice to content script
+          subtitleMode: subtitleMode,  // Pass user choice to content script
+          // ✅ NEW: Pass Whisper timing parameters
+          whisperSettings: {
+            chunkDuration: whisperChunkDuration,
+            chunkGap: whisperChunkGap,
+            sentenceGrouping: sentenceGrouping,
+            languageOverride: languageOverride
+          }
         });
         
         if (result.success) {
@@ -1982,7 +2078,7 @@ Sentence to fix: "${preCleanedText}"`;
               modeText = '📝 Creator subtitles mode - using original fast method';
               break;
             case 'without-subtitles':
-              modeText = '🎙️ Whisper transcription mode - will request audio permission when needed';
+              modeText = `🎙️ Whisper mode: ${whisperChunkDuration}s intervals, ${sentenceGrouping} grouping - will request audio permission`;
               break;
             case 'auto-detect':
               modeText = '🤖 Auto-detect mode - will determine best method';
@@ -2047,6 +2143,97 @@ Sentence to fix: "${preCleanedText}"`;
     setTimeout(() => {
       indicatorEl.style.display = 'none';
     }, 8000);
+  }
+
+  // ✅ NEW: Setup event listeners for Whisper timing controls
+  setupWhisperTimingControls() {
+    const whisperChunkInput = this.container.querySelector('#whisper-chunk-duration');
+    const whisperGapInput = this.container.querySelector('#whisper-chunk-gap');
+    const sentenceGroupingSelect = this.container.querySelector('#sentence-grouping');
+    
+    // Add real-time feedback for timing changes
+    if (whisperChunkInput) {
+      whisperChunkInput.addEventListener('input', (e) => {
+        const value = parseInt(e.target.value);
+        const feedback = this.getTimingFeedback(value);
+        this.showTimingFeedback(whisperChunkInput, feedback);
+      });
+    }
+    
+    if (whisperGapInput) {
+      whisperGapInput.addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        const feedback = value < 0.5 ? 'May cause overlaps' : value > 2 ? 'Long gaps, slower transcription' : 'Good balance';
+        this.showTimingFeedback(whisperGapInput, feedback);
+      });
+    }
+    
+    if (sentenceGroupingSelect) {
+      sentenceGroupingSelect.addEventListener('change', (e) => {
+        const feedback = this.getSentenceGroupingFeedback(e.target.value);
+        this.showTimingFeedback(sentenceGroupingSelect, feedback);
+      });
+    }
+  }
+  
+  // ✅ NEW: Get timing feedback based on chunk duration
+  getTimingFeedback(chunkDuration) {
+    if (chunkDuration <= 10) {
+      return { type: 'info', message: 'Frequent timestamps, good for precise timing' };
+    } else if (chunkDuration <= 15) {
+      return { type: 'success', message: 'Balanced - good accuracy and context' };
+    } else if (chunkDuration <= 20) {
+      return { type: 'warning', message: 'Longer segments, better for context' };
+    } else {
+      return { type: 'warning', message: 'Very long segments, may miss timing details' };
+    }
+  }
+  
+  // ✅ NEW: Get sentence grouping feedback
+  getSentenceGroupingFeedback(grouping) {
+    switch (grouping) {
+      case 'short':
+        return { type: 'info', message: 'Short segments - precise but frequent timestamps' };
+      case 'medium':
+        return { type: 'success', message: 'Balanced grouping - recommended for most content' };
+      case 'long':
+        return { type: 'info', message: 'Long segments - fewer timestamps, more context' };
+      default:
+        return { type: 'info', message: 'Standard grouping' };
+    }
+  }
+  
+  // ✅ NEW: Show timing feedback to user
+  showTimingFeedback(element, feedback) {
+    // Remove existing feedback
+    const existingFeedback = element.parentNode.querySelector('.timing-feedback');
+    if (existingFeedback) {
+      existingFeedback.remove();
+    }
+    
+    // Create new feedback element
+    const feedbackEl = document.createElement('div');
+    feedbackEl.className = `timing-feedback ${feedback.type}`;
+    feedbackEl.textContent = feedback.message;
+    feedbackEl.style.cssText = `
+      font-size: 10px;
+      margin-top: 2px;
+      padding: 2px 4px;
+      border-radius: 2px;
+      background: ${feedback.type === 'success' ? '#d1f7c4' : feedback.type === 'warning' ? '#fef3cd' : '#d1ecf1'};
+      color: ${feedback.type === 'success' ? '#155724' : feedback.type === 'warning' ? '#856404' : '#0c5460'};
+      border: 1px solid ${feedback.type === 'success' ? '#c3e6cb' : feedback.type === 'warning' ? '#faeeba' : '#bee5eb'};
+    `;
+    
+    // Insert after the input
+    element.parentNode.insertBefore(feedbackEl, element.nextSibling);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+      if (feedbackEl.parentNode) {
+        feedbackEl.remove();
+      }
+    }, 3000);
   }
 
   async testAudioPermissions() {
@@ -2635,6 +2822,54 @@ Sentence to fix: "${preCleanedText}"`;
         font-size: 11px;
         opacity: 0.9;
         font-weight: 400;
+      }
+      
+      /* ✅ NEW: Whisper timing controls styles */
+      .whisper-timing-controls h5 {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      
+      .whisper-timing-controls select {
+        width: 100%;
+        padding: 4px 8px;
+        border: 1px solid #cbd5e0;
+        border-radius: 4px;
+        background: white;
+        font-size: 12px;
+        color: #374151;
+        cursor: pointer;
+      }
+      
+      .whisper-timing-controls select:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+      }
+      
+      .whisper-timing-controls input[type="number"] {
+        width: 100%;
+        padding: 4px 8px;
+        border: 1px solid #cbd5e0;
+        border-radius: 4px;
+        font-size: 12px;
+      }
+      
+      .whisper-timing-controls input[type="number"]:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+      }
+      
+      /* ✅ NEW: Timing feedback styles */
+      .timing-feedback {
+        animation: fadeIn 0.3s ease-in;
+      }
+      
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-2px); }
+        to { opacity: 1; transform: translateY(0); }
       }
       
       /* ✅ NEW: Two-column layout for options */

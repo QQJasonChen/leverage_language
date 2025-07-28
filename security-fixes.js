@@ -211,6 +211,63 @@ function safeCreateHistoryItem(item, historyData) {
     item.appendChild(videoDiv);
   }
   
+  // Article source section
+  if (historyData.articleSource) {
+    console.log('✅ Creating article source display for:', historyData.text);
+    const articleDiv = safeCreateElement('div', '', 'history-article-source');
+    articleDiv.style.marginTop = '8px';
+    articleDiv.style.padding = '8px';
+    articleDiv.style.backgroundColor = '#f0f8ff';
+    articleDiv.style.borderRadius = '6px';
+    articleDiv.style.borderLeft = '3px solid #4285f4';
+    
+    const articleInfo = safeCreateElement('div', '', 'article-info');
+    articleInfo.style.display = 'flex';
+    articleInfo.style.alignItems = 'center';
+    articleInfo.style.gap = '8px';
+    
+    const articleIcon = safeCreateElement('span', '📄', 'article-icon');
+    articleIcon.style.fontSize = '16px';
+    
+    const articleDetails = safeCreateElement('div', '', 'article-details');
+    articleDetails.style.flex = '1';
+    
+    const articleTitle = safeCreateElement('div', historyData.articleSource.title || 'Article', 'article-title');
+    articleTitle.style.fontWeight = '500';
+    articleTitle.style.fontSize = '13px';
+    articleTitle.style.color = '#1a73e8';
+    articleTitle.style.marginBottom = '2px';
+    
+    const articleMeta = safeCreateElement('div', historyData.articleSource.domain || 'Web Article', 'article-meta');
+    articleMeta.style.fontSize = '12px';
+    articleMeta.style.color = '#666';
+    
+    const returnBtn = safeCreateElement('button', '📄 返回文章', 'article-return-btn');
+    returnBtn.style.padding = '4px 8px';
+    returnBtn.style.fontSize = '11px';
+    returnBtn.style.backgroundColor = '#4285f4';
+    returnBtn.style.color = 'white';
+    returnBtn.style.border = 'none';
+    returnBtn.style.borderRadius = '4px';
+    returnBtn.style.cursor = 'pointer';
+    returnBtn.style.fontWeight = '500';
+    returnBtn.setAttribute('data-article-url', historyData.articleSource.url || '');
+    returnBtn.setAttribute('data-sentence', historyData.text);
+    returnBtn.setAttribute('data-paragraph', historyData.articleSource.paragraph || '');
+    returnBtn.setAttribute('data-saved-at', historyData.timestamp);
+    returnBtn.setAttribute('data-notes', historyData.articleSource.notes || '');
+    returnBtn.title = '返回文章並高亮顯示句子';
+    
+    articleDetails.appendChild(articleTitle);
+    articleDetails.appendChild(articleMeta);
+    articleInfo.appendChild(articleIcon);
+    articleInfo.appendChild(articleDetails);
+    articleInfo.appendChild(returnBtn);
+    articleDiv.appendChild(articleInfo);
+    
+    item.appendChild(articleDiv);
+  }
+  
   item.appendChild(meta);
 }
 

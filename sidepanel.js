@@ -2573,6 +2573,39 @@ function displayHistoryItems(queries) {
       });
     }
     
+    // Article return button event listener
+    if (articleReturnButton) {
+      articleReturnButton.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const articleUrl = articleReturnButton.dataset.articleUrl;
+        const sentence = articleReturnButton.dataset.sentence;
+        const paragraph = articleReturnButton.dataset.paragraph;
+        const savedAt = articleReturnButton.dataset.savedAt;
+        const notes = articleReturnButton.dataset.notes;
+        
+        if (articleUrl && sentence && window.articleNavigator) {
+          console.log('📄 Navigating to article sentence:', {
+            url: articleUrl,
+            sentence: sentence,
+            paragraph: paragraph
+          });
+          
+          try {
+            await window.articleNavigator.navigateToArticle({
+              url: articleUrl,
+              sentence: sentence,
+              paragraph: paragraph,
+              savedAt: savedAt,
+              notes: notes
+            });
+          } catch (error) {
+            console.error('❌ Failed to navigate to article:', error);
+            alert('無法打開文章，請檢查URL是否有效');
+          }
+        }
+      });
+    }
+    
     // Make the whole item clickable (except buttons)
     item.addEventListener('click', async (e) => {
       if (!e.target.classList.contains('history-action-btn') && !e.target.classList.contains('video-return-btn')) {

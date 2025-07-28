@@ -176,6 +176,42 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
   
+  // Article selection actions
+  if (request.action === 'saveArticleSelection') {
+    console.log('📰 Saving article selection:', request.data);
+    
+    if (!request.data || !request.data.text) {
+      sendResponse({ success: false, error: 'No text provided' });
+      return true;
+    }
+    
+    // Save to history with article metadata
+    historyManager.addRecord(
+      request.data.text,
+      request.data.language || 'en',
+      'article-selection',
+      [], // No websites used for article selections
+      {
+        url: request.data.metadata?.url,
+        title: request.data.metadata?.title,
+        author: request.data.metadata?.author,
+        publishDate: request.data.metadata?.publishDate,
+        articleMetadata: request.data.metadata,
+        paragraph: request.data.paragraph,
+        context: request.data.context,
+        timestamp: request.data.timestamp
+      }
+    ).then(savedRecord => {
+      console.log('✅ Article selection saved to history');
+      sendResponse({ success: true, record: savedRecord });
+    }).catch(error => {
+      console.error('❌ Failed to save article selection:', error);
+      sendResponse({ success: false, error: error.message });
+    });
+    
+    return true;
+  }
+  
   // Unknown action
   console.log('❓ Unknown action:', request.action);
   sendResponse({ success: false, error: 'Unknown action' });
