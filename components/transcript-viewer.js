@@ -518,8 +518,11 @@ class TranscriptViewer {
   renderTranscript() {
     const content = this.container.querySelector('.transcript-content');
     
+    console.log('📝 Rendering transcript with', this.transcriptData?.length || 0, 'segments');
+    
     if (!this.transcriptData || this.transcriptData.length === 0) {
       content.innerHTML = '<p class="no-transcript">No transcript available</p>';
+      this.updateStats();
       return;
     }
     
@@ -549,6 +552,7 @@ class TranscriptViewer {
         return {
           ...segment,
           index,
+          segmentIndex: index, // Add segmentIndex for edit functionality
           groupIndex,
           timestampDisplay,
           timestampInSeconds,
@@ -597,7 +601,7 @@ class TranscriptViewer {
                     ${segment.timestampDisplay}
                   </button>
                 </td>
-                <td class="text-cell" data-segment-id="${index}">
+                <td class="text-cell" data-segment-id="${segment.segmentIndex}">
                   <span class="clean-text">${this.escapeHtml(segment.cleanText)}</span>
                   ${this.editMode ? '<div class="edit-indicator">✏️ Click to edit</div>' : ''}
                 </td>
@@ -641,7 +645,9 @@ class TranscriptViewer {
 
   // ✅ NEW: Method to update transcript data and re-render
   updateTranscriptData(newTranscriptData) {
-    console.log('🔄 Updating transcript data:', newTranscriptData.length, 'segments');
+    console.log('🔄 Updating transcript data:', newTranscriptData?.length || 0, 'segments');
+    console.log('🔄 Sample segment:', newTranscriptData?.[0]);
+    
     this.transcriptData = newTranscriptData || [];
     
     // Update video ID if available
@@ -649,10 +655,17 @@ class TranscriptViewer {
       this.videoId = this.transcriptData[0].videoId;
     }
     
-    // Re-render the transcript with new data
-    this.renderTranscript();
-    
-    console.log('✅ Transcript viewer updated successfully');
+    try {
+      // Re-render the transcript with new data
+      this.renderTranscript();
+      console.log('✅ Transcript viewer updated successfully');
+    } catch (error) {
+      console.error('⚠️ Error updating transcript:', error);
+      const content = this.container.querySelector('.transcript-content');
+      if (content) {
+        content.innerHTML = '<div class="error-message">Error rendering transcript: ' + error.message + '</div>';
+      }
+    }
   }
 
   // ✅ NEW: Helper method to get appropriate group header text
