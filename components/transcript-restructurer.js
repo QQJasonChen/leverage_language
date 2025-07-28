@@ -42,11 +42,11 @@ class TranscriptRestructurer {
           </label>
           <label>
             Pause threshold (seconds):
-            <input type="number" id="pause-threshold" value="1.5" min="0.5" max="5" step="0.1">
+            <input type="number" id="pause-threshold" value="2.2" min="0.5" max="5" step="0.1">
           </label>
           <label>
             ✅ Chunk duration (seconds):
-            <input type="number" id="chunk-duration" value="45" min="20" max="120" step="5" title="Automatically create new chunks every X seconds">
+            <input type="number" id="chunk-duration" value="75" min="20" max="120" step="5" title="Automatically create new chunks every X seconds">
           </label>
         </div>
         
