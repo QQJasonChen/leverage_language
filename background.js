@@ -24,38 +24,46 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === 'search-youglish') {
     console.log('📝 Right-click search triggered for:', info.selectionText);
     
-    // First try to get article metadata from the current page
-    try {
-      const articleData = await chrome.tabs.sendMessage(tab.id, { 
-        action: 'getArticleMetadata' 
-      });
-      
-      if (articleData && articleData.success) {
-        console.log('📰 Got article metadata from right-click context');
+    // Check if we're on a page that supports article metadata
+    const currentUrl = tab.url;
+    const isArticlePage = currentUrl && 
+      !currentUrl.includes('youtube.com') && 
+      !currentUrl.includes('youglish.com') && 
+      !currentUrl.startsWith('chrome://') &&
+      !currentUrl.startsWith('chrome-extension://');
+    
+    if (isArticlePage) {
+      // Try to get article metadata from the current page
+      try {
+        const articleData = await chrome.tabs.sendMessage(tab.id, { 
+          action: 'getArticleMetadata' 
+        });
         
-        // Create article selection data similar to Save button
-        const selectionData = {
-          text: info.selectionText,
-          metadata: articleData.metadata,
-          paragraph: null, // We don't have paragraph context from right-click
-          context: null,   // We don't have surrounding context
-          timestamp: Date.now()
-        };
-        
-        // Process as article selection with website info
-        // Mark as right-click selection for identification
-        selectionData.source = 'right-click-selection';
-        handleArticleTextAnalysis(selectionData, tab.id);
-      } else {
-        console.log('📝 No article metadata available, using regular YouGlish search');
-        // Fallback to regular search
-        searchYouGlish(info.selectionText, tab.id, 'right-click');
+        if (articleData && articleData.success && articleData.metadata) {
+          console.log('📰 Got article metadata from right-click context');
+          
+          // Create article selection data similar to Save button
+          const selectionData = {
+            text: info.selectionText,
+            metadata: articleData.metadata,
+            paragraph: null, // We don't have paragraph context from right-click
+            context: null,   // We don't have surrounding context
+            timestamp: Date.now(),
+            source: 'right-click-selection'
+          };
+          
+          // Process as article selection with website info
+          handleArticleTextAnalysis(selectionData, tab.id);
+          return; // Exit early, don't do regular search
+        }
+      } catch (error) {
+        console.log('📝 Could not get article metadata:', error.message);
       }
-    } catch (error) {
-      console.log('📝 Could not get article metadata:', error.message);
-      // Fallback to regular search
-      searchYouGlish(info.selectionText, tab.id, 'right-click');
     }
+    
+    // Fallback to regular YouGlish search for all other cases
+    console.log('📝 Using regular YouGlish search');
+    searchYouGlish(info.selectionText, tab.id, 'right-click');
   }
 });
 
