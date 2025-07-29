@@ -2678,6 +2678,15 @@ function displayHistoryItems(queries) {
       query.detectionMethod = detectionMethod;
     }
     
+    // Debug: log the query data to see what we're working with
+    console.log('🔍 History item debug:', {
+      text: query.text?.substring(0, 30) + '...',
+      detectionMethod: query.detectionMethod,
+      hasVideoSource: !!query.videoSource,
+      videoSourceUrl: query.videoSource?.url,
+      videoSourceDomain: query.videoSource?.domain
+    });
+    
     // Create history item using SecurityUtils with error status
     if (window.SecurityFixes) {
       window.SecurityFixes.safeCreateHistoryItem(item, {

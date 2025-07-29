@@ -63,7 +63,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     
     // Fallback to regular YouGlish search for all other cases
     console.log('📝 Using regular YouGlish search');
-    searchYouGlish(info.selectionText, tab.id, 'right-click');
+    // Force to open YouGlish website (not just analysis)
+    searchYouGlish(info.selectionText, tab.id, 'right-click', 'newtab');
   }
 });
 
