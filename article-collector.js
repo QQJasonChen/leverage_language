@@ -1043,30 +1043,9 @@
       if (response.success) {
         console.log('📰 Selection saved successfully');
         
-        // Send to sidepanel for AI analysis
-        try {
-          console.log('📰 Sending to sidepanel for analysis');
-          const analysisResponse = await chrome.runtime.sendMessage({
-            action: 'analyzeTextInSidepanel',
-            text: state.selectedData.text,
-            source: 'article-selection',
-            title: state.selectedData.metadata?.title || document.title || 'Article Selection',
-            url: state.selectedData.metadata?.url || window.location.href,
-            originalUrl: state.selectedData.metadata?.url || window.location.href,
-            timestamp: null, // No video timestamp for articles
-            metadata: {
-              ...state.selectedData.metadata,
-              paragraph: state.selectedData.paragraph,
-              context: state.selectedData.context,
-              selectionTimestamp: state.selectedData.timestamp,
-              source: 'article-selection'
-            }
-          });
-          console.log('📰 Analysis response:', analysisResponse);
-        } catch (analysisError) {
-          console.error('📰 Error sending to sidepanel:', analysisError);
-          // Not a critical error, continue with success flow
-        }
+        // No need to send separate analysis message - handleArticleTextAnalysis 
+        // in background.js now handles everything including opening sidepanel
+        console.log('📰 Article data sent to background for processing');
         
         // Show success state briefly
         const buttonElement = state.floatingButton.__isShadowButton ? 

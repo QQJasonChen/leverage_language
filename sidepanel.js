@@ -96,6 +96,56 @@ async function checkForYouTubeAnalysis() {
   }
 }
 
+// Check for article analysis data when sidepanel opens
+async function checkForArticleAnalysis() {
+  try {
+    const result = await chrome.storage.local.get('articleAnalysis');
+    if (result.articleAnalysis) {
+      const data = result.articleAnalysis;
+      // Check if data is recent (within last 5 minutes)
+      if (Date.now() - data.timestamp < 5 * 60 * 1000) {
+        console.log('📰 Found recent article analysis data:', data.text);
+        
+        // Switch to analysis tab explicitly
+        const analysisBtn = document.getElementById('showAnalysisBtn');
+        if (analysisBtn) {
+          console.log('📰 Switching to Analysis tab for article content');
+          analysisBtn.click();
+        }
+        
+        // Set currentQueryData with article analysis data (similar to YouTube)
+        currentQueryData = {
+          text: data.text,
+          language: data.language,
+          source: data.source,
+          url: data.url,
+          originalUrl: data.originalUrl,
+          allUrls: data.allUrls,
+          title: data.title,
+          articleMetadata: data.articleMetadata,
+          paragraph: data.paragraph,
+          context: data.context,
+          detectionMethod: 'article-selection', // Add this for identification
+          videoSource: data.videoSource // Include videoSource for display
+        };
+        
+        // Load in analysis tab for immediate AI analysis
+        loadYouGlish(data.url, data.text, data.language);
+        
+        // Trigger AI analysis with article context
+        setTimeout(() => {
+          generateAIAnalysis();
+        }, 500);
+        
+        // Clear the data after processing
+        chrome.storage.local.remove('articleAnalysis');
+      }
+    }
+  } catch (error) {
+    console.error('Error checking article analysis:', error);
+  }
+}
+
 // Initialize storage manager and analytics
 let storageManager = null;
 
@@ -2450,11 +2500,19 @@ function getReturnButtonText(sourceType, language, hasTimestamp = false) {
 
 // Helper function to determine source type
 function getSourceType(query) {
-  if (query.detectionMethod === 'article-selection') {
+  // Check for article-specific detection methods
+  if (query.detectionMethod === 'article-selection' || query.detectionMethod === 'article-learning') {
     return 'article';
-  } else if (query.videoSource && !query.videoSource.url?.includes('youtube.com')) {
+  }
+  // Check if videoSource has article-like properties (no youtube.com URL)
+  else if (query.videoSource && query.videoSource.url && !query.videoSource.url.includes('youtube.com') && !query.videoSource.url.includes('youtu.be')) {
     return 'article';
-  } else {
+  }
+  // Check if videoSource has domain instead of url (article metadata)
+  else if (query.videoSource && query.videoSource.domain && !query.videoSource.url) {
+    return 'article';
+  }
+  else {
     return 'video';
   }
 }
@@ -5988,6 +6046,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Check for YouTube analysis data
   checkForYouTubeAnalysis();
+  
+  // Check for article analysis data
+  checkForArticleAnalysis();
   
   // Settings button
   const settingsBtn = document.querySelector('.settings-button');

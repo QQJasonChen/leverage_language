@@ -181,37 +181,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   
   // Article selection actions
   if (request.action === 'saveArticleSelection') {
-    console.log('📰 Saving article selection:', request.data);
-    
-    if (!request.data || !request.data.text) {
-      sendResponse({ success: false, error: 'No text provided' });
-      return true;
-    }
-    
-    // Save to history with article metadata
-    historyManager.addRecord(
-      request.data.text,
-      request.data.language || 'en',
-      'article-selection',
-      [], // No websites used for article selections
-      {
-        url: request.data.metadata?.url,
-        title: request.data.metadata?.title,
-        author: request.data.metadata?.author,
-        publishDate: request.data.metadata?.publishDate,
-        articleMetadata: request.data.metadata,
-        paragraph: request.data.paragraph,
-        context: request.data.context,
-        timestamp: request.data.timestamp
-      }
-    ).then(savedRecord => {
-      console.log('✅ Article selection saved to history');
-      sendResponse({ success: true, record: savedRecord });
-    }).catch(error => {
-      console.error('❌ Failed to save article selection:', error);
-      sendResponse({ success: false, error: error.message });
-    });
-    
+    console.log('📰 Processing article selection for AI analysis:', request.data);
+    handleArticleTextAnalysis(request.data, sender.tab.id);
+    sendResponse({ success: true, message: 'Article sent to sidepanel for analysis' });
     return true;
   }
   
@@ -657,6 +629,95 @@ function extractChannelFromTitle(title) {
   } catch (error) {
     console.error('Error extracting channel from title:', error);
     return null;
+  }
+}
+
+// 處理文章文本分析
+async function handleArticleTextAnalysis(data, tabId) {
+  try {
+    console.log('📰 Processing article learning text:', data.text);
+    
+    const cleanText = data.text.trim();
+    if (!cleanText) return;
+    
+    // 獲取語言設定
+    const result = await chrome.storage.sync.get(['defaultLanguage', 'preferredLanguage']);
+    const defaultLang = result.defaultLanguage || 'auto';
+    const preferredLang = result.preferredLanguage || 'none';
+    
+    // 偵測語言
+    const detectionResult = detectLanguage(cleanText, preferredLang);
+    const language = typeof detectionResult === 'string' ? detectionResult : 
+                    (detectionResult.language !== 'uncertain' ? detectionResult.language : 'english');
+    
+    // 生成語言學習 URLs
+    const urls = generateLanguageUrls(cleanText, language);
+    
+    // 保存到歷史記錄（包含文章來源資訊）
+    try {
+      console.log('💾 Saving article learning to history:', cleanText, language);
+      
+      const articleSource = {
+        url: data.metadata?.url || data.url,
+        title: data.metadata?.title || '未知文章',
+        author: data.metadata?.author || '未知作者',
+        publishDate: data.metadata?.publishDate || '',
+        domain: data.metadata?.domain || new URL(data.metadata?.url || 'https://example.com').hostname,
+        paragraph: data.paragraph,
+        context: data.context,
+        timestamp: Date.now(),
+        learnedAt: new Date().toISOString()
+      };
+      
+      console.log('📄 Article source info:', articleSource);
+      
+      const savedRecord = await historyManager.addRecord(
+        cleanText, 
+        language, 
+        'article-learning', 
+        [], 
+        articleSource
+      );
+      console.log('✅ Article learning saved to history');
+    } catch (error) {
+      console.error('❌ Failed to save article learning to history:', error);
+    }
+    
+    // 儲存到 local storage 供 sidepanel 使用
+    await chrome.storage.local.set({
+      articleAnalysis: {
+        url: urls.primaryUrl, // YouGlish URL for search
+        text: cleanText,
+        language: language,
+        source: 'article-learning',
+        title: data.metadata?.title || 'Article Learning',
+        originalUrl: data.metadata?.url, // Article URL
+        articleUrl: data.metadata?.url, // Explicit article URL field
+        allUrls: urls.allUrls,
+        timestamp: Date.now(),
+        articleMetadata: data.metadata,
+        paragraph: data.paragraph,
+        context: data.context,
+        // Add videoSource for display compatibility in history view
+        videoSource: articleSource
+      }
+    });
+    
+    console.log('🔗 Article analysis data saved for sidepanel');
+    
+    // 開啟 sidepanel (如果尚未開啟)
+    try {
+      await chrome.sidePanel.open({ tabId });
+      console.log('📱 Sidepanel opened for article learning');
+    } catch (error) {
+      console.log('📱 Sidepanel might already be open:', error.message);
+    }
+
+    // ✅ Data saved to chrome.storage for sidepanel to pick up
+    console.log('💾 Article learning data saved to storage for automatic AI analysis');
+    
+  } catch (error) {
+    console.error('❌ Error handling article text analysis:', error);
   }
 }
 
