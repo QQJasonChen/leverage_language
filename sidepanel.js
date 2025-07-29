@@ -2521,6 +2521,7 @@ function getSourceType(query) {
     detectionMethod: query.detectionMethod,
     videoSourceUrl: query.videoSource?.url,
     videoSourceDomain: query.videoSource?.domain,
+    videoSourceAuthor: query.videoSource?.author,
     hasVideoSource: !!query.videoSource
   });
 
@@ -2531,14 +2532,27 @@ function getSourceType(query) {
     console.log('🔍 -> Returning article (via detectionMethod)');
     return 'article';
   }
-  // Check if videoSource has article-like properties (no youtube.com URL)
-  else if (query.videoSource && query.videoSource.url && !query.videoSource.url.includes('youtube.com') && !query.videoSource.url.includes('youtu.be')) {
-    console.log('🔍 -> Returning article (via non-YouTube URL)');
+  // Check if videoSource has article-like properties (non-YouTube URL)
+  else if (query.videoSource && query.videoSource.url && 
+           !query.videoSource.url.includes('youtube.com') && 
+           !query.videoSource.url.includes('youtu.be') &&
+           !query.videoSource.url.includes('youglish.com')) {
+    console.log('🔍 -> Returning article (via non-video URL)');
     return 'article';
   }
-  // Check if videoSource has domain instead of url (article metadata)
+  // Check if videoSource has domain without URL (article metadata format)
   else if (query.videoSource && query.videoSource.domain && !query.videoSource.url) {
     console.log('🔍 -> Returning article (via domain only)');
+    return 'article';
+  }
+  // Check if videoSource has author field (article metadata indicator)
+  else if (query.videoSource && query.videoSource.author && !query.videoSource.channel) {
+    console.log('🔍 -> Returning article (via author field)');
+    return 'article';
+  }
+  // Check if videoSource has publishDate (article metadata indicator)
+  else if (query.videoSource && query.videoSource.publishDate) {
+    console.log('🔍 -> Returning article (via publishDate field)');
     return 'article';
   }
   else {
@@ -2678,13 +2692,27 @@ function displayHistoryItems(queries) {
       query.detectionMethod = detectionMethod;
     }
     
+    // Enhanced debugging: Check what data we have for this record
+    if (query.videoSource) {
+      console.log('📊 History record has videoSource:', {
+        url: query.videoSource.url,
+        title: query.videoSource.title,
+        domain: query.videoSource.domain,
+        author: query.videoSource.author,
+        channel: query.videoSource.channel
+      });
+    } else {
+      console.log('⚠️ History record has NO videoSource - this will show as video by default');
+    }
+    
     // Debug: log the query data to see what we're working with
     console.log('🔍 History item debug:', {
       text: query.text?.substring(0, 30) + '...',
       detectionMethod: query.detectionMethod,
       hasVideoSource: !!query.videoSource,
       videoSourceUrl: query.videoSource?.url,
-      videoSourceDomain: query.videoSource?.domain
+      videoSourceDomain: query.videoSource?.domain,
+      sourceType: getSourceType(query)
     });
     
     // Create history item using SecurityUtils with error status

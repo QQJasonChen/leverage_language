@@ -23,6 +23,7 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === 'search-youglish') {
     console.log('📝 Right-click search triggered for:', info.selectionText);
+    console.log('📝 Tab info:', { id: tab.id, url: tab.url });
     
     // Check if we're on a page that supports article metadata
     const currentUrl = tab.url;
@@ -33,11 +34,13 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       !currentUrl.startsWith('chrome-extension://');
     
     if (isArticlePage) {
+      console.log('📝 Detected article page, trying to get metadata...');
       // Try to get article metadata from the current page
       try {
         const articleData = await chrome.tabs.sendMessage(tab.id, { 
           action: 'getArticleMetadata' 
         });
+        console.log('📝 Article data response:', articleData);
         
         if (articleData && articleData.success && articleData.metadata) {
           console.log('📰 Got article metadata from right-click context');
@@ -52,9 +55,15 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
             source: 'right-click-selection'
           };
           
-          // Process as article selection with website info
-          handleArticleTextAnalysis(selectionData, tab.id);
-          return; // Exit early, don't do regular search
+          // Process as article selection with website info (for Saved tab)
+          console.log('📝 Calling handleArticleTextAnalysis...');
+          await handleArticleTextAnalysis(selectionData, tab.id);
+          
+          // Also do regular YouGlish search (for website opening)
+          console.log('📝 Also opening YouGlish website for right-click with article metadata');
+          await searchYouGlish(info.selectionText, tab.id, 'right-click', 'newtab');
+          console.log('📝 Both article analysis and YouGlish search completed');
+          return; // Now we've done both
         }
       } catch (error) {
         console.log('📝 Could not get article metadata:', error.message);
@@ -62,9 +71,10 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     }
     
     // Fallback to regular YouGlish search for all other cases
-    console.log('📝 Using regular YouGlish search');
+    console.log('📝 Using regular YouGlish search (fallback)');
     // Force to open YouGlish website (not just analysis)
-    searchYouGlish(info.selectionText, tab.id, 'right-click', 'newtab');
+    await searchYouGlish(info.selectionText, tab.id, 'right-click', 'newtab');
+    console.log('📝 Fallback YouGlish search completed');
   }
 });
 
@@ -109,16 +119,34 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // YouTube and YouGlish actions
   if (request.action === 'searchYouGlish') {
     console.log('🔍 Processing YouGlish search for:', request.text);
-    searchYouGlish(request.text, sender.tab.id);
-    sendResponse({ success: true, message: 'YouGlish search initiated' });
-    return true;
+    
+    // Handle async function properly
+    searchYouGlish(request.text, sender.tab.id)
+      .then(() => {
+        sendResponse({ success: true, message: 'YouGlish search initiated' });
+      })
+      .catch((error) => {
+        console.error('🔍 Error processing YouGlish search:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    
+    return true; // Keep the message channel open for async response
   } 
   
   if (request.action === 'analyzeTextInSidepanel') {
     console.log('📖 Processing YouTube learning text analysis for:', request.text);
-    handleYouTubeTextAnalysis(request, sender.tab.id);
-    sendResponse({ success: true, message: 'Text sent to sidepanel for analysis' });
-    return true;
+    
+    // Handle async function properly
+    handleYouTubeTextAnalysis(request, sender.tab.id)
+      .then(() => {
+        sendResponse({ success: true, message: 'Text sent to sidepanel for analysis' });
+      })
+      .catch((error) => {
+        console.error('📖 Error processing YouTube text analysis:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    
+    return true; // Keep the message channel open for async response
   }
   
   // Settings actions
@@ -195,17 +223,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   
   if (request.action === 'manualSearch') {
-    // 獲取當前活動標籤頁
-    chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-      if (tabs[0]) {
-        // Force analysis-only for manual searches to avoid intrusive tabs
-        searchYouGlish(request.text, tabs[0].id, 'manual', 'analysis-only');
+    // Handle async function properly
+    chrome.tabs.query({active: true, currentWindow: true})
+      .then((tabs) => {
+        if (tabs[0]) {
+          // Force analysis-only for manual searches to avoid intrusive tabs
+          return searchYouGlish(request.text, tabs[0].id, 'manual', 'analysis-only');
+        } else {
+          throw new Error('No active tab found');
+        }
+      })
+      .then(() => {
         sendResponse({ success: true });
-      } else {
-        sendResponse({ success: false, error: 'No active tab found' });
-      }
-    });
-    return true;
+      })
+      .catch((error) => {
+        console.error('❌ Error processing manual search:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    
+    return true; // Keep the message channel open for async response
   }
   
   // Language selection actions
@@ -224,15 +260,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // Article selection actions
   if (request.action === 'saveArticleSelection') {
     console.log('📰 Background received saveArticleSelection:', request.data);
-    try {
-      handleArticleTextAnalysis(request.data, sender.tab.id);
-      sendResponse({ success: true, message: 'Article sent to sidepanel for analysis' });
-      console.log('📰 Article processing completed successfully');
-    } catch (error) {
-      console.error('📰 Error processing article:', error);
-      sendResponse({ success: false, error: error.message });
-    }
-    return true;
+    
+    // Handle async function properly
+    handleArticleTextAnalysis(request.data, sender.tab.id)
+      .then(() => {
+        sendResponse({ success: true, message: 'Article sent to sidepanel for analysis' });
+        console.log('📰 Article processing completed successfully');
+      })
+      .catch((error) => {
+        console.error('📰 Error processing article:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    
+    return true; // Keep the message channel open for async response
   }
   
   // Unknown action
@@ -367,8 +407,32 @@ async function searchYouGlish(text, tabId, source = 'selection', forcedOpenMetho
       chrome.tabs.create({ url: primaryUrl });
     }
   } else {
-    // 直接開啟新分頁
+    // 直接開啟新分頁 (newtab mode)
     chrome.tabs.create({ url: primaryUrl });
+    
+    // Also store query for analysis if needed
+    if (autoAnalysis) {
+      try {
+        await chrome.storage.local.set({
+          currentQuery: {
+            primaryUrl: primaryUrl,
+            secondaryUrl: secondaryUrl,
+            tertiaryUrl: tertiaryUrl,
+            allUrls: allUrls,
+            text: cleanText,
+            language: finalLang,
+            source: source,
+            analysisOnly: false,
+            autoAnalysis: autoAnalysis
+          }
+        });
+        
+        // Open Side Panel for analysis too
+        await chrome.sidePanel.open({ tabId });
+      } catch (error) {
+        console.log('Side Panel analysis failed:', error);
+      }
+    }
   }
 }
 
@@ -705,21 +769,22 @@ async function handleArticleTextAnalysis(data, tabId) {
     // 生成語言學習 URLs
     const urls = generateLanguageUrls(cleanText, language);
     
+    // Create article source info first (outside try block to avoid scope issues)
+    const articleSource = {
+      url: data.metadata?.url || data.url,
+      title: data.metadata?.title || '未知文章',
+      author: data.metadata?.author || '未知作者',
+      publishDate: data.metadata?.publishDate || '',
+      domain: data.metadata?.domain || new URL(data.metadata?.url || 'https://example.com').hostname,
+      paragraph: data.paragraph,
+      context: data.context,
+      timestamp: Date.now(),
+      learnedAt: new Date().toISOString()
+    };
+    
     // 保存到歷史記錄（包含文章來源資訊）
     try {
       console.log('💾 Saving article learning to history:', cleanText, language);
-      
-      const articleSource = {
-        url: data.metadata?.url || data.url,
-        title: data.metadata?.title || '未知文章',
-        author: data.metadata?.author || '未知作者',
-        publishDate: data.metadata?.publishDate || '',
-        domain: data.metadata?.domain || new URL(data.metadata?.url || 'https://example.com').hostname,
-        paragraph: data.paragraph,
-        context: data.context,
-        timestamp: Date.now(),
-        learnedAt: new Date().toISOString()
-      };
       
       console.log('📄 Article source info:', articleSource);
       
