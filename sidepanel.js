@@ -3076,11 +3076,11 @@ async function generateAIAnalysis(forceRefresh = false) {
   }
 
   try {
-    // 立即顯示快速搜索結果
-    await showQuickSearchResults(text, language);
+    // 顯示載入狀態（帶取消按鈕）
+    showAILoadingWithCancel(text, language);
     
-    // 顯示載入狀態
-    showAILoading();
+    // 快速搜索結果和 AI 分析並行執行（不阻塞）
+    showQuickSearchResults(text, language); // 非阻塞，在背景執行
     
     // 等待 AI 服務載入完成
     await waitForAIService();
@@ -3091,8 +3091,8 @@ async function generateAIAnalysis(forceRefresh = false) {
       throw new Error('AI 服務未配置或未啟用 - 請檢查設定頁面是否已正確配置 API 金鑰');
     }
 
-    // 生成分析
-    const analysis = await aiService.generateAnalysis(text, language);
+    // 生成分析（非阻塞，帶超時保護）
+    const analysis = await generateAnalysisWithTimeout(aiService, text, language, 20000);
     currentAIAnalysis = analysis;
     
     // 顯示結果
@@ -3624,7 +3624,7 @@ function showAIPlaceholderWithButton() {
 }
 
 // Quick Search Results Functions
-async function showQuickSearchResults(text, language) {
+function showQuickSearchResults(text, language) {
   const quickSearchDiv = document.getElementById('quickSearchResults');
   const placeholder = document.getElementById('aiAnalysisPlaceholder');
   
@@ -3634,8 +3634,10 @@ async function showQuickSearchResults(text, language) {
   if (placeholder) placeholder.style.display = 'none';
   quickSearchDiv.style.display = 'block';
   
-  // Start loading quick results immediately
-  populateQuickSearchResults(text, language);
+  // Start loading quick results in background (non-blocking)
+  populateQuickSearchResults(text, language).catch(error => {
+    console.error('ℹ️ Quick search failed, but AI analysis continues:', error);
+  });
 }
 
 async function populateQuickSearchResults(text, language) {
@@ -3648,23 +3650,41 @@ async function populateQuickSearchResults(text, language) {
   if (pronunciationDiv) pronunciationDiv.textContent = '載入中...';
   if (definitionDiv) definitionDiv.textContent = '載入中...';
   
+  // Load results in parallel with timeouts to avoid blocking
+  const loadWithTimeout = async (fn, fallback, timeoutMs = 5000) => {
+    try {
+      const result = await Promise.race([
+        fn(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), timeoutMs)
+        )
+      ]);
+      return result || fallback;
+    } catch (error) {
+      console.log(`Quick search timeout/error: ${error.message}`);
+      return fallback;
+    }
+  };
+  
   try {
-    // Get quick translation (Traditional Chinese)
-    const translation = await getQuickTranslation(text, language);
-    if (translationDiv) {
-      translationDiv.textContent = translation || '無法取得翻譯';
+    // Load all results in parallel with timeouts
+    const [translation, pronunciation, definition] = await Promise.allSettled([
+      loadWithTimeout(() => getQuickTranslation(text, language), '翻譯服務不可用'),
+      loadWithTimeout(() => getQuickPronunciation(text, language), '發音服務不可用'),
+      loadWithTimeout(() => getQuickDefinition(text, language), '定義服務不可用')
+    ]);
+    
+    // Update UI with results (even if some failed)
+    if (translationDiv && translation.status === 'fulfilled') {
+      translationDiv.textContent = translation.value;
     }
     
-    // Get pronunciation guide
-    const pronunciation = await getQuickPronunciation(text, language);
-    if (pronunciationDiv) {
-      pronunciationDiv.textContent = pronunciation || '無法取得發音';
+    if (pronunciationDiv && pronunciation.status === 'fulfilled') {
+      pronunciationDiv.textContent = pronunciation.value;
     }
     
-    // Get basic definition
-    const definition = await getQuickDefinition(text, language);
-    if (definitionDiv) {
-      definitionDiv.textContent = definition || '無法取得定義';
+    if (definitionDiv && definition.status === 'fulfilled') {
+      definitionDiv.textContent = definition.value;
     }
     
   } catch (error) {
@@ -3674,6 +3694,139 @@ async function populateQuickSearchResults(text, language) {
     if (translationDiv) translationDiv.textContent = '載入失敗';
     if (pronunciationDiv) pronunciationDiv.textContent = '載入失敗';
     if (definitionDiv) definitionDiv.textContent = '載入失敗';
+  }
+}
+
+// 全域 AI 分析取消控制器
+let currentAnalysisController = null;
+
+// 帶超時保護的非阻塞 AI 分析
+async function generateAnalysisWithTimeout(aiService, text, language, timeoutMs = 20000) {
+  // 取消之前的請求
+  if (currentAnalysisController) {
+    currentAnalysisController.abort();
+  }
+  
+  // 創建新的控制器
+  currentAnalysisController = new AbortController();
+  
+  return new Promise((resolve, reject) => {
+    // 設置超時
+    const timeoutId = setTimeout(() => {
+      if (currentAnalysisController) {
+        currentAnalysisController.abort();
+      }
+      reject(new Error(`AI 分析超時 (${timeoutMs / 1000}秒) - 請檢查網路連線或稍後重試`));
+    }, timeoutMs);
+    
+    // 執行 AI 分析（非阻塞）
+    aiService.generateAnalysis(text, language)
+      .then(result => {
+        clearTimeout(timeoutId);
+        currentAnalysisController = null;
+        resolve(result);
+      })
+      .catch(error => {
+        clearTimeout(timeoutId);
+        currentAnalysisController = null;
+        reject(error);
+      });
+  });
+}
+
+// 取消當前 AI 分析
+function cancelCurrentAnalysis() {
+  if (currentAnalysisController) {
+    currentAnalysisController.abort();
+    currentAnalysisController = null;
+    console.log('🚫 用戶取消了 AI 分析');
+    
+    // 顯示取消狀態
+    showAIError('分析已取消');
+    return true;
+  }
+  return false;
+}
+
+// 顯示 AI 載入狀態（帶取消按鈕）
+function showAILoadingWithCancel(text, language) {
+  const placeholder = document.getElementById('aiAnalysisPlaceholder');
+  const loading = document.getElementById('aiAnalysisLoading');
+  const result = document.getElementById('aiAnalysisResult');
+  const quickSearch = document.getElementById('quickSearchResults');
+  
+  if (placeholder) placeholder.style.display = 'none';
+  if (result) result.style.display = 'none';
+  if (quickSearch) quickSearch.style.display = 'block';
+  
+  if (loading) {
+    loading.style.display = 'block';
+    loading.innerHTML = `
+      <div class="ai-loading-enhanced" style="
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        padding: 24px;
+        text-align: center;
+        color: white;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      ">
+        <div style="font-size: 18px; font-weight: bold; margin-bottom: 16px;">
+          🤖 AI 正在分析中...
+        </div>
+        
+        <div style="margin-bottom: 16px; opacity: 0.9; font-size: 14px;">
+          正在處理: "${text.length > 50 ? text.substring(0, 50) + '...' : text}"
+        </div>
+        
+        <div class="loading-spinner" style="
+          width: 40px;
+          height: 40px;
+          border: 3px solid rgba(255,255,255,0.3);
+          border-top: 3px solid white;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin: 16px auto;
+        "></div>
+        
+        <div style="font-size: 12px; opacity: 0.8; margin-bottom: 16px;">
+          預計等待時間: 10-15 秒
+        </div>
+        
+        <button id="cancelAnalysisBtn" style="
+          background: rgba(255,255,255,0.2);
+          color: white;
+          border: 1px solid rgba(255,255,255,0.3);
+          padding: 8px 16px;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 14px;
+          transition: background-color 0.3s;
+        " onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+          ✖ 取消分析
+        </button>
+      </div>
+      
+      <style>
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      </style>
+    `;
+    
+    // 添加取消按鈕事件監聽
+    setTimeout(() => {
+      const cancelBtn = document.getElementById('cancelAnalysisBtn');
+      if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+          if (cancelCurrentAnalysis()) {
+            cancelBtn.textContent = '已取消';
+            cancelBtn.disabled = true;
+            cancelBtn.style.background = 'rgba(255,0,0,0.3)';
+          }
+        });
+      }
+    }, 100);
   }
 }
 
@@ -3727,10 +3880,15 @@ async function getGoogleTranslation(text, fromLang) {
     const sourceLang = langMap[fromLang] || 'auto';
     const targetLang = 'zh-TW'; // Traditional Chinese
     
-    // Use Google Translate's public API endpoint
+    // Use Google Translate's public API endpoint with timeout
     const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLang}&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
     
-    const response = await fetch(url);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+    
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    
     if (!response.ok) throw new Error('Google Translate API failed');
     
     const data = await response.json();
@@ -3761,16 +3919,22 @@ async function getMicrosoftTranslation(text, fromLang) {
     
     const sourceLang = langMap[fromLang] || 'en';
     
-    // Use Microsoft Translator's public endpoint (no key required for basic usage)
+    // Use Microsoft Translator's public endpoint with timeout
     const url = `https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&from=${sourceLang}&to=zh-Hant`;
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
     
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify([{ text: text }])
+      body: JSON.stringify([{ text: text }]),
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId);
     
     if (!response.ok) throw new Error('Microsoft Translator failed');
     
@@ -11255,3 +11419,118 @@ function showManualAnalysisPrompt(text) {
     </div>
   `;
 }
+
+// Console-accessible AI diagnostics function - NON-BLOCKING VERSION
+window.runAIDiagnostics = async function() {
+  console.log('🔍 Starting non-blocking AI diagnostics...');
+  
+  try {
+    // Initialize AI service if needed
+    if (!window.aiService) {
+      console.log('🔧 Initializing AI service...');
+      const { default: AIService } = await import('./lib/ai-service.js');
+      window.aiService = new AIService();
+      await window.aiService.initialize();
+    }
+    
+    // Run diagnostics with timeout protection to prevent browser freezing
+    console.log('⏱️ Running diagnostics with 10-second timeout...');
+    const diagnosticsPromise = window.aiService.runDiagnostics();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Diagnostics timeout after 10 seconds')), 10000)
+    );
+    
+    const diagnosticsResult = await Promise.race([diagnosticsPromise, timeoutPromise]);
+    
+    console.log('✅ Diagnostics completed successfully!');
+    console.log('📊 Full diagnostic report:', diagnosticsResult);
+    
+    // Show summary in a user-friendly format
+    console.log('\n' + '='.repeat(50));
+    console.log('🎯 DIAGNOSTIC SUMMARY');
+    console.log('='.repeat(50));
+    
+    if (diagnosticsResult.tests.network) {
+      const network = diagnosticsResult.tests.network;
+      console.log(`🌐 Network: ${network.connected ? '✅ Connected' : '❌ Failed'}`);
+      if (network.connected) {
+        console.log(`   Latency: ${network.latency}ms ${network.latency > 2000 ? '(Slow)' : '(Good)'}`);
+      } else {
+        console.log(`   Error: ${network.error}`);
+      }
+    }
+    
+    if (diagnosticsResult.tests.openai) {
+      const openai = diagnosticsResult.tests.openai;
+      console.log(`🤖 OpenAI API: ${openai.accessible ? '✅ Working' : '❌ Failed'}`);
+      if (!openai.accessible) {
+        console.log(`   Error: ${openai.error}`);
+      }
+    }
+    
+    if (diagnosticsResult.tests.analysis) {
+      const analysis = diagnosticsResult.tests.analysis;
+      console.log(`🧠 AI Analysis: ${analysis.success ? '✅ Working' : '❌ Failed'}`);
+      if (!analysis.success) {
+        console.log(`   Error: ${analysis.error}`);
+      }
+    }
+    
+    console.log('='.repeat(50));
+    
+    // Provide troubleshooting guidance
+    if (diagnosticsResult.tests.network && !diagnosticsResult.tests.network.connected) {
+      console.log('🔧 TROUBLESHOOTING: Network issues detected');
+      console.log('   1. Check your internet connection');
+      console.log('   2. Try refreshing the page');
+      console.log('   3. Check if you\'re behind a firewall or proxy');
+    } else if (diagnosticsResult.tests.openai && !diagnosticsResult.tests.openai.accessible) {
+      console.log('🔧 TROUBLESHOOTING: OpenAI API issues detected');
+      console.log('   1. Check OpenAI service status: https://status.openai.com');
+      console.log('   2. Verify your API key is valid');
+      console.log('   3. Check if you have sufficient API credits');
+      console.log('   4. Try the OpenAI playground: https://platform.openai.com/playground');
+    } else if (diagnosticsResult.tests.analysis && !diagnosticsResult.tests.analysis.success) {
+      console.log('🔧 TROUBLESHOOTING: AI analysis issues detected');
+      console.log('   1. This might be a temporary issue with OpenAI');
+      console.log('   2. Try again in a few minutes');
+      console.log('   3. Check if the issue persists across different texts');
+    } else {
+      console.log('✅ All systems appear to be working normally');
+      console.log('   If you\'re still experiencing issues, it might be:');
+      console.log('   - Temporary OpenAI service congestion');
+      console.log('   - Regional network issues');
+      console.log('   - Browser-specific problems (try refreshing)');
+    }
+    
+    console.log('\n💡 To test OpenAI directly:');
+    console.log('   1. Visit: https://status.openai.com');
+    console.log('   2. Test at: https://platform.openai.com/playground');
+    console.log('   3. Check your API usage: https://platform.openai.com/usage');
+    
+    return diagnosticsResult;
+    
+  } catch (error) {
+    console.error('❌ Diagnostics failed:', error);
+    
+    // If it's a timeout, provide specific guidance
+    if (error.message.includes('timeout')) {
+      console.log('\n⚠️ TIMEOUT DETECTED - This suggests the issue is with OpenAI or network');
+      console.log('🔧 Recommended actions:');
+      console.log('   1. Check OpenAI status: https://status.openai.com');
+      console.log('   2. The 10-second timeout means OpenAI is likely slow/down');
+      console.log('   3. Try again in 5-10 minutes');
+      console.log('   4. Consider switching to Gemini temporarily');
+    } else {
+      console.log('\n🔧 Basic troubleshooting steps:');
+      console.log('   1. Refresh the page and try again');
+      console.log('   2. Check your internet connection');
+      console.log('   3. Verify your AI settings in the extension options');
+      console.log('   4. Check OpenAI service status: https://status.openai.com');
+    }
+    
+    return { success: false, error: error.message };
+  }
+};
+
+console.log('🔧 Diagnostic tool loaded! Run window.runAIDiagnostics() to test AI services');

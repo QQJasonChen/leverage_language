@@ -1069,16 +1069,22 @@ class TranscriptViewer {
   
   // ✅ NEW: Toggle bulk export mode
   toggleBulkExportMode() {
+    console.log('🔄 Toggling bulk export mode');
     const bulkControls = this.container.querySelector('.bulk-export-controls');
     const isVisible = bulkControls.style.display !== 'none';
     
+    console.log('Current bulk mode visible:', isVisible);
+    console.log('Transcript rows found:', this.container.querySelectorAll('.transcript-row').length);
+    
     if (isVisible) {
       // Exit bulk mode
+      console.log('Exiting bulk mode');
       bulkControls.style.display = 'none';
       this.removeBulkCheckboxes();
       this.isBulkExportMode = false;
     } else {
       // Enter bulk mode
+      console.log('Entering bulk mode');
       bulkControls.style.display = 'block';
       this.addBulkCheckboxes();
       this.isBulkExportMode = true;
@@ -1086,30 +1092,40 @@ class TranscriptViewer {
     }
   }
   
-  // ✅ NEW: Add checkboxes to all transcript segments
+  // ✅ NEW: Add checkboxes to all transcript segments (updated for table structure)
   addBulkCheckboxes() {
-    const segments = this.container.querySelectorAll('.transcript-segment');
-    segments.forEach((segment, index) => {
-      if (!segment.querySelector('.bulk-checkbox')) {
+    const rows = this.container.querySelectorAll('.transcript-row');
+    console.log('📝 Adding checkboxes to', rows.length, 'rows');
+    rows.forEach((row, index) => {
+      if (!row.querySelector('.bulk-checkbox')) {
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.className = 'bulk-checkbox';
         checkbox.dataset.index = index;
         checkbox.addEventListener('change', () => this.updateSelectedCount());
         
-        const label = document.createElement('label');
-        label.className = 'bulk-checkbox-label';
-        label.appendChild(checkbox);
+        // Create checkbox cell for table structure
+        const checkboxCell = document.createElement('td');
+        checkboxCell.className = 'checkbox-cell';
+        checkboxCell.style.cssText = `
+          width: 30px;
+          text-align: center;
+          padding: 4px;
+          vertical-align: middle;
+          border-right: 1px solid #e0e0e0;
+        `;
+        checkboxCell.appendChild(checkbox);
         
-        segment.insertBefore(label, segment.firstChild);
+        // Insert as first column
+        row.insertBefore(checkboxCell, row.firstChild);
       }
     });
   }
   
-  // ✅ NEW: Remove checkboxes
+  // ✅ NEW: Remove checkboxes (updated for table structure)
   removeBulkCheckboxes() {
-    const checkboxes = this.container.querySelectorAll('.bulk-checkbox-label');
-    checkboxes.forEach(label => label.remove());
+    const checkboxCells = this.container.querySelectorAll('.checkbox-cell');
+    checkboxCells.forEach(cell => cell.remove());
   }
   
   // ✅ NEW: Select all segments

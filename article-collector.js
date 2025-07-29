@@ -595,6 +595,93 @@
     }
   }
 
+  // Fix button clickability when blocked by other elements
+  function fixButtonClickability(button, blockingElement, buttonRect) {
+    console.log('🔧 Attempting to fix button clickability...');
+    
+    const actualButton = button.__isShadowButton ? button.shadowButton : button;
+    
+    // Method 1: Increase z-index even higher
+    const maxZIndex = Math.max(
+      2147483647,
+      getMaxZIndexOnPage() + 1000
+    );
+    actualButton.style.zIndex = `${maxZIndex} !important`;
+    
+    // Method 2: If blocked by iframe, try to move outside iframe area
+    if (blockingElement && blockingElement.tagName === 'IFRAME') {
+      console.log('🔧 Button blocked by iframe, repositioning...');
+      const iframeRect = blockingElement.getBoundingClientRect();
+      
+      // Try positioning to the right of iframe
+      if (iframeRect.right + buttonRect.width < window.innerWidth) {
+        actualButton.style.left = `${iframeRect.right + 10}px !important`;
+      } else if (iframeRect.left - buttonRect.width > 0) {
+        // Try positioning to the left of iframe
+        actualButton.style.left = `${iframeRect.left - buttonRect.width - 10}px !important`;
+      } else {
+        // Position above iframe
+        actualButton.style.top = `${Math.max(10, iframeRect.top - buttonRect.height - 10)}px !important`;
+      }
+    }
+    
+    // Method 3: Force interaction styles
+    actualButton.style.pointerEvents = 'auto !important';
+    actualButton.style.userSelect = 'none !important';
+    actualButton.style.touchAction = 'manipulation !important';
+    
+    // Method 4: Add click capture to override blocking
+    if (blockingElement && blockingElement !== actualButton) {
+      addClickCapture(actualButton, blockingElement);
+    }
+    
+    // Method 5: Make button bigger and more visible if still blocked
+    actualButton.style.minWidth = '100px !important';
+    actualButton.style.minHeight = '40px !important';
+    actualButton.style.fontSize = '16px !important';
+    actualButton.style.fontWeight = 'bold !important';
+    actualButton.style.border = '3px solid #fff !important';
+    actualButton.style.boxShadow = '0 0 20px rgba(66, 133, 244, 0.8), 0 0 40px rgba(66, 133, 244, 0.4) !important';
+    
+    console.log('🔧 Applied clickability fixes');
+  }
+  
+  // Get maximum z-index on the page
+  function getMaxZIndexOnPage() {
+    let maxZ = 0;
+    const elements = document.querySelectorAll('*');
+    
+    elements.forEach(el => {
+      const zIndex = parseInt(window.getComputedStyle(el).zIndex) || 0;
+      if (zIndex > maxZ) maxZ = zIndex;
+    });
+    
+    return maxZ;
+  }
+  
+  // Add click capture to handle blocked buttons
+  function addClickCapture(button, blockingElement) {
+    if (blockingElement && blockingElement.addEventListener) {
+      blockingElement.addEventListener('click', (e) => {
+        const buttonRect = button.getBoundingClientRect();
+        const clickX = e.clientX;
+        const clickY = e.clientY;
+        
+        // Check if click was meant for our button
+        if (clickX >= buttonRect.left && clickX <= buttonRect.right &&
+            clickY >= buttonRect.top && clickY <= buttonRect.bottom) {
+          console.log('📝 Captured click meant for button from blocking element');
+          e.preventDefault();
+          e.stopPropagation();
+          button.click();
+          return false;
+        }
+      }, { capture: true, once: false });
+      
+      console.log('📝 Added click capture to blocking element:', blockingElement.tagName);
+    }
+  }
+
   // Position the floating button near the selection with magnetic attraction
   function positionFloatingButton(selection) {
     if (!state.floatingButton || !selection.rangeCount) {
@@ -756,13 +843,20 @@
     button.style.transform = 'none !important';
     button.style.transition = 'none !important';
     
-    // Ensure button is clickable
+    // Ensure button is clickable with enhanced settings
     button.style.pointerEvents = 'auto !important';
     button.style.cursor = 'pointer !important';
+    button.style.userSelect = 'none !important';
+    button.style.touchAction = 'manipulation !important';
     
-    // Add debug outline to make button more visible (temporary)
-    button.style.outline = '2px solid green !important';
-    button.style.outlineOffset = '1px !important';
+    // Use highest possible z-index
+    const maxZIndex = Math.max(2147483647, getMaxZIndexOnPage() + 1000);
+    button.style.zIndex = `${maxZIndex} !important`;
+    
+    // Add enhanced visibility styling
+    button.style.outline = '2px solid rgba(255,255,255,0.8) !important';
+    button.style.outlineOffset = '2px !important';
+    button.style.boxShadow = '0 0 20px rgba(66, 133, 244, 0.8), 0 0 40px rgba(66, 133, 244, 0.4), 0 0 0 1px rgba(255,255,255,0.5) !important';
     
     // Verify button is actually visible and add aggressive debugging
     setTimeout(() => {
@@ -835,7 +929,7 @@
     // Skip animation for now - just make it immediately visible
     console.log('📝 Button should be visible now at position:', { top, left });
     
-    // Test if button is truly clickable
+    // Test if button is truly clickable and fix if blocked
     setTimeout(() => {
       const rect = button.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
@@ -855,12 +949,17 @@
       console.log('📝 Button clickability test:', {
         isClickable,
         elementAtPoint: elementAtPoint?.tagName,
+        elementAtPointClass: elementAtPoint?.className,
         buttonRect: rect,
-        centerPoint: { x: centerX, y: centerY }
+        centerPoint: { x: centerX, y: centerY },
+        blockingElement: elementAtPoint
       });
       
       if (!isClickable) {
         console.warn('📝 Button may not be clickable! Element at center:', elementAtPoint);
+        
+        // Try to fix clickability issues
+        fixButtonClickability(button, elementAtPoint, rect);
       }
     }, 100);
   }
@@ -1102,7 +1201,7 @@
       }
     });
 
-    // Hide button on click outside
+    // Hide button on click outside - but only after a delay to prevent accidental hiding
     document.addEventListener('click', (event) => {
       const isButtonClick = state.floatingButton && (
         event.target === state.floatingButton ||
@@ -1112,23 +1211,43 @@
          state.floatingButton.contains && state.floatingButton.contains(event.target))
       );
       
-      if (!isButtonClick) {
-        hideFloatingButton();
+      // Only hide if clicking far from the button or selected text
+      if (!isButtonClick && state.selectedData) {
+        // Check if click is near the selected text or button
+        const selection = window.getSelection();
+        const selectedText = selection.toString().trim();
+        
+        // Keep button visible if there's still selected text
+        if (selectedText && selectedText.length >= 3) {
+          return; // Don't hide the button
+        }
+        
+        // Hide with a small delay to prevent accidental hiding
+        setTimeout(() => {
+          const stillSelected = window.getSelection().toString().trim();
+          if (!stillSelected || stillSelected.length < 3) {
+            hideFloatingButton();
+          }
+        }, 100);
       }
     });
 
-    // Hide button on scroll
+    // Reposition button on scroll (don't hide it)
     let scrollTimeout;
     window.addEventListener('scroll', () => {
-      hideFloatingButton();
-      clearTimeout(scrollTimeout);
-      scrollTimeout = setTimeout(() => {
-        // Re-show button if there's still a selection
-        const selection = window.getSelection();
-        if (selection.toString().trim()) {
-          handleSelection();
-        }
-      }, 500);
+      // Don't hide immediately, just reposition if needed
+      if (state.floatingButton && state.selectedData) {
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+          // Re-position button if there's still a selection
+          const selection = window.getSelection();
+          if (selection.toString().trim()) {
+            handleSelection(); // This will reposition the button
+          } else {
+            hideFloatingButton(); // Only hide if no selection
+          }
+        }, 200); // Shorter delay for better UX
+      }
     });
 
     // Re-tag paragraphs if DOM changes significantly

@@ -1680,29 +1680,59 @@
         const analyser = audioContext.createAnalyser();
         source.connect(analyser);
         
+        // ✅ FIX: Store audio context resources for proper cleanup
+        captionCollection.whisper.audioContext = audioContext;
+        captionCollection.whisper.audioSource = source;
+        captionCollection.whisper.analyserNode = analyser;
+        
         analyser.fftSize = 256;
         const bufferLength = analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
         
-        // ✅ SIMPLIFIED: Basic audio monitoring to prevent crashes
+        // ✅ OPTIMIZED: Light audio monitoring with proper cleanup
+        let audioMonitoringActive = true;
+        captionCollection.whisper.stopAudioMonitoring = () => {
+          audioMonitoringActive = false;
+        };
+        
         const monitorAudio = () => {
-          if (captionCollection.whisper.audioStream && captionCollection.isCollecting) {
-            try {
-              analyser.getByteFrequencyData(dataArray);
-              const average = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength;
+          // Exit immediately if monitoring disabled or recording stopped
+          if (!audioMonitoringActive || !captionCollection.whisper.audioStream || !captionCollection.isCollecting) {
+            console.log('🛑 Audio monitoring stopped');
+            return;
+          }
+          
+          try {
+            // Use requestAnimationFrame for better performance
+            requestAnimationFrame(() => {
+              if (!audioMonitoringActive) return;
               
-              if (average > 10) {
-                console.log(`🎵 Audio level: ${Math.round(average)}/255`);
+              analyser.getByteFrequencyData(dataArray);
+              // Simplified calculation to reduce CPU load
+              const sum = dataArray[0] + dataArray[32] + dataArray[64] + dataArray[96]; // Sample only 4 points
+              const average = sum / 4;
+              
+              if (average > 15) { // Only log significant audio
+                console.log(`🎵 Audio detected: ${Math.round(average)}/255`);
               }
               
-              setTimeout(monitorAudio, 3000); // Less frequent to reduce load
-            } catch (error) {
-              console.log('⚠️ Audio monitoring error, stopping to prevent crash');
-            }
+              // Increased interval and conditional continuation
+              if (audioMonitoringActive && captionCollection.isCollecting) {
+                setTimeout(monitorAudio, 5000); // 5 seconds instead of 3
+              }
+            });
+          } catch (error) {
+            console.log('⚠️ Audio monitoring stopped due to error:', error.message);
+            audioMonitoringActive = false;
           }
         };
         
-        setTimeout(monitorAudio, 1000); // Start monitoring after 1 second
+        // Start monitoring after a delay
+        whisper.monitoringInitTimer = setTimeout(() => {
+          if (audioMonitoringActive) {
+            monitorAudio();
+          }
+        }, 2000);
         
       } catch (error) {
         console.log('⚠️ Audio monitoring not available:', error.message);
@@ -1719,6 +1749,12 @@
       
       captionCollection.whisper.mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
+          // ✅ MEMORY PROTECTION: Limit audio chunks to prevent memory leaks
+          if (captionCollection.whisper.audioChunks.length > 10) {
+            console.log('🧹 Clearing old audio chunks to prevent memory overflow');
+            captionCollection.whisper.audioChunks = [];
+          }
+          
           captionCollection.whisper.audioChunks.push(event.data);
           console.log(`🎵 Audio chunk collected: ${event.data.size} bytes`);
           console.log(`📊 Total chunks collected: ${captionCollection.whisper.audioChunks.length}`);
@@ -1829,8 +1865,8 @@
           whisper.isRecording = true;
           console.log(`✅ MediaRecorder started successfully`);
           
-          // Stop recording after chunk duration and process
-          setTimeout(() => {
+          // ✅ FIX: Track timers for proper cleanup to prevent conflicts on re-recording
+          whisper.chunkTimer = setTimeout(() => {
             if (whisper.isRecording && captionCollection.isCollecting) {
               console.log(`⏹️ Stopping MediaRecorder after ${whisper.chunkDuration}s`);
               console.log(`📊 Expected audio data: ~${whisper.chunkDuration * 1000 * 16}KB (16KB/sec for good quality)`);
@@ -1838,7 +1874,7 @@
               whisper.isRecording = false;
               
               // ✅ FIX: Add gap between chunks to prevent overlap and duplicates
-              setTimeout(() => {
+              whisper.gapTimer = setTimeout(() => {
                 if (captionCollection.isCollecting) {
                   console.log('🔄 Starting next audio chunk with gap...');
                   startRecordingChunk();
@@ -1871,8 +1907,8 @@
       whisper.mediaRecorder.start();
       whisper.isRecording = true;
       
-      // Auto-stop after chunk duration
-      setTimeout(() => {
+      // ✅ FIX: Track auto-stop timer for proper cleanup
+      whisper.autoStopTimer = setTimeout(() => {
         if (whisper.isRecording) {
           finalizeCurrentAudioChunk(startTime + whisper.chunkDuration);
         }
@@ -1918,13 +1954,23 @@
       console.log('🌐 Making API request to OpenAI Whisper...');
       console.log(`🌍 Using language: "${detectedLanguage}" for transcription`);
       
+      // ✅ PREVENT HANGING: Add timeout to Whisper API request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.log('⏰ Whisper API request timeout after 30s');
+        controller.abort();
+      }, 30000); // 30 second timeout
+      
       const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${result.apiKey}`
         },
-        body: formData
+        body: formData,
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
       
       if (response.ok) {
         const transcription = await response.json();
@@ -1954,7 +2000,11 @@
       }
       
     } catch (error) {
-      console.error('❌ Error transcribing with Whisper:', error);
+      if (error.name === 'AbortError') {
+        console.log('⏰ Whisper API request was cancelled due to timeout');
+      } else {
+        console.error('❌ Error transcribing with Whisper:', error);
+      }
     }
   }
 
@@ -2748,33 +2798,37 @@
     
     // Start monitoring with enhanced selectors (only for caption-based modes)
     captionCollection.interval = setInterval(async () => {
-      // Comprehensive caption selectors for both manual and auto-generated
-      const allCaptionElements = document.querySelectorAll(`
-        .ytp-caption-segment, 
-        .captions-text, 
-        .caption-visual-line,
-        .ytp-caption-window-container span,
-        .ytp-caption-window-container div,
-        .caption-window span,
-        .caption-window div,
-        .html5-captions-text,
-        .captions-text span,
-        [class*="caption"] span,
-        [class*="subtitle"] span
-      `);
+      // ✅ PERFORMANCE: Skip expensive DOM operations during active Whisper recording
+      if (captionCollection.whisper && captionCollection.whisper.isRecording) {
+        return; // Don't compete with audio processing
+      }
       
-      // Filter out UI elements
-      const captionElements = Array.from(allCaptionElements).filter(el => {
-        // Skip elements that are clearly UI controls
-        if (el.closest('.ytp-chrome-controls') || 
-            el.closest('.ytp-settings-menu') ||
-            el.closest('.ytp-popup') ||
-            el.closest('.ytp-menuitem') ||
-            el.closest('.ytp-tooltip') ||
-            el.closest('.ytp-panel')) {
-          return false;
+      // ✅ OPTIMIZED: Simplified and faster caption detection for better performance during Whisper recording
+      let captionElements = [];
+      
+      // Try most common selectors first (fastest path)
+      const commonSelectors = [
+        '.ytp-caption-segment',
+        '.captions-text', 
+        '.caption-visual-line'
+      ];
+      
+      for (const selector of commonSelectors) {
+        const elements = document.querySelectorAll(selector);
+        if (elements.length > 0) {
+          captionElements = Array.from(elements);
+          break; // Use first successful match, avoid complex queries
         }
-        
+      }
+      
+      // Only if no common captions found, try fallback (less frequent)
+      if (captionElements.length === 0 && Math.random() < 0.3) { // Only 30% of the time
+        const fallbackElements = document.querySelectorAll('.ytp-caption-window-container span, .html5-captions-text');
+        captionElements = Array.from(fallbackElements);
+      }
+      
+      // Quick filtering - avoid expensive .closest() calls
+      captionElements = captionElements.filter(el => {
         const text = el.textContent?.trim() || '';
         // Skip UI text patterns
         if (text.includes('音軌') || 
@@ -2833,43 +2887,30 @@
       }
       
       if (captionElements.length > 0) {
-        console.log(`🔍 Found ${captionElements.length} caption elements in ${captionCollection.userSubtitleMode} mode`);
+        // Reduced logging frequency to improve performance during Whisper recording
+        if (Math.random() < 0.2) { // Only log 20% of the time
+          console.log(`🔍 Found ${captionElements.length} caption elements in ${captionCollection.userSubtitleMode} mode`);
+        }
         const player = document.querySelector('#movie_player');
         const currentTime = player && player.getCurrentTime ? player.getCurrentTime() : 0;
         
-        // Get text from caption elements with better filtering
-        const rawTexts = Array.from(captionElements).map(el => el.textContent?.trim());
-        console.log('🔍 Raw caption texts from elements:', rawTexts);
+        // ✅ OPTIMIZED: Faster text processing with less memory allocation
+        let currentText = '';
+        let maxLength = 0;
         
-        // ✅ FIX: Remove duplicates and get unique texts only
-        const uniqueTexts = [];
-        const seenTexts = new Set();
-        
-        for (const text of rawTexts) {
-          if (text && text.length > 3) {
-            const normalizedText = text.toLowerCase().replace(/\s+/g, ' ').trim();
-            if (!seenTexts.has(normalizedText)) {
-              seenTexts.add(normalizedText);
-              uniqueTexts.push(text);
+        // Find the longest text directly without creating intermediate arrays
+        for (const el of captionElements) {
+          const text = el.textContent?.trim();
+          if (text && text.length > 3 && text.length > maxLength) {
+            // Simple duplicate check - just avoid exact matches
+            if (text !== currentText) {
+              currentText = text;
+              maxLength = text.length;
             }
           }
         }
         
-        console.log('🔍 Unique texts after dedup:', uniqueTexts);
-        
-        // ✅ FIX: Use only the longest unique text (likely the most complete)
-        let currentText;
-        if (uniqueTexts.length === 1) {
-          currentText = uniqueTexts[0];
-        } else if (uniqueTexts.length > 1) {
-          // Pick the longest text as it's likely the most complete caption
-          currentText = uniqueTexts.reduce((longest, current) => 
-            current.length > longest.length ? current : longest
-          );
-          console.log('🎯 Selected longest text:', currentText.substring(0, 50) + '...');
-        } else {
-          currentText = '';
-        }
+        console.log('🔍 Selected caption text:', currentText.substring(0, 50) + '...');
           
         console.log('🔍 Final text for processing:', currentText);
         
@@ -3099,7 +3140,7 @@
           }
         }
       }
-    }, 1000); // Check every second
+    }, 2500); // ✅ PERFORMANCE: Reduced frequency during Whisper recording (was 1000ms)
   }
 
   function stopCaptionCollection() {
@@ -3126,6 +3167,61 @@
         console.log('🔇 Stopped audio track');
       });
       whisper.audioStream = null;
+    }
+    
+    // ✅ NEW: Stop audio monitoring to prevent tab freezing
+    if (whisper.stopAudioMonitoring) {
+      whisper.stopAudioMonitoring();
+      whisper.stopAudioMonitoring = null;
+      console.log('🛑 Audio monitoring stopped');
+    }
+    
+    // ✅ CRITICAL: Clean up Web Audio API resources to prevent conflicts on re-recording
+    if (whisper.audioContext) {
+      try {
+        // Disconnect audio nodes
+        if (whisper.audioSource) {
+          whisper.audioSource.disconnect();
+          whisper.audioSource = null;
+          console.log('🔌 Disconnected audio source');
+        }
+        if (whisper.analyserNode) {
+          whisper.analyserNode.disconnect();
+          whisper.analyserNode = null;
+          console.log('📊 Disconnected analyser node');
+        }
+        // Close audio context
+        whisper.audioContext.close().then(() => {
+          console.log('🔇 Closed audio context');
+        }).catch(err => {
+          console.log('⚠️ Error closing audio context:', err.message);
+        });
+        whisper.audioContext = null;
+      } catch (error) {
+        console.log('⚠️ Error cleaning up audio context:', error.message);
+      }
+    }
+    
+    // ✅ CRITICAL: Clear any pending timers to prevent conflicts on re-recording
+    if (whisper.chunkTimer) {
+      clearTimeout(whisper.chunkTimer);
+      whisper.chunkTimer = null;
+      console.log('⏰ Cleared chunk timer');
+    }
+    if (whisper.gapTimer) {
+      clearTimeout(whisper.gapTimer);
+      whisper.gapTimer = null;
+      console.log('⏰ Cleared gap timer');
+    }
+    if (whisper.autoStopTimer) {
+      clearTimeout(whisper.autoStopTimer);
+      whisper.autoStopTimer = null;
+      console.log('⏰ Cleared auto-stop timer');
+    }
+    if (whisper.monitoringInitTimer) {
+      clearTimeout(whisper.monitoringInitTimer);
+      whisper.monitoringInitTimer = null;
+      console.log('⏰ Cleared monitoring init timer');
     }
     
     // Reset Whisper state

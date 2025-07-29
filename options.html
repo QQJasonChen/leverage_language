@@ -279,6 +279,23 @@
             </div>
         </div>
         
+        <div class="setting-group" id="analysisComplexityGroup">
+            <label for="analysisComplexity">AI 分析複雜度</label>
+            <select id="analysisComplexity">
+                <option value="auto">⚡ 自動選擇 (推薦)</option>
+                <option value="simple">🚀 簡單快速 (2-5秒)</option>
+                <option value="medium">⚖️ 平衡模式 (5-15秒)</option>
+                <option value="detailed">📚 詳細分析 (15-45秒)</option>
+            </select>
+            <div class="description">
+                <strong>⚡ 自動選擇：</strong> 短詞句用簡單模式，長句子用平衡模式<br>
+                <strong>🚀 簡單快速：</strong> 基本翻譯 + 發音 + 例句 (2-5秒完成)<br>
+                <strong>⚖️ 平衡模式：</strong> 語法分析 + 文化背景 + 詳細解釋 (5-15秒)<br>
+                <strong>📚 詳細分析：</strong> 完整教學級分析，包含所有功能 (15-45秒)<br>
+                <em>💡 提示：選擇詳細分析可獲得最完整的學習內容，但需要較長等待時間</em>
+            </div>
+        </div>
+
         <div class="setting-group" id="aiOptionsGroup">
             <label for="aiFeatures">AI 功能選項</label>
             <div style="margin-top: 10px;">

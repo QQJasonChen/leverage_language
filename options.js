@@ -37,7 +37,7 @@ function loadSettings() {
     'uiLanguage', 'defaultLanguage', 'openMethod', 'preferredLanguage', 'uncertaintyHandling',
     'aiEnabled', 'autoAnalysis', 'aiProvider', 'openaiModel', 'apiKey', 'pronunciationGuide', 'wordExplanation', 
     'grammarAnalysis', 'culturalContext', 'errorDetection', 'audioPronunciation', 'ttsVoice', 
-    'speechSpeed', 'autoPlayAudio'
+    'speechSpeed', 'autoPlayAudio', 'analysisComplexity'
   ], (result) => {
     document.getElementById('uiLanguage').value = result.uiLanguage || 'auto';
     document.getElementById('defaultLanguage').value = result.defaultLanguage || 'auto';
@@ -57,6 +57,9 @@ function loadSettings() {
     document.getElementById('culturalContext').checked = result.culturalContext || false;
     document.getElementById('errorDetection').checked = result.errorDetection || false; // Default to false
     document.getElementById('audioPronunciation').checked = result.audioPronunciation !== false; // Default to true
+    
+    // AI 分析複雜度設定
+    document.getElementById('analysisComplexity').value = result.analysisComplexity || 'auto';
     
     // 語音設定
     document.getElementById('ttsVoice').value = result.ttsVoice || 'alloy';
@@ -85,6 +88,9 @@ function saveSettings() {
   const culturalContext = document.getElementById('culturalContext').checked;
   const errorDetection = document.getElementById('errorDetection').checked;
   const audioPronunciation = document.getElementById('audioPronunciation').checked;
+  
+  // AI 分析複雜度設定
+  const analysisComplexity = document.getElementById('analysisComplexity').value;
   
   // 語音設定
   const ttsVoice = document.getElementById('ttsVoice').value;
@@ -116,6 +122,7 @@ function saveSettings() {
     culturalContext: culturalContext,
     errorDetection: errorDetection,
     audioPronunciation: audioPronunciation,
+    analysisComplexity: analysisComplexity,
     ttsVoice: ttsVoice,
     speechSpeed: speechSpeed,
     autoPlayAudio: autoPlayAudio

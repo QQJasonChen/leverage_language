@@ -39,7 +39,12 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
         console.log('沒有選取文字');
       }
     } catch (error) {
-      console.error('快捷鍵處理錯誤:', error);
+      // 更好的錯誤處理，避免 "Receiving end does not exist" 錯誤
+      if (error.message.includes('Receiving end does not exist')) {
+        console.log('內容腳本尚未載入，無法獲取選取文字');
+      } else {
+        console.error('快捷鍵處理錯誤:', error);
+      }
     }
   }
 });
@@ -756,29 +761,9 @@ async function handleYouTubeTextAnalysis(request, tabId) {
       console.log('📱 Sidepanel might already be open:', error.message);
     }
 
-    // 等待一點時間讓 sidepanel 初始化
-    setTimeout(async () => {
-      // 嘗試發送消息到已開啟的 sidepanel
-      try {
-        console.log('🚀 Sending message to sidepanel:', cleanText);
-        const response = await chrome.runtime.sendMessage({
-          action: 'updateSidePanel',
-          url: urls.primaryUrl,
-          text: cleanText,
-          language: language,
-          source: request.source || 'youtube-learning',
-          title: request.title || 'YouTube Learning',
-          originalUrl: request.url,
-          allUrls: urls.allUrls
-        });
-        console.log('✅ YouTube text sent to sidepanel successfully:', response);
-      } catch (messageError) {
-        console.log('📝 Sidepanel message failed:', messageError.message);
-        // The sidepanel should pick up data from storage when it opens
-        console.log('💾 Data saved to storage for sidepanel to read');
-        // Notification removed - data is saved and functionality works normally
-      }
-    }, 1000);
+    // ✅ Data already saved to chrome.storage for sidepanel to pick up
+    // Using storage-based approach instead of direct messaging to avoid connection errors
+    console.log('💾 YouTube learning data saved to storage for sidepanel to automatically load');
     
   } catch (error) {
     console.error('❌ Error handling YouTube text analysis:', error);

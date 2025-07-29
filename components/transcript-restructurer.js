@@ -1954,15 +1954,37 @@ Sentence to fix: "${preCleanedText}"`;
         return;
       }
       
-      // Check if collection is already in progress
-      const response = await chrome.tabs.sendMessage(tab.id, { action: 'ping' });
+      // Check if collection is already in progress with better error handling
+      let response;
+      try {
+        response = await chrome.tabs.sendMessage(tab.id, { action: 'ping' });
+      } catch (connectionError) {
+        if (connectionError.message.includes('Could not establish connection')) {
+          statusEl.textContent = '❌ Please refresh the YouTube page and try again';
+          statusEl.className = 'transcript-status error';
+          console.log('🔄 Content script not ready, user needs to refresh page');
+          return;
+        }
+        throw connectionError; // Re-throw if it's a different error
+      }
       
       if (response.isCollecting) {
         // Stop collection
         statusEl.textContent = 'Stopping real-time collection...';
         statusEl.className = 'transcript-status loading';
         
-        const result = await chrome.tabs.sendMessage(tab.id, { action: 'stopCaptionCollection' });
+        let result;
+        try {
+          result = await chrome.tabs.sendMessage(tab.id, { action: 'stopCaptionCollection' });
+        } catch (connectionError) {
+          if (connectionError.message.includes('Could not establish connection')) {
+            statusEl.textContent = '❌ Connection lost. Please refresh the page.';
+            statusEl.className = 'transcript-status error';
+            this.resetCollectionButton(collectBtn);
+            return;
+          }
+          throw connectionError;
+        }
         
         if (result.success && result.segments.length > 0) {
           console.log('🧹 Starting deduplication of collected segments...');
@@ -2057,18 +2079,28 @@ Sentence to fix: "${preCleanedText}"`;
         
         console.log('🎯 User selected subtitle mode:', subtitleMode);
         
-        const result = await chrome.tabs.sendMessage(tab.id, { 
-          action: 'startCaptionCollection',
-          chunkDuration: chunkDuration,
-          subtitleMode: subtitleMode,  // Pass user choice to content script
-          // ✅ NEW: Pass Whisper timing parameters
-          whisperSettings: {
-            chunkDuration: whisperChunkDuration,
-            chunkGap: whisperChunkGap,
-            sentenceGrouping: sentenceGrouping,
-            languageOverride: languageOverride
+        let result;
+        try {
+          result = await chrome.tabs.sendMessage(tab.id, { 
+            action: 'startCaptionCollection',
+            chunkDuration: chunkDuration,
+            subtitleMode: subtitleMode,  // Pass user choice to content script
+            // ✅ NEW: Pass Whisper timing parameters
+            whisperSettings: {
+              chunkDuration: whisperChunkDuration,
+              chunkGap: whisperChunkGap,
+              sentenceGrouping: sentenceGrouping,
+              languageOverride: languageOverride
+            }
+          });
+        } catch (connectionError) {
+          if (connectionError.message.includes('Could not establish connection')) {
+            statusEl.textContent = '❌ Cannot connect to YouTube page. Please refresh and try again.';
+            statusEl.className = 'transcript-status error';
+            return;
           }
-        });
+          throw connectionError;
+        }
         
         if (result.success) {
           // ✅ NEW: Show subtitle mode based on user choice
@@ -2107,8 +2139,29 @@ Sentence to fix: "${preCleanedText}"`;
       
     } catch (error) {
       console.error('❌ Toggle collection error:', error);
-      statusEl.textContent = `❌ Error: ${error.message}`;
+      
+      if (error.message.includes('Could not establish connection')) {
+        statusEl.textContent = '❌ Page connection lost. Please refresh YouTube and try again.';
+      } else {
+        statusEl.textContent = `❌ Error: ${error.message}`;
+      }
       statusEl.className = 'transcript-status error';
+      
+      // Reset button state on any error
+      this.resetCollectionButton(collectBtn);
+    }
+  }
+  
+  // Helper method to reset collection button state
+  resetCollectionButton(collectBtn) {
+    if (collectBtn) {
+      collectBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="12" cy="12" r="10"/>
+          <polygon points="10,8 16,12 10,16"/>
+        </svg>
+        Collect
+      `;
     }
   }
 
