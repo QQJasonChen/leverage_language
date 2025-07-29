@@ -715,6 +715,14 @@ async function handleArticleTextAnalysis(data, tabId) {
 
     // ✅ Data saved to chrome.storage for sidepanel to pick up
     console.log('💾 Article learning data saved to storage for automatic AI analysis');
+    console.log('🔗 Full article analysis data saved:', {
+      url: urls.primaryUrl,
+      text: cleanText.substring(0, 50) + '...',
+      language: language,
+      source: 'article-learning',
+      hasVideoSource: !!articleSource,
+      timestamp: Date.now()
+    });
     
   } catch (error) {
     console.error('❌ Error handling article text analysis:', error);

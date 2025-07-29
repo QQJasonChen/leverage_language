@@ -2517,30 +2517,19 @@ function getReturnButtonText(sourceType, language, hasTimestamp = false) {
 
 // Helper function to determine source type
 function getSourceType(query) {
-  console.log('🔍 getSourceType debug:', {
-    detectionMethod: query.detectionMethod,
-    videoSourceUrl: query.videoSource?.url,
-    videoSourceDomain: query.videoSource?.domain,
-    hasVideoSource: !!query.videoSource
-  });
-  
   // Check for article-specific detection methods
   if (query.detectionMethod === 'article-selection' || query.detectionMethod === 'article-learning') {
-    console.log('🔍 -> article (via detectionMethod)');
     return 'article';
   }
   // Check if videoSource has article-like properties (no youtube.com URL)
   else if (query.videoSource && query.videoSource.url && !query.videoSource.url.includes('youtube.com') && !query.videoSource.url.includes('youtu.be')) {
-    console.log('🔍 -> article (via non-YouTube URL)');
     return 'article';
   }
   // Check if videoSource has domain instead of url (article metadata)
   else if (query.videoSource && query.videoSource.domain && !query.videoSource.url) {
-    console.log('🔍 -> article (via domain only)');
     return 'article';
   }
   else {
-    console.log('🔍 -> video (default)');
     return 'video';
   }
 }
@@ -2671,6 +2660,11 @@ function displayHistoryItems(queries) {
     const detectionMethod = query.detectionMethod || 'auto';
     const websitesUsed = query.websitesUsed || [];
     
+    // Ensure query.detectionMethod is set for getSourceType function
+    if (!query.detectionMethod) {
+      query.detectionMethod = detectionMethod;
+    }
+    
     // Create history item using SecurityUtils with error status
     if (window.SecurityFixes) {
       window.SecurityFixes.safeCreateHistoryItem(item, {
@@ -2700,14 +2694,7 @@ function displayHistoryItems(queries) {
             ${query.id ? `<button class="history-action-btn delete" data-id="${query.id}">刪除</button>` : ''}
           </div>
         </div>
-        ${query.videoSource ? (() => {
-            console.log('🔍 History item query data:', {
-              detectionMethod: query.detectionMethod,
-              videoSource: query.videoSource,
-              sourceType: getSourceType(query)
-            });
-            return getVideoSourceHtml(query);
-          })() : ''}
+${query.videoSource ? getVideoSourceHtml(query) : ''}
         <div class="history-meta">
           <span class="history-language">${languageNames[query.language] || query.language || 'Unknown'}</span>
           <span class="history-date">${dateStr}</span>
@@ -6600,11 +6587,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     
     // Listen for article analysis data changes
-    if (namespace === 'local' && changes.articleAnalysis && changes.articleAnalysis.newValue) {
-      console.log('📰 Article analysis data changed, processing...');
-      setTimeout(() => {
-        checkForArticleAnalysis();
-      }, 100); // Small delay to ensure data is fully written
+    if (namespace === 'local' && changes.articleAnalysis) {
+      console.log('📰 Article analysis storage changed:', changes.articleAnalysis);
+      if (changes.articleAnalysis.newValue) {
+        console.log('📰 New article analysis data detected, processing...');
+        setTimeout(() => {
+          checkForArticleAnalysis();
+        }, 100); // Small delay to ensure data is fully written
+      }
     }
   });
   
