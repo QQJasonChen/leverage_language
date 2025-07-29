@@ -59,9 +59,9 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
           console.log('📝 Calling handleArticleTextAnalysis...');
           await handleArticleTextAnalysis(selectionData, tab.id);
           
-          // Also do regular YouGlish search (for website opening)
+          // Also do regular YouGlish search (for website opening), but skip history save to avoid duplicates
           console.log('📝 Also opening YouGlish website for right-click with article metadata');
-          await searchYouGlish(info.selectionText, tab.id, 'right-click', 'newtab');
+          await searchYouGlish(info.selectionText, tab.id, 'right-click', 'newtab', true);
           console.log('📝 Both article analysis and YouGlish search completed');
           return; // Now we've done both
         }
@@ -282,7 +282,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 // 主要搜尋函數
-async function searchYouGlish(text, tabId, source = 'selection', forcedOpenMethod = null) {
+async function searchYouGlish(text, tabId, source = 'selection', forcedOpenMethod = null, skipHistorySave = false) {
   if (!text || text.trim().length === 0) {
     return;
   }
@@ -346,15 +346,19 @@ async function searchYouGlish(text, tabId, source = 'selection', forcedOpenMetho
   const tertiaryUrl = urls.tertiaryUrl;
   const allUrls = urls.allUrls;
   
-  // 保存到歷史記錄
-  try {
-    const detectionMethod = defaultLang === 'auto' ? 
-      (preferredLang !== 'none' ? 'auto-with-preference' : 'auto') : 
-      'manual';
-    
-    await historyManager.addRecord(cleanText, finalLang, detectionMethod);
-  } catch (error) {
-    console.error('保存歷史記錄失敗:', error);
+  // 保存到歷史記錄 (unless explicitly skipped)
+  if (!skipHistorySave) {
+    try {
+      const detectionMethod = defaultLang === 'auto' ? 
+        (preferredLang !== 'none' ? 'auto-with-preference' : 'auto') : 
+        'manual';
+      
+      await historyManager.addRecord(cleanText, finalLang, detectionMethod);
+    } catch (error) {
+      console.error('保存歷史記錄失敗:', error);
+    }
+  } else {
+    console.log('📝 Skipping history save for searchYouGlish (already saved by article handler)');
   }
 
   // 根據設定選擇開啟方式
