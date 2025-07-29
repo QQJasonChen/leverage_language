@@ -99,12 +99,21 @@ async function checkForYouTubeAnalysis() {
 // Check for article analysis data when sidepanel opens
 async function checkForArticleAnalysis() {
   try {
+    console.log('📰 Checking for article analysis data...');
     const result = await chrome.storage.local.get('articleAnalysis');
+    console.log('📰 Storage result:', result);
+    
     if (result.articleAnalysis) {
       const data = result.articleAnalysis;
+      console.log('📰 Found article analysis data:', data);
+      
       // Check if data is recent (within last 5 minutes)
-      if (Date.now() - data.timestamp < 5 * 60 * 1000) {
-        console.log('📰 Found recent article analysis data:', data.text);
+      const ageMs = Date.now() - data.timestamp;
+      const ageMinutes = ageMs / (1000 * 60);
+      console.log('📰 Data age:', ageMinutes, 'minutes');
+      
+      if (ageMs < 5 * 60 * 1000) {
+        console.log('📰 Data is recent, processing...', data.text);
         
         // Switch to analysis tab explicitly
         const analysisBtn = document.getElementById('showAnalysisBtn');
@@ -129,17 +138,25 @@ async function checkForArticleAnalysis() {
           videoSource: data.videoSource // Include videoSource for display
         };
         
+        console.log('📰 Set currentQueryData:', currentQueryData);
+        
         // Load in analysis tab for immediate AI analysis
         loadYouGlish(data.url, data.text, data.language);
         
         // Trigger AI analysis with article context
         setTimeout(() => {
+          console.log('📰 Triggering AI analysis...');
           generateAIAnalysis();
         }, 500);
         
         // Clear the data after processing
         chrome.storage.local.remove('articleAnalysis');
+        console.log('📰 Cleared articleAnalysis from storage');
+      } else {
+        console.log('📰 Data is too old, ignoring');
       }
+    } else {
+      console.log('📰 No article analysis data found');
     }
   } catch (error) {
     console.error('Error checking article analysis:', error);
@@ -2519,7 +2536,7 @@ function getSourceType(query) {
 
 // Helper function to get appropriate icon
 function getSourceIcon(sourceType) {
-  return sourceType === 'article' ? '📰' : '📹';
+  return sourceType === 'article' ? '📖' : '📹';
 }
 
 // Helper function to generate video source HTML
@@ -3167,35 +3184,43 @@ async function generateAIAnalysis(forceRefresh = false) {
           voice: cachedAudio.voice || 'OpenAI TTS'
         } : null;
         
-        // Get video source data from recent YouTube analysis
+        // Get video source data - check currentQueryData first, then YouTube analysis
         let videoSource = null;
-        try {
-          const result = await chrome.storage.local.get('youtubeAnalysis');
-          if (result.youtubeAnalysis) {
-            const ytData = result.youtubeAnalysis;
-            // Check if this is recent data (within last 2 minutes) and matches current text
-            if (Date.now() - ytData.timestamp < 2 * 60 * 1000 && ytData.text === text) {
-              const youtubeUrl = ytData.youtubeUrl || ytData.originalUrl; // Prefer explicit youtubeUrl
-              videoSource = {
-                url: youtubeUrl, // Use YouTube URL (with timestamp)
-                originalUrl: youtubeUrl,
-                title: ytData.title,
-                channel: ytData.title ? ytData.title.split(' - ')[0] : '未知頻道',
-                videoTimestamp: ytData.videoTimestamp, // Use correct field for video playback time
-                timestamp: Date.now(),
-                learnedAt: new Date().toISOString()
-              };
-              console.log('🎬 Found video source data for auto-save:', videoSource);
-              console.log('🔗 YouTube URL vs YouGlish URL:', {
-                youtubeUrl: youtubeUrl,
-                youglishUrl: ytData.url,
-                usingUrl: videoSource.url,
-                availableFields: Object.keys(ytData)
-              });
+        
+        // First check if currentQueryData has videoSource (for articles)
+        if (currentQueryData && currentQueryData.videoSource) {
+          videoSource = currentQueryData.videoSource;
+          console.log('📰 Using article video source for auto-save:', videoSource);
+        } else {
+          // Fallback to YouTube analysis for video sources
+          try {
+            const result = await chrome.storage.local.get('youtubeAnalysis');
+            if (result.youtubeAnalysis) {
+              const ytData = result.youtubeAnalysis;
+              // Check if this is recent data (within last 2 minutes) and matches current text
+              if (Date.now() - ytData.timestamp < 2 * 60 * 1000 && ytData.text === text) {
+                const youtubeUrl = ytData.youtubeUrl || ytData.originalUrl; // Prefer explicit youtubeUrl
+                videoSource = {
+                  url: youtubeUrl, // Use YouTube URL (with timestamp)
+                  originalUrl: youtubeUrl,
+                  title: ytData.title,
+                  channel: ytData.title ? ytData.title.split(' - ')[0] : '未知頻道',
+                  videoTimestamp: ytData.videoTimestamp, // Use correct field for video playback time
+                  timestamp: Date.now(),
+                  learnedAt: new Date().toISOString()
+                };
+                console.log('🎬 Found video source data for auto-save:', videoSource);
+                console.log('🔗 YouTube URL vs YouGlish URL:', {
+                  youtubeUrl: youtubeUrl,
+                  youglishUrl: ytData.url,
+                  usingUrl: videoSource.url,
+                  availableFields: Object.keys(ytData)
+                });
+              }
             }
+          } catch (error) {
+            console.log('⚠️ Could not get video source data:', error);
           }
-        } catch (error) {
-          console.log('⚠️ Could not get video source data:', error);
         }
         
         await storageManager.saveAIReport(
@@ -5355,35 +5380,43 @@ async function manualSaveReport() {
         voice: cachedAudio.voice || 'OpenAI TTS'
       } : null;
       
-      // Get video source data for manual save
+      // Get video source data for manual save - check currentQueryData first, then YouTube analysis
       let videoSource = null;
-      try {
-        const result = await chrome.storage.local.get('youtubeAnalysis');
-        if (result.youtubeAnalysis) {
-          const ytData = result.youtubeAnalysis;
-          // Check if this is recent data and matches current text
-          if (Date.now() - ytData.timestamp < 2 * 60 * 1000 && ytData.text === currentQueryData.text) {
-            const youtubeUrl = ytData.youtubeUrl || ytData.originalUrl; // Prefer explicit youtubeUrl
-            videoSource = {
-              url: youtubeUrl, // Use YouTube URL (with timestamp)
-              originalUrl: youtubeUrl,
-              title: ytData.title,
-              channel: ytData.title ? ytData.title.split(' - ')[0] : '未知頻道',
-              videoTimestamp: ytData.videoTimestamp, // Use correct field for video playback time
-              timestamp: Date.now(),
-              learnedAt: new Date().toISOString()
-            };
-            console.log('🎬 Found video source data for manual save:', videoSource);
-            console.log('🔗 Manual save - YouTube URL vs YouGlish URL:', {
-              youtubeUrl: youtubeUrl,
-              youglishUrl: ytData.url,
-              usingUrl: videoSource.url,
-              availableFields: Object.keys(ytData)
-            });
+      
+      // First check if currentQueryData has videoSource (for articles)
+      if (currentQueryData && currentQueryData.videoSource) {
+        videoSource = currentQueryData.videoSource;
+        console.log('📰 Using article video source for manual save:', videoSource);
+      } else {
+        // Fallback to YouTube analysis for video sources
+        try {
+          const result = await chrome.storage.local.get('youtubeAnalysis');
+          if (result.youtubeAnalysis) {
+            const ytData = result.youtubeAnalysis;
+            // Check if this is recent data and matches current text
+            if (Date.now() - ytData.timestamp < 2 * 60 * 1000 && ytData.text === currentQueryData.text) {
+              const youtubeUrl = ytData.youtubeUrl || ytData.originalUrl; // Prefer explicit youtubeUrl
+              videoSource = {
+                url: youtubeUrl, // Use YouTube URL (with timestamp)
+                originalUrl: youtubeUrl,
+                title: ytData.title,
+                channel: ytData.title ? ytData.title.split(' - ')[0] : '未知頻道',
+                videoTimestamp: ytData.videoTimestamp, // Use correct field for video playback time
+                timestamp: Date.now(),
+                learnedAt: new Date().toISOString()
+              };
+              console.log('🎬 Found video source data for manual save:', videoSource);
+              console.log('🔗 Manual save - YouTube URL vs YouGlish URL:', {
+                youtubeUrl: youtubeUrl,
+                youglishUrl: ytData.url,
+                usingUrl: videoSource.url,
+                availableFields: Object.keys(ytData)
+              });
+            }
           }
+        } catch (error) {
+          console.log('⚠️ Could not get video source data for manual save:', error);
         }
-      } catch (error) {
-        console.log('⚠️ Could not get video source data for manual save:', error);
       }
       
       await storageManager.saveAIReport(
