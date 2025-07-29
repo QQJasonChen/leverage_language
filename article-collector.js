@@ -222,76 +222,284 @@
     return context;
   }
 
-  // Create the floating save button
+  // Create the floating save button with shadow DOM fallback
   function createFloatingButton() {
     if (state.floatingButton) return state.floatingButton;
 
-    const button = document.createElement('button');
+    // Check if we're on a problematic site (like Notion) that needs regular DOM
+    const isProblematicSite = window.location.hostname.includes('notion.com') ||
+                              window.location.hostname.includes('figma.com') ||
+                              window.location.hostname.includes('miro.com');
+
+    let button;
+    if (isProblematicSite) {
+      console.log('📝 Detected problematic site, using regular DOM button');
+      button = createRegularButton();
+    } else {
+      // Try creating shadow DOM button first for maximum isolation
+      button = createShadowButton();
+      if (!button) {
+        // Fallback to regular DOM with aggressive styles
+        button = createRegularButton();
+      }
+    }
+    
+    state.floatingButton = button;
+    return button;
+  }
+
+  // Create button using Shadow DOM for maximum CSS isolation
+  function createShadowButton() {
+    try {
+      const container = document.createElement('div');
+      container.style.cssText = `
+        position: fixed !important;
+        z-index: 2147483647 !important;
+        pointer-events: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        background: transparent !important;
+      `;
+      
+      const shadow = container.attachShadow({ mode: 'closed' });
+      
+      const style = document.createElement('style');
+      style.textContent = `
+        :host {
+          all: initial !important;
+          position: fixed !important;
+          z-index: 2147483647 !important;
+        }
+        
+        .save-button {
+          all: initial !important;
+          position: fixed !important;
+          display: flex !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 6px !important;
+          padding: 8px 16px !important;
+          background: #4285f4 !important;
+          color: white !important;
+          border: none !important;
+          border-radius: 20px !important;
+          font-size: 14px !important;
+          font-weight: 500 !important;
+          cursor: pointer !important;
+          box-shadow: 0 4px 20px rgba(66, 133, 244, 0.4) !important;
+          z-index: 2147483647 !important;
+          transition: all 0.2s ease !important;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+          line-height: 1 !important;
+          text-decoration: none !important;
+          text-transform: none !important;
+          letter-spacing: normal !important;
+          word-spacing: normal !important;
+          text-align: center !important;
+          vertical-align: baseline !important;
+          white-space: nowrap !important;
+          box-sizing: border-box !important;
+          pointer-events: auto !important;
+          transform: none !important;
+          margin: 0 !important;
+          min-width: auto !important;
+          min-height: auto !important;
+          max-width: none !important;
+          max-height: none !important;
+          width: auto !important;
+          height: auto !important;
+          overflow: visible !important;
+          clip: auto !important;
+          clip-path: none !important;
+        }
+        
+        .save-button:hover {
+          background: #3367d6;
+          box-shadow: 0 6px 24px rgba(66, 133, 244, 0.5);
+          transform: translateY(-2px);
+        }
+        
+        .save-button:active {
+          transform: translateY(0);
+        }
+        
+        .save-button.saving {
+          background: #34a853;
+          pointer-events: none;
+        }
+        
+        .save-button.saving span {
+          display: none;
+        }
+        
+        .save-button.saving::after {
+          content: 'Saved!';
+        }
+        
+        .save-button svg {
+          width: 16px;
+          height: 16px;
+          pointer-events: none;
+        }
+        
+        .save-button * {
+          pointer-events: none;
+        }
+      `;
+      
+      const button = document.createElement('button');
+      button.className = 'save-button';
+      button.innerHTML = `
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+          <polyline points="17 21 17 13 7 13 7 21"/>
+          <polyline points="7 3 7 8 15 8"/>
+        </svg>
+        <span>Save</span>
+      `;
+      
+      shadow.appendChild(style);
+      shadow.appendChild(button);
+      document.body.appendChild(container);
+      
+      // Handle button click
+      button.addEventListener('click', handleSaveClick);
+      
+      // Create wrapper object that mimics regular button interface
+      const shadowWrapper = {
+        shadowContainer: container,
+        shadowButton: button,
+        style: {
+          get display() { return button.style.display; },
+          set display(value) { button.style.display = value; },
+          get visibility() { return button.style.visibility; },
+          set visibility(value) { button.style.visibility = value; },
+          get opacity() { return button.style.opacity; },
+          set opacity(value) { button.style.opacity = value; },
+          get pointerEvents() { return button.style.pointerEvents; },
+          set pointerEvents(value) { button.style.pointerEvents = value; },
+          get zIndex() { return button.style.zIndex; },
+          set zIndex(value) { button.style.zIndex = value; },
+          get top() { return button.style.top; },
+          set top(value) { button.style.top = value; },
+          get left() { return button.style.left; },
+          set left(value) { button.style.left = value; },
+          get position() { return 'fixed'; },
+          set position(value) { /* Shadow DOM position is fixed */ },
+          get transition() { return button.style.transition; },
+          set transition(value) { button.style.transition = value; },
+          get transform() { return button.style.transform; },
+          set transform(value) { button.style.transform = value; }
+        },
+        classList: button.classList,
+        querySelector: (selector) => button.querySelector(selector),
+        getBoundingClientRect: () => button.getBoundingClientRect(),
+        addEventListener: (event, handler) => button.addEventListener(event, handler),
+        __isShadowButton: true
+      };
+      
+      console.log('✨ Created shadow DOM button for maximum isolation');
+      return shadowWrapper;
+      
+    } catch (error) {
+      console.log('📝 Shadow DOM creation failed:', error);
+      return null;
+    }
+  }
+
+  // Fallback: Create regular button with same styling as working test button
+  function createRegularButton() {
+    const button = document.createElement('div'); // Use div like test button
     button.className = 'youglish-save-button';
     button.innerHTML = `
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
         <polyline points="17 21 17 13 7 13 7 21"/>
         <polyline points="7 3 7 8 15 8"/>
       </svg>
-      <span>Save</span>
+      <span style="margin-left: 4px;">Save</span>
     `;
 
-    // Add styles
-    const style = document.createElement('style');
-    style.textContent = `
-      .youglish-save-button {
-        position: fixed;
-        display: none;
-        align-items: center;
-        gap: 6px;
-        padding: 8px 16px;
-        background: #4285f4;
-        color: white;
-        border: none;
-        border-radius: 20px;
-        font-size: 14px;
-        font-weight: 500;
-        cursor: pointer;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        z-index: 999999;
-        transition: all 0.2s ease;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      }
-
-      .youglish-save-button:hover {
-        background: #3367d6;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        transform: translateY(-1px);
-      }
-
-      .youglish-save-button:active {
-        transform: translateY(0);
-      }
-
-      .youglish-save-button.saving {
-        background: #34a853;
-        pointer-events: none;
-      }
-
-      .youglish-save-button.saving span {
-        display: none;
-      }
-
-      .youglish-save-button.saving::after {
-        content: 'Saved!';
-      }
-
-      .youglish-save-button svg {
-        width: 16px;
-        height: 16px;
-      }
+    // Use same styling approach as test button (which works)
+    button.style.cssText = `
+      position: fixed !important;
+      background: #4285f4 !important;
+      color: white !important;
+      padding: 8px 16px !important;
+      border-radius: 20px !important;
+      z-index: 2147483647 !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+      font-size: 14px !important;
+      font-weight: 500 !important;
+      display: flex !important;
+      align-items: center !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      border: 2px solid rgba(255, 255, 255, 0.3) !important;
+      box-shadow: 0 4px 20px rgba(66, 133, 244, 0.6) !important;
+      cursor: pointer !important;
+      pointer-events: auto !important;
+      transition: all 0.2s ease !important;
+      transform: none !important;
+      margin: 0 !important;
+      line-height: 1 !important;
+      text-decoration: none !important;
+      text-transform: none !important;
+      letter-spacing: normal !important;
+      word-spacing: normal !important;
+      text-align: center !important;
+      vertical-align: baseline !important;
+      white-space: nowrap !important;
+      box-sizing: border-box !important;
+      width: auto !important;
+      height: auto !important;
+      min-width: auto !important;
+      min-height: auto !important;
+      max-width: none !important;
+      max-height: none !important;
+      overflow: visible !important;
+      clip: auto !important;
+      clip-path: none !important;
     `;
 
-    document.head.appendChild(style);
-    document.body.appendChild(button);
+    // Add hover effect with event listeners (since CSS might be overridden)
+    button.addEventListener('mouseenter', () => {
+      button.style.background = '#3367d6 !important';
+      button.style.transform = 'translateY(-2px) !important';
+      button.style.boxShadow = '0 6px 24px rgba(66, 133, 244, 0.8) !important';
+    });
     
-    state.floatingButton = button;
+    button.addEventListener('mouseleave', () => {
+      if (!button.classList.contains('saving')) {
+        button.style.background = '#4285f4 !important';
+        button.style.transform = 'none !important';
+        button.style.boxShadow = '0 4px 20px rgba(66, 133, 244, 0.6) !important';
+      }
+    });
+    
+    // Try multiple insertion methods
+    try {
+      document.body.appendChild(button);
+      console.log('📝 Regular button added to body', {
+        buttonExists: !!button,
+        buttonInDOM: document.contains(button),
+        buttonClassList: button.className,
+        bodyChildCount: document.body.children.length
+      });
+    } catch (error) {
+      try {
+        document.documentElement.appendChild(button);
+        console.log('📝 Regular button added to documentElement');
+      } catch (error2) {
+        document.getElementsByTagName('html')[0].appendChild(button);
+        console.log('📝 Regular button added to html');
+      }
+    }
 
     // Handle button click
     button.addEventListener('click', handleSaveClick);
@@ -304,6 +512,29 @@
     if (state.floatingButton) {
       console.log('📝 Making button visible');
       state.floatingButton.style.display = 'flex';
+      
+      // Force visibility on problematic sites
+      state.floatingButton.style.visibility = 'visible';
+      state.floatingButton.style.opacity = '1';
+      state.floatingButton.style.pointerEvents = 'auto';
+      
+      // Ensure it's on top
+      state.floatingButton.style.zIndex = '2147483647';
+      
+      // Handle shadow DOM button re-attachment
+      if (state.floatingButton.__isShadowButton) {
+        const container = state.floatingButton.shadowContainer;
+        if (!document.contains(container)) {
+          console.log('📝 Shadow button container was removed from DOM, re-adding');
+          document.body.appendChild(container);
+        }
+      } else {
+        // Regular button re-attachment
+        if (!document.contains(state.floatingButton)) {
+          console.log('📝 Button was removed from DOM, re-adding');
+          document.body.appendChild(state.floatingButton);
+        }
+      }
     }
   }
 
@@ -316,48 +547,288 @@
     }
   }
 
-  // Position the floating button near the selection
+  // Position the floating button near the selection with magnetic attraction
   function positionFloatingButton(selection) {
-    if (!state.floatingButton || !selection.rangeCount) return;
+    if (!state.floatingButton || !selection.rangeCount) {
+      console.log('📝 Cannot position button - missing button or selection');
+      return;
+    }
 
     const range = selection.getRangeAt(0);
     const rect = range.getBoundingClientRect();
+    console.log('📝 Selection rect:', rect);
 
-    // Calculate position
     const button = state.floatingButton;
-    const buttonRect = button.getBoundingClientRect();
     
-    // Position above the selection by default
-    let top = rect.top + window.scrollY - buttonRect.height - 10;
-    let left = rect.left + window.scrollX + (rect.width - buttonRect.width) / 2;
-
-    // Adjust if button would be off-screen
-    if (top < window.scrollY) {
-      top = rect.bottom + window.scrollY + 10;
-    }
-
-    if (left < 0) {
-      left = 10;
-    } else if (left + buttonRect.width > window.innerWidth) {
-      left = window.innerWidth - buttonRect.width - 10;
-    }
-
-    button.style.top = `${top}px`;
-    button.style.left = `${left}px`;
+    // Make button visible to measure it accurately
     button.style.display = 'flex';
+    button.style.position = 'fixed';
+    button.style.visibility = 'hidden';
+    button.style.top = '0px';
+    button.style.left = '0px';
+    
+    // Force reflow to get accurate dimensions
+    const buttonRect = button.getBoundingClientRect();
+    console.log('📝 Button dimensions:', buttonRect.width, 'x', buttonRect.height);
+    
+    // Enhanced positioning with magnetic attraction to selection boundaries
+    let top, left;
+    const margin = 8;
+    const magneticThreshold = 20; // Distance for magnetic attraction
+    
+    // Check available space in all directions
+    const spaceAbove = rect.top;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceLeft = rect.left;
+    const spaceRight = window.innerWidth - rect.right;
+    
+    // Priority positions in order of preference
+    const positions = [
+      // Above selection (preferred)
+      {
+        top: rect.top - buttonRect.height - margin,
+        left: rect.left + (rect.width / 2) - (buttonRect.width / 2),
+        space: spaceAbove,
+        name: 'above-center'
+      },
+      // Below selection
+      {
+        top: rect.bottom + margin,
+        left: rect.left + (rect.width / 2) - (buttonRect.width / 2),
+        space: spaceBelow,
+        name: 'below-center'
+      },
+      // Right side of selection
+      {
+        top: rect.top + (rect.height / 2) - (buttonRect.height / 2),
+        left: rect.right + margin,
+        space: spaceRight,
+        name: 'right-center'
+      },
+      // Left side of selection
+      {
+        top: rect.top + (rect.height / 2) - (buttonRect.height / 2),
+        left: rect.left - buttonRect.width - margin,
+        space: spaceLeft,
+        name: 'left-center'
+      },
+      // Above-right corner
+      {
+        top: rect.top - buttonRect.height - margin,
+        left: rect.right - buttonRect.width,
+        space: Math.min(spaceAbove, spaceRight),
+        name: 'above-right'
+      },
+      // Above-left corner
+      {
+        top: rect.top - buttonRect.height - margin,
+        left: rect.left,
+        space: Math.min(spaceAbove, spaceLeft),
+        name: 'above-left'
+      }
+    ];
+    
+    // Find best position that fits
+    let bestPosition = null;
+    for (const pos of positions) {
+      if (pos.space >= buttonRect.height + margin * 2 || pos.space >= buttonRect.width + margin * 2) {
+        // Check if position is within viewport
+        if (pos.top >= 0 && pos.top + buttonRect.height <= window.innerHeight &&
+            pos.left >= 0 && pos.left + buttonRect.width <= window.innerWidth) {
+          bestPosition = pos;
+          break;
+        }
+      }
+    }
+    
+    if (bestPosition) {
+      top = bestPosition.top;
+      left = bestPosition.left;
+      console.log('📝 Using optimal position:', bestPosition.name);
+    } else {
+      // Fallback: smart positioning within viewport
+      top = Math.max(margin, Math.min(rect.top - buttonRect.height - margin, 
+                                      window.innerHeight - buttonRect.height - margin));
+      left = Math.max(margin, Math.min(rect.left + (rect.width / 2) - (buttonRect.width / 2),
+                                       window.innerWidth - buttonRect.width - margin));
+      console.log('📝 Using fallback position within viewport');
+    }
+    
+    // Magnetic attraction to selection boundaries
+    const distanceToRight = Math.abs(left - rect.right);
+    const distanceToLeft = Math.abs(left + buttonRect.width - rect.left);
+    
+    if (distanceToRight < magneticThreshold && left > rect.right - magneticThreshold) {
+      left = rect.right + margin;
+      console.log('📝 Applied magnetic attraction to right boundary');
+    } else if (distanceToLeft < magneticThreshold && left + buttonRect.width < rect.left + magneticThreshold) {
+      left = rect.left - buttonRect.width - margin;
+      console.log('📝 Applied magnetic attraction to left boundary');
+    }
+    
+    // Final bounds check
+    left = Math.max(margin, Math.min(left, window.innerWidth - buttonRect.width - margin));
+    top = Math.max(margin, Math.min(top, window.innerHeight - buttonRect.height - margin));
+    
+    console.log('📝 Final position:', { top, left });
+    
+    // Apply position and make visible with enhanced animation
+    button.style.top = `${Math.round(top)}px`;
+    button.style.left = `${Math.round(left)}px`;
+    button.style.visibility = 'visible';
+    
+    // Force visibility for problematic sites like Notion
+    button.style.display = 'flex !important';
+    button.style.visibility = 'visible !important';
+    button.style.opacity = '1 !important';
+    button.style.pointerEvents = 'auto !important';
+    
+    // Force maximum visibility - no animations that could interfere
+    button.style.opacity = '1 !important';
+    button.style.transform = 'none !important';
+    button.style.transition = 'none !important';
+    
+    // Ensure button is clickable
+    button.style.pointerEvents = 'auto !important';
+    button.style.cursor = 'pointer !important';
+    
+    // Add debug outline to make button more visible (temporary)
+    button.style.outline = '2px solid green !important';
+    button.style.outlineOffset = '1px !important';
+    
+    // Verify button is actually visible and add aggressive debugging
+    setTimeout(() => {
+      const actualButton = button.__isShadowButton ? button.shadowButton : button;
+      const computedStyle = window.getComputedStyle(actualButton);
+      const rect = actualButton.getBoundingClientRect();
+      const isVisible = computedStyle.display !== 'none' && 
+                       computedStyle.visibility !== 'hidden' && 
+                       computedStyle.opacity !== '0';
+      
+      console.log('📝 Button visibility check:', {
+        display: computedStyle.display,
+        visibility: computedStyle.visibility,
+        opacity: computedStyle.opacity,
+        transform: computedStyle.transform,
+        zIndex: computedStyle.zIndex,
+        isVisible: isVisible,
+        isShadow: button.__isShadowButton,
+        rect: rect,
+        hasWidth: rect.width > 0,
+        hasHeight: rect.height > 0,
+        inViewport: rect.top >= 0 && rect.left >= 0 && 
+                   rect.bottom <= window.innerHeight && 
+                   rect.right <= window.innerWidth
+      });
+      
+      // Force extreme visibility if still not working
+      if (isVisible && rect.width > 0 && rect.height > 0) {
+        // Make button flash to confirm it's there
+        let flashCount = 0;
+        const flash = () => {
+          if (flashCount < 6) {
+            actualButton.style.background = flashCount % 2 === 0 ? '#ff0000 !important' : '#4285f4 !important';
+            flashCount++;
+            setTimeout(flash, 200);
+          } else {
+            actualButton.style.background = '#4285f4 !important';
+            // Remove debug outline after flashing
+            setTimeout(() => {
+              actualButton.style.outline = 'none !important';
+            }, 1000);
+          }
+        };
+        flash();
+        console.log('📝 Button should be flashing red/blue now to confirm visibility');
+      }
+      
+      if (!isVisible && button.__isShadowButton) {
+        console.log('📝 Shadow DOM button not visible, forcing regular DOM fallback');
+        // Remove shadow button and create regular one
+        if (button.shadowContainer) {
+          button.shadowContainer.remove();
+        }
+        state.floatingButton = null;
+        const regularButton = createRegularButton();
+        state.floatingButton = regularButton;
+        
+        // Reposition the new button with extreme visibility
+        regularButton.style.top = `${Math.round(top)}px`;
+        regularButton.style.left = `${Math.round(left)}px`;
+        regularButton.style.display = 'flex !important';
+        regularButton.style.visibility = 'visible !important';
+        regularButton.style.opacity = '1 !important';
+        regularButton.style.background = '#ff0000 !important'; // Make it red for debugging
+        regularButton.style.outline = '5px solid yellow !important';
+        console.log('📝 Switched to regular DOM button with extreme visibility');
+      }
+    }, 100);
+    
+    // Skip animation for now - just make it immediately visible
+    console.log('📝 Button should be visible now at position:', { top, left });
+  }
+
+  // DEBUG: Create a test button in a fixed position
+  function createTestButton() {
+    const testButton = document.createElement('div');
+    testButton.innerHTML = 'TEST BUTTON - YOUGLISH EXTENSION';
+    testButton.style.cssText = `
+      position: fixed !important;
+      top: 20px !important;
+      right: 20px !important;
+      background: #ff0000 !important;
+      color: white !important;
+      padding: 10px 20px !important;
+      border-radius: 5px !important;
+      z-index: 2147483647 !important;
+      font-family: Arial, sans-serif !important;
+      font-size: 14px !important;
+      font-weight: bold !important;
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      border: 3px solid yellow !important;
+      box-shadow: 0 0 20px rgba(255, 0, 0, 0.8) !important;
+      cursor: pointer !important;
+      pointer-events: auto !important;
+    `;
+    
+    testButton.addEventListener('click', () => {
+      alert('Test button clicked! Extension is working.');
+      testButton.remove();
+    });
+    
+    document.body.appendChild(testButton);
+    console.log('🧪 Test button created in top-right corner');
+    
+    // Remove test button after 10 seconds
+    setTimeout(() => {
+      if (document.contains(testButton)) {
+        testButton.remove();
+        console.log('🧪 Test button auto-removed');
+      }
+    }, 10000);
   }
 
   // (Duplicate function removed - using the one defined later)
 
   // Handle save button click
-  async function handleSaveClick() {
+  async function handleSaveClick(event) {
     if (state.isProcessing || !state.selectedData) return;
 
     state.isProcessing = true;
-    state.floatingButton.classList.add('saving');
+    
+    // Add saving state
+    const buttonElement = state.floatingButton.__isShadowButton ? 
+                         state.floatingButton.shadowButton : 
+                         state.floatingButton;
+    buttonElement.classList.add('saving');
+    buttonElement.style.background = '#34a853 !important';
+    const span = buttonElement.querySelector('span');
+    if (span) span.textContent = 'Saving...';
 
     try {
-      // Send the data to background script
+      // Send the data to background script for saving
       const response = await chrome.runtime.sendMessage({
         action: 'saveArticleSelection',
         data: state.selectedData
@@ -366,7 +837,35 @@
       if (response.success) {
         console.log('📰 Selection saved successfully');
         
+        // Send to sidepanel for AI analysis
+        try {
+          await chrome.runtime.sendMessage({
+            action: 'analyzeTextInSidepanel',
+            text: state.selectedData.text,
+            source: 'article-selection',
+            title: state.selectedData.metadata?.title || 'Article Selection',
+            url: state.selectedData.metadata?.url || window.location.href,
+            originalUrl: state.selectedData.metadata?.url || window.location.href,
+            timestamp: null, // No video timestamp for articles
+            metadata: {
+              ...state.selectedData.metadata,
+              paragraph: state.selectedData.paragraph,
+              context: state.selectedData.context,
+              selectionTimestamp: state.selectedData.timestamp
+            }
+          });
+        } catch (analysisError) {
+          // Not a critical error, continue with success flow
+        }
+        
         // Show success state briefly
+        const buttonElement = state.floatingButton.__isShadowButton ? 
+                             state.floatingButton.shadowButton : 
+                             state.floatingButton;
+        buttonElement.style.background = '#34a853 !important';
+        const span = buttonElement.querySelector('span');
+        if (span) span.textContent = 'Saved!';
+        
         setTimeout(() => {
           hideFloatingButton();
           state.selectedData = null;
@@ -381,12 +880,16 @@
       state.isProcessing = false;
       
       // Show error state
-      state.floatingButton.style.background = '#ea4335';
-      state.floatingButton.querySelector('span').textContent = 'Error';
+      const buttonElement = state.floatingButton.__isShadowButton ? 
+                           state.floatingButton.shadowButton : 
+                           state.floatingButton;
+      buttonElement.style.background = '#ea4335 !important';
+      const span = buttonElement.querySelector('span');
+      if (span) span.textContent = 'Error';
       
       setTimeout(() => {
-        state.floatingButton.style.background = '';
-        state.floatingButton.querySelector('span').textContent = 'Save';
+        buttonElement.style.background = '#4285f4 !important';
+        if (span) span.textContent = 'Save';
       }, 2000);
     }
   }
@@ -467,9 +970,26 @@
       }
     });
 
+    // Add keyboard shortcut for saving (Ctrl/Cmd + S)
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's' && state.selectedData) {
+        e.preventDefault();
+        console.log('⌨️ Keyboard shortcut triggered for save');
+        handleSaveClick();
+      }
+    });
+
     // Hide button on click outside
     document.addEventListener('click', (event) => {
-      if (event.target !== state.floatingButton && !state.floatingButton?.contains(event.target)) {
+      const isButtonClick = state.floatingButton && (
+        event.target === state.floatingButton ||
+        (state.floatingButton.__isShadowButton && 
+         state.floatingButton.shadowContainer.contains(event.target)) ||
+        (!state.floatingButton.__isShadowButton && 
+         state.floatingButton.contains && state.floatingButton.contains(event.target))
+      );
+      
+      if (!isButtonClick) {
         hideFloatingButton();
       }
     });
@@ -506,7 +1026,7 @@
       subtree: true
     });
 
-    console.log('📰 Article collector initialized');
+    console.log('📰 Article collector initialized with keyboard shortcut (Ctrl/Cmd+S)');
   }
 
   // Wait for DOM to be ready

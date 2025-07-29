@@ -2192,7 +2192,6 @@ async function loadHistoryView() {
   
   try {
     // Get both history and AI reports to match error status
-    console.log('🔍 Requesting history from background script...');
     const [historyResponse, reportsResponse] = await Promise.all([
       new Promise((resolve, reject) => {
         chrome.runtime.sendMessage({ action: 'getHistory' }, (response) => {
@@ -2212,6 +2211,8 @@ async function loadHistoryView() {
       const history = historyResponse.history || [];
       const reports = reportsResponse || [];
       
+      console.log('✅ Successfully loaded history from HistoryManager:', history.length, 'items');
+      console.log('History data:', history);
       log('Loaded history from HistoryManager:', history.length, 'items');
       log('Loaded AI reports for error status:', reports.length, 'items');
       
@@ -2238,22 +2239,15 @@ async function loadHistoryView() {
       // Hide empty state
       if (historyEmpty) historyEmpty.style.display = 'none';
       
-      // Match history items with AI reports to get error status
-      const historyWithErrorStatus = history.map(historyItem => {
-        // Find matching AI report by text and language
-        const matchingReport = reports.find(report => 
-          report.searchText.toLowerCase().trim() === historyItem.text.toLowerCase().trim() &&
-          report.language.toLowerCase() === historyItem.language.toLowerCase()
-        );
-        
-        return {
-          ...historyItem,
-          hasErrors: matchingReport ? matchingReport.hasErrors : null,
-          isCorrect: matchingReport ? matchingReport.isCorrect : null,
-          errorTypes: matchingReport ? matchingReport.errorTypes : [],
-          errorCount: matchingReport ? matchingReport.errorCount : 0
-        };
-      });
+      // Temporarily bypass complex matching to fix display issue
+      // Just add null error status to all items to maintain structure
+      const historyWithErrorStatus = history.map(historyItem => ({
+        ...historyItem,
+        hasErrors: null,
+        isCorrect: null,
+        errorTypes: [],
+        errorCount: 0
+      }));
       
       // Update stats with error information
       if (historyStats) {
@@ -2287,10 +2281,12 @@ async function loadHistoryView() {
       }
       
       // Display history items with error status
+      console.log('📊 About to display history items:', historyWithErrorStatus.length);
       displayHistoryItems(historyWithErrorStatus);
       
     } else {
-      console.error('Failed to load history:', response?.error);
+      console.error('Failed to load history:', historyResponse);
+      console.error('Response details:', historyResponse?.error);
       // Fallback to old method
       loadHistoryViewFallback();
     }
@@ -2346,10 +2342,19 @@ function loadHistoryViewFallback() {
           }
         });
         
-        // Remove duplicates and sort
+        console.log('🔍 Before deduplication:', queries.length, 'items');
+        
+        // Remove true duplicates (same text, language, and timestamp) but preserve different occurrences
         const uniqueQueries = queries.filter((query, index, self) => 
-          index === self.findIndex(q => q.text === query.text && q.language === query.language)
+          index === self.findIndex(q => 
+            q.text === query.text && 
+            q.language === query.language && 
+            q.timestamp === query.timestamp
+          )
         );
+        
+        console.log('🔍 After deduplication:', uniqueQueries.length, 'items');
+        console.log('Unique queries:', uniqueQueries);
         
         uniqueQueries.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
         
@@ -2383,10 +2388,153 @@ function formatVideoTimestamp(seconds) {
   }
 }
 
+// Language-aware text for return buttons
+const returnButtonText = {
+  video: {
+    'en': 'Return to Video',
+    'zh': '返回影片',
+    'zh-TW': '返回影片', 
+    'zh-CN': '返回视频',
+    'ja': '動画に戻る',
+    'ko': '비디오로 돌아가기',
+    'es': 'Volver al Video',
+    'fr': 'Retour à la Vidéo',
+    'de': 'Zurück zum Video',
+    'it': 'Torna al Video',
+    'pt': 'Voltar ao Vídeo',
+    'ru': 'Вернуться к Видео'
+  },
+  article: {
+    'en': 'Return to Article',
+    'zh': '回到文章',
+    'zh-TW': '回到文章',
+    'zh-CN': '回到文章', 
+    'ja': '記事に戻る',
+    'ko': '기사로 돌아가기',
+    'es': 'Volver al Artículo',
+    'fr': 'Retour à l\'Article',
+    'de': 'Zurück zum Artikel',
+    'it': 'Torna all\'Articolo',
+    'pt': 'Voltar ao Artigo',
+    'ru': 'Вернуться к Статье'
+  },
+  segment: {
+    'en': 'Return to Segment',
+    'zh': '返回片段',
+    'zh-TW': '返回片段',
+    'zh-CN': '返回片段',
+    'ja': 'セグメントに戻る', 
+    'ko': '구간으로 돌아가기',
+    'es': 'Volver al Segmento',
+    'fr': 'Retour au Segment',
+    'de': 'Zurück zum Segment',
+    'it': 'Torna al Segmento',
+    'pt': 'Voltar ao Segmento',
+    'ru': 'Вернуться к Сегменту'
+  }
+};
+
+// Helper function to get localized return button text
+function getReturnButtonText(sourceType, language, hasTimestamp = false) {
+  const lang = language || 'zh'; // Default to Chinese
+  const fallbackLang = 'zh';
+  
+  if (sourceType === 'article') {
+    return returnButtonText.article[lang] || returnButtonText.article[fallbackLang];
+  } else if (hasTimestamp) {
+    return returnButtonText.segment[lang] || returnButtonText.segment[fallbackLang];
+  } else {
+    return returnButtonText.video[lang] || returnButtonText.video[fallbackLang];
+  }
+}
+
+// Helper function to determine source type
+function getSourceType(query) {
+  if (query.detectionMethod === 'article-selection') {
+    return 'article';
+  } else if (query.videoSource && !query.videoSource.url?.includes('youtube.com')) {
+    return 'article';
+  } else {
+    return 'video';
+  }
+}
+
+// Helper function to get appropriate icon
+function getSourceIcon(sourceType) {
+  return sourceType === 'article' ? '📰' : '📹';
+}
+
+// Helper function to generate video source HTML
+function getVideoSourceHtml(query) {
+  const sourceType = getSourceType(query);
+  const sourceIcon = getSourceIcon(sourceType);
+  const hasTimestamp = formatVideoTimestamp(query.videoSource.videoTimestamp);
+  const returnText = getReturnButtonText(sourceType, query.language, !!hasTimestamp);
+  const borderColor = sourceType === 'article' ? '#28a745' : '#ff0000';
+  const buttonColor = sourceType === 'article' ? '#28a745' : '#ff0000';
+  
+  return `
+    <div class="history-video-source" style="margin-top: 8px; padding: 8px; background-color: #f8f9fa; border-radius: 6px; border-left: 3px solid ${borderColor};">
+      <div class="video-info" style="display: flex; align-items: center; gap: 8px;">
+        <span class="video-icon" style="font-size: 16px;">${sourceIcon}</span>
+        <div class="video-details" style="flex: 1;">
+          <div class="video-title" style="font-weight: 500; font-size: 13px; color: #1a73e8; margin-bottom: 2px;">${query.videoSource.title}</div>
+          <div class="video-meta" style="font-size: 12px; color: #666;">
+            ${query.videoSource.channel || query.videoSource.domain || ''}${hasTimestamp ? ` • ⏰ ${hasTimestamp}` : ''}
+          </div>
+        </div>
+        <button class="video-return-btn" data-video-url="${query.videoSource.url || ''}" style="padding: 4px 8px; font-size: 11px; background-color: ${buttonColor}; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;" title="${hasTimestamp ? `返回到 ${hasTimestamp} 的學習片段` : returnText}">${hasTimestamp ? '⏰ 返回片段' : `${sourceIcon} ${returnText}`}</button>
+      </div>
+    </div>
+  `;
+}
+
+// Helper function for report return button
+function getReportReturnButton(report) {
+  const sourceType = getSourceType(report);
+  const sourceIcon = getSourceIcon(sourceType);
+  const hasTimestamp = formatVideoTimestamp(report.videoSource.videoTimestamp);
+  const returnText = getReturnButtonText(sourceType, report.language, !!hasTimestamp);
+  const buttonColor = sourceType === 'article' ? '#28a745' : '#ff0000';
+  
+  return `<button class="report-action-btn video-return-btn" data-video-url="${report.videoSource.url}" title="${hasTimestamp ? `返回到 ${hasTimestamp} 的學習片段` : returnText}" style="background-color: ${buttonColor}; color: white;">
+    ${hasTimestamp ? '⏰' : sourceIcon}
+  </button>`;
+}
+
+// Helper function for report video info
+function getReportVideoInfo(report) {
+  const sourceType = getSourceType(report);
+  const sourceIcon = getSourceIcon(sourceType);
+  const borderColor = sourceType === 'article' ? '#28a745' : '#ff0000';
+  const hasTimestamp = formatVideoTimestamp(report.videoSource.videoTimestamp);
+  const returnText = getReturnButtonText(sourceType, report.language, !!hasTimestamp);
+  const buttonColor = sourceType === 'article' ? '#28a745' : '#ff0000';
+  const hoverColor = sourceType === 'article' ? '#1e7e34' : '#e60000';
+  
+  return `<div class="saved-report-video-info" style="margin: 8px 0; padding: 8px; background-color: #f8f9fa; border-radius: 6px; border-left: 3px solid ${borderColor};">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="font-size: 16px;">${sourceIcon}</span>
+      <div style="flex: 1;">
+        <div style="font-weight: 500; font-size: 13px; color: #1a73e8; margin-bottom: 2px;">${report.videoSource.title}</div>
+        <div style="font-size: 12px; color: #666;">
+          ${report.videoSource.channel || report.videoSource.domain || ''}${hasTimestamp ? ` • ⏰ ${hasTimestamp}` : ''}
+        </div>
+      </div>
+      <button class="video-return-btn-large" data-video-url="${report.videoSource.url}" style="padding: 8px 16px; font-size: 13px; background-color: ${buttonColor}; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; box-shadow: 0 2px 4px rgba(${sourceType === 'article' ? '40, 167, 69' : '255, 0, 0'}, 0.3); transition: all 0.2s;" title="${hasTimestamp ? `返回到 ${hasTimestamp} 的學習片段` : returnText}" onmouseover="this.style.backgroundColor='${hoverColor}'; this.style.transform='translateY(-1px)'" onmouseout="this.style.backgroundColor='${buttonColor}'; this.style.transform='translateY(0)'">${hasTimestamp ? '⏰ 返回片段' : `${sourceIcon} ${returnText}`}</button>
+    </div>
+  </div>`;
+}
+
 // Extract display logic into separate function
 function displayHistoryItems(queries) {
+  console.log('🎯 displayHistoryItems called with:', queries?.length || 0, 'items');
+  
   const historyContainer = document.getElementById('historyList');
-  if (!historyContainer) return;
+  if (!historyContainer) {
+    console.error('❌ History container not found!');
+    return;
+  }
   
   // 清空容器
   if (window.SecurityFixes) {
@@ -2412,19 +2560,25 @@ function displayHistoryItems(queries) {
   }
   
   // 顯示查詢歷史
-  queries.slice(0, 50).forEach(query => {
-    console.log('🔍 Processing history item:', {
-      text: query.text,
-      hasVideoSource: !!query.videoSource,
-      videoSource: query.videoSource,
-      timestamp: query.timestamp
-    });
+  console.log('📋 Processing queries, limiting to 50 items');
+  let successCount = 0;
+  let errorCount = 0;
+  
+  // Use DocumentFragment for better performance
+  const fragment = document.createDocumentFragment();
+  
+  queries.slice(0, 50).forEach((query, index) => {
+    try {
+      if (index < 5) { // Only log first 5 to avoid console spam
+        console.log(`Processing item ${index + 1}:`, query.text);
+      }
     
     const item = document.createElement('div');
     item.className = 'history-item';
     
-    const date = new Date(query.timestamp || Date.now());
-    const dateStr = new Date(query.timestamp).toLocaleDateString('zh-TW') + ' ' + new Date(query.timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+    const timestamp = query.timestamp || Date.now();
+    const date = new Date(timestamp);
+    const dateStr = date.toLocaleDateString('zh-TW') + ' ' + date.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
     
     // Handle both old format (query.url) and HistoryManager format
     const queryCount = query.queryCount || 1;
@@ -2460,20 +2614,7 @@ function displayHistoryItems(queries) {
             ${query.id ? `<button class="history-action-btn delete" data-id="${query.id}">刪除</button>` : ''}
           </div>
         </div>
-        ${query.videoSource ? `
-          <div class="history-video-source" style="margin-top: 8px; padding: 8px; background-color: #f8f9fa; border-radius: 6px; border-left: 3px solid #ff0000;">
-            <div class="video-info" style="display: flex; align-items: center; gap: 8px;">
-              <span class="video-icon" style="font-size: 16px;">📹</span>
-              <div class="video-details" style="flex: 1;">
-                <div class="video-title" style="font-weight: 500; font-size: 13px; color: #1a73e8; margin-bottom: 2px;">${query.videoSource.title}</div>
-                <div class="video-meta" style="font-size: 12px; color: #666;">
-                  ${query.videoSource.channel}${formatVideoTimestamp(query.videoSource.videoTimestamp) ? ` • ⏰ ${formatVideoTimestamp(query.videoSource.videoTimestamp)}` : ''}
-                </div>
-              </div>
-              <button class="video-return-btn" data-video-url="${query.videoSource.url || ''}" style="padding: 4px 8px; font-size: 11px; background-color: #ff0000; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;" title="${formatVideoTimestamp(query.videoSource.videoTimestamp) ? `返回到 ${formatVideoTimestamp(query.videoSource.videoTimestamp)} 的學習片段` : '返回影片'}">${formatVideoTimestamp(query.videoSource.videoTimestamp) ? '⏰ 返回片段' : '📹 返回影片'}</button>
-            </div>
-          </div>
-        ` : ''}
+        ${query.videoSource ? getVideoSourceHtml(query) : ''}
         <div class="history-meta">
           <span class="history-language">${languageNames[query.language] || query.language || 'Unknown'}</span>
           <span class="history-date">${dateStr}</span>
@@ -2484,7 +2625,8 @@ function displayHistoryItems(queries) {
       `;
     }
     
-    historyContainer.appendChild(item);
+    fragment.appendChild(item);
+    successCount++;
     
     // Add event listeners
     const replayButton = item.querySelector('.history-action-btn.replay');
@@ -2550,7 +2692,7 @@ function displayHistoryItems(queries) {
     }
     
     if (videoReturnButton) {
-      videoReturnButton.addEventListener('click', async (e) => {
+      videoReturnButton?.addEventListener('click', async (e) => {
         e.stopPropagation();
         const videoUrl = videoReturnButton.dataset.videoUrl;
         if (videoUrl) {
@@ -2574,6 +2716,7 @@ function displayHistoryItems(queries) {
     }
     
     // Article return button event listener
+    const articleReturnButton = item.querySelector('.article-return-btn');
     if (articleReturnButton) {
       articleReturnButton.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -2616,9 +2759,20 @@ function displayHistoryItems(queries) {
         }
       }
     });
+    } catch (error) {
+      errorCount++;
+      console.error(`❌ Error processing item ${index + 1}:`, error);
+    }
   });
   
-  console.log(`Displayed ${queries.length} history items`);
+  // Append all items at once for better performance
+  historyContainer.appendChild(fragment);
+  
+  console.log(`✅ Successfully displayed ${successCount} items, ❌ Failed: ${errorCount}, Total processed: ${queries.slice(0, 50).length}`);
+  
+  // Check if items were actually added to the DOM
+  const actualItems = historyContainer.querySelectorAll('.history-item').length;
+  console.log(`🔍 Actual items in DOM: ${actualItems}`);
 }
 
 // 重播查詢
@@ -4254,33 +4408,14 @@ async function loadSavedReports() {
                 <button class="report-action-btn delete-btn" data-id="${report.id}" title="刪除報告">
                   🗑️
                 </button>
-                ${report.videoSource && report.videoSource.url ? `
-                  <button class="report-action-btn video-return-btn" data-video-url="${report.videoSource.url}" title="${formatVideoTimestamp(report.videoSource.videoTimestamp) ? `返回到 ${formatVideoTimestamp(report.videoSource.videoTimestamp)} 的學習片段` : '返回影片'}" style="background-color: #ff0000; color: white;">
-                    ${formatVideoTimestamp(report.videoSource.videoTimestamp) ? '⏰' : '📹'}
-                  </button>
-                  <!-- DEBUG: URL=${report.videoSource.url.substring(0, 50)}... -->
-                ` : `
+                ${report.videoSource && report.videoSource.url ? getReportReturnButton(report) : `
                   <button class="report-action-btn video-return-btn-disabled" disabled title="此報告沒有影片來源數據 - 請從 YouTube 字幕學習以獲得返回片段功能" style="background-color: #ccc; color: #666; cursor: not-allowed;">
                     🚫
                   </button>
                 `}
               </div>
             </div>
-            ${report.videoSource && report.videoSource.url ? `
-              <div class="saved-report-video-info" style="margin: 8px 0; padding: 8px; background-color: #f8f9fa; border-radius: 6px; border-left: 3px solid #ff0000;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span style="font-size: 16px;">📹</span>
-                  <div style="flex: 1;">
-                    <div style="font-weight: 500; font-size: 13px; color: #1a73e8; margin-bottom: 2px;">${report.videoSource.title}</div>
-                    <div style="font-size: 12px; color: #666;">
-                      ${report.videoSource.channel}${formatVideoTimestamp(report.videoSource.videoTimestamp) ? ` • ⏰ ${formatVideoTimestamp(report.videoSource.videoTimestamp)}` : ''}
-                    </div>
-                  </div>
-                  <button class="video-return-btn-large" data-video-url="${report.videoSource.url}" style="padding: 8px 16px; font-size: 13px; background-color: #ff0000; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; box-shadow: 0 2px 4px rgba(255,0,0,0.3); transition: all 0.2s;" title="${formatVideoTimestamp(report.videoSource.videoTimestamp) ? `返回到 ${formatVideoTimestamp(report.videoSource.videoTimestamp)} 的學習片段` : '返回影片'}" onmouseover="this.style.backgroundColor='#e60000'; this.style.transform='translateY(-1px)'" onmouseout="this.style.backgroundColor='#ff0000'; this.style.transform='translateY(0)'">${formatVideoTimestamp(report.videoSource.videoTimestamp) ? '⏰ 返回片段' : '📹 返回影片'}</button>
-                  <!-- DEBUG LARGE: URL=${report.videoSource.url.substring(0, 50)}... -->
-                </div>
-              </div>
-            ` : ''}
+            ${report.videoSource && report.videoSource.url ? getReportVideoInfo(report) : ''}
             <div class="report-meta">
               <span class="report-date">📅 ${new Date(report.timestamp).toLocaleDateString('zh-TW')} ${new Date(report.timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}</span>
               <div class="report-tags-container">
@@ -5475,17 +5610,23 @@ function initializeTTSVoices() {
     });
   }
 
-  // Initialize error status filter buttons
-  initializeHistoryFilters();
 }
 
 // Initialize error status filter functionality
 function initializeHistoryFilters() {
+  console.log('🔧 Initializing history filters');
   const filterButtons = document.querySelectorAll('.filter-btn');
   let currentHistoryData = [];
   
+  // Store reference to history data when it's loaded - make this global first
+  window.setCurrentHistoryData = (data) => {
+    console.log('📊 Setting current history data:', data?.length || 0, 'items');
+    currentHistoryData = data || [];
+  };
+  
   filterButtons.forEach(button => {
     button.addEventListener('click', () => {
+      console.log('🔘 Filter clicked:', button.getAttribute('data-filter'));
       // Remove active class from all buttons
       filterButtons.forEach(btn => btn.classList.remove('active'));
       // Add active class to clicked button
@@ -5495,45 +5636,50 @@ function initializeHistoryFilters() {
       applyHistoryFilter(filterType, currentHistoryData);
     });
   });
-  
-  // Store reference to history data when it's loaded
-  window.setCurrentHistoryData = (data) => {
-    currentHistoryData = data;
-  };
 }
 
 // Apply filter to history items
 function applyHistoryFilter(filterType, historyData) {
+  console.log('🎯 Applying filter:', filterType, 'to', historyData?.length || 0, 'items');
+  
   if (!historyData || historyData.length === 0) {
+    console.log('⚠️ No history data to filter');
     return;
   }
   
   let filteredData = [];
   
-  switch (filterType) {
-    case 'all':
-      filteredData = historyData;
-      break;
-    case 'correct':
-      filteredData = historyData.filter(item => item.isCorrect === true);
-      break;
-    case 'error':
-      filteredData = historyData.filter(item => item.hasErrors === true);
-      break;
-    case 'unanalyzed':
-      filteredData = historyData.filter(item => item.hasErrors === null);
-      break;
-    case 'youtube':
-      filteredData = historyData.filter(item => 
-        (item.videoSource && item.videoSource.url && item.videoSource.url.includes('youtube.com')) ||
-        (item.url && item.url.includes('youtube.com'))
-      );
-      break;
-    default:
-      filteredData = historyData;
+  try {
+    switch (filterType) {
+      case 'all':
+        filteredData = historyData;
+        break;
+      case 'correct':
+        filteredData = historyData.filter(item => item.isCorrect === true);
+        break;
+      case 'error':
+        filteredData = historyData.filter(item => item.hasErrors === true);
+        break;
+      case 'unanalyzed':
+        filteredData = historyData.filter(item => item.hasErrors === null);
+        break;
+      case 'youtube':
+        filteredData = historyData.filter(item => 
+          (item.videoSource && item.videoSource.url && item.videoSource.url.includes('youtube.com')) ||
+          (item.url && item.url.includes('youtube.com'))
+        );
+        break;
+      default:
+        filteredData = historyData;
+    }
+    
+    console.log('✅ Filter applied, showing', filteredData.length, 'items');
+    displayHistoryItems(filteredData);
+  } catch (error) {
+    console.error('❌ Error applying filter:', error);
+    // Fallback to showing all data
+    displayHistoryItems(historyData);
   }
-  
-  displayHistoryItems(filteredData);
 }
 
 // Initialize saved reports filter functionality
@@ -5655,6 +5801,9 @@ function displayFilteredSavedReports(reports) {
 
 // Initialize all buttons and features
 document.addEventListener('DOMContentLoaded', async () => {
+  // Initialize history filters first to ensure window.setCurrentHistoryData is available
+  initializeHistoryFilters();
+  
   // Initialize TTS voices
   initializeTTSVoices();
   

@@ -91,12 +91,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   
   // History actions
   if (request.action === 'getHistory') {
-    console.log('📚 Getting history from HistoryManager...');
     historyManager.getHistory().then(history => {
-      console.log('📚 History retrieved:', history.length, 'items');
       sendResponse({ success: true, history });
     }).catch(error => {
-      console.error('❌ Error getting history:', error);
+      console.error('Error getting history:', error);
       sendResponse({ success: false, error: error.message });
     });
     return true;
