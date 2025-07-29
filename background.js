@@ -20,9 +20,42 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 // 處理右鍵選單點擊
-chrome.contextMenus.onClicked.addListener((info, tab) => {
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === 'search-youglish') {
-    searchYouGlish(info.selectionText, tab.id);
+    console.log('📝 Right-click search triggered for:', info.selectionText);
+    
+    // First try to get article metadata from the current page
+    try {
+      const articleData = await chrome.tabs.sendMessage(tab.id, { 
+        action: 'getArticleMetadata' 
+      });
+      
+      if (articleData && articleData.success) {
+        console.log('📰 Got article metadata from right-click context');
+        
+        // Create article selection data similar to Save button
+        const selectionData = {
+          text: info.selectionText,
+          metadata: articleData.metadata,
+          paragraph: null, // We don't have paragraph context from right-click
+          context: null,   // We don't have surrounding context
+          timestamp: Date.now()
+        };
+        
+        // Process as article selection with website info
+        // Mark as right-click selection for identification
+        selectionData.source = 'right-click-selection';
+        handleArticleTextAnalysis(selectionData, tab.id);
+      } else {
+        console.log('📝 No article metadata available, using regular YouGlish search');
+        // Fallback to regular search
+        searchYouGlish(info.selectionText, tab.id, 'right-click');
+      }
+    } catch (error) {
+      console.log('📝 Could not get article metadata:', error.message);
+      // Fallback to regular search
+      searchYouGlish(info.selectionText, tab.id, 'right-click');
+    }
   }
 });
 
@@ -181,9 +214,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   
   // Article selection actions
   if (request.action === 'saveArticleSelection') {
-    console.log('📰 Processing article selection for AI analysis:', request.data);
-    handleArticleTextAnalysis(request.data, sender.tab.id);
-    sendResponse({ success: true, message: 'Article sent to sidepanel for analysis' });
+    console.log('📰 Background received saveArticleSelection:', request.data);
+    try {
+      handleArticleTextAnalysis(request.data, sender.tab.id);
+      sendResponse({ success: true, message: 'Article sent to sidepanel for analysis' });
+      console.log('📰 Article processing completed successfully');
+    } catch (error) {
+      console.error('📰 Error processing article:', error);
+      sendResponse({ success: false, error: error.message });
+    }
     return true;
   }
   
@@ -635,7 +674,11 @@ function extractChannelFromTitle(title) {
 // 處理文章文本分析
 async function handleArticleTextAnalysis(data, tabId) {
   try {
-    console.log('📰 Processing article learning text:', data.text);
+    console.log('📰 handleArticleTextAnalysis called with:', { 
+      text: data.text?.substring(0, 50) + '...', 
+      tabId: tabId,
+      hasMetadata: !!data.metadata 
+    });
     
     const cleanText = data.text.trim();
     if (!cleanText) return;
@@ -671,10 +714,13 @@ async function handleArticleTextAnalysis(data, tabId) {
       
       console.log('📄 Article source info:', articleSource);
       
+      // Use appropriate detection method based on source
+      const detectionMethod = data.source === 'right-click-selection' ? 'right-click-article' : 'article-learning';
+      
       const savedRecord = await historyManager.addRecord(
         cleanText, 
         language, 
-        'article-learning', 
+        detectionMethod, 
         [], 
         articleSource
       );
@@ -689,7 +735,7 @@ async function handleArticleTextAnalysis(data, tabId) {
         url: urls.primaryUrl, // YouGlish URL for search
         text: cleanText,
         language: language,
-        source: 'article-learning',
+        source: data.source === 'right-click-selection' ? 'right-click-article' : 'article-learning',
         title: data.metadata?.title || 'Article Learning',
         originalUrl: data.metadata?.url, // Article URL
         articleUrl: data.metadata?.url, // Explicit article URL field

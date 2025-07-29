@@ -2517,19 +2517,32 @@ function getReturnButtonText(sourceType, language, hasTimestamp = false) {
 
 // Helper function to determine source type
 function getSourceType(query) {
+  console.log('🔍 getSourceType called with:', {
+    detectionMethod: query.detectionMethod,
+    videoSourceUrl: query.videoSource?.url,
+    videoSourceDomain: query.videoSource?.domain,
+    hasVideoSource: !!query.videoSource
+  });
+
   // Check for article-specific detection methods
-  if (query.detectionMethod === 'article-selection' || query.detectionMethod === 'article-learning') {
+  if (query.detectionMethod === 'article-selection' || 
+      query.detectionMethod === 'article-learning' || 
+      query.detectionMethod === 'right-click-article') {
+    console.log('🔍 -> Returning article (via detectionMethod)');
     return 'article';
   }
   // Check if videoSource has article-like properties (no youtube.com URL)
   else if (query.videoSource && query.videoSource.url && !query.videoSource.url.includes('youtube.com') && !query.videoSource.url.includes('youtu.be')) {
+    console.log('🔍 -> Returning article (via non-YouTube URL)');
     return 'article';
   }
   // Check if videoSource has domain instead of url (article metadata)
   else if (query.videoSource && query.videoSource.domain && !query.videoSource.url) {
+    console.log('🔍 -> Returning article (via domain only)');
     return 'article';
   }
   else {
+    console.log('🔍 -> Returning video (default)');
     return 'video';
   }
 }
