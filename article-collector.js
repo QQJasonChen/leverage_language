@@ -4,13 +4,23 @@
 (function() {
   'use strict';
 
-  console.log('📰 Article collector content script loaded');
+  console.log('📰 Article collector content script loaded on:', window.location.hostname);
 
   // Check if we should run on this site
   const currentHost = window.location.hostname;
   if (currentHost.includes('youtube.com') || currentHost.includes('youglish.com')) {
     console.log('📰 Article collector disabled on YouTube/YouGlish');
     return;
+  }
+  
+  // Check for common news sites that might need special handling
+  const isNewssite = currentHost.includes('cnn.com') || 
+                     currentHost.includes('nhk.or.jp') ||
+                     currentHost.includes('bbc.com') ||
+                     currentHost.includes('nytimes.com');
+  
+  if (isNewssite) {
+    console.log('📰 Detected news site:', currentHost);
   }
 
   // State management
@@ -226,10 +236,14 @@
   function createFloatingButton() {
     if (state.floatingButton) return state.floatingButton;
 
-    // Check if we're on a problematic site (like Notion) that needs regular DOM
+    // Check if we're on a problematic site that needs regular DOM
     const isProblematicSite = window.location.hostname.includes('notion.com') ||
                               window.location.hostname.includes('figma.com') ||
-                              window.location.hostname.includes('miro.com');
+                              window.location.hostname.includes('miro.com') ||
+                              window.location.hostname.includes('cnn.com') ||
+                              window.location.hostname.includes('nhk.or.jp') ||
+                              window.location.hostname.includes('bbc.com') ||
+                              window.location.hostname.includes('nytimes.com');
 
     let button;
     if (isProblematicSite) {
@@ -367,8 +381,23 @@
       shadow.appendChild(button);
       document.body.appendChild(container);
       
-      // Handle button click
-      button.addEventListener('click', handleSaveClick);
+      // Handle button click with enhanced event handling
+      button.addEventListener('click', (e) => {
+        console.log('📝 Shadow button clicked');
+        e.preventDefault();
+        e.stopPropagation();
+        handleSaveClick(e);
+      });
+      button.addEventListener('mousedown', (e) => {
+        e.preventDefault(); // Prevent text deselection
+        e.stopPropagation();
+        console.log('📝 Shadow button mousedown event');
+      });
+      button.addEventListener('mouseup', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('📝 Shadow button mouseup event');
+      });
       
       // Create wrapper object that mimics regular button interface
       const shadowWrapper = {
@@ -501,8 +530,27 @@
       }
     }
 
-    // Handle button click
-    button.addEventListener('click', handleSaveClick);
+    // Handle button click with enhanced event handling
+    button.addEventListener('click', (e) => {
+      console.log('📝 Regular button clicked');
+      e.preventDefault();
+      e.stopPropagation();
+      handleSaveClick(e);
+    });
+    button.addEventListener('mousedown', (e) => {
+      e.preventDefault(); // Prevent text deselection
+      e.stopPropagation();
+      console.log('📝 Button mousedown event');
+    });
+    button.addEventListener('mouseup', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('📝 Button mouseup event');
+    });
+
+    // Add pointer-events to ensure clickability
+    button.style.pointerEvents = 'auto !important';
+    button.style.userSelect = 'none !important';
 
     return button;
   }
@@ -682,6 +730,26 @@
     button.style.visibility = 'visible !important';
     button.style.opacity = '1 !important';
     button.style.pointerEvents = 'auto !important';
+    button.style.zIndex = '2147483647 !important';
+    
+    // Notion-specific fixes
+    if (window.location.hostname.includes('notion.com')) {
+      console.log('📝 Applying Notion-specific layering fixes');
+      // Notion uses high z-indexes, so we need to be even higher
+      button.style.zIndex = '2147483647 !important';
+      button.style.position = 'fixed !important';
+      
+      // Force the button to the top of the stacking context
+      if (button.parentElement && button.parentElement !== document.body) {
+        button.parentElement.style.zIndex = '2147483647 !important';
+      }
+      
+      // Add a click capture phase listener for Notion
+      button.addEventListener('click', (e) => {
+        console.log('📝 Notion button click captured');
+        e.stopImmediatePropagation();
+      }, true);
+    }
     
     // Force maximum visibility - no animations that could interfere
     button.style.opacity = '1 !important';
@@ -766,6 +834,35 @@
     
     // Skip animation for now - just make it immediately visible
     console.log('📝 Button should be visible now at position:', { top, left });
+    
+    // Test if button is truly clickable
+    setTimeout(() => {
+      const rect = button.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const elementAtPoint = document.elementFromPoint(centerX, centerY);
+      
+      let isClickable = false;
+      if (button.__isShadowButton) {
+        // For shadow DOM button, check if we hit the shadow host
+        isClickable = elementAtPoint === button.shadowContainer || 
+                     button.shadowContainer.contains(elementAtPoint);
+      } else {
+        // For regular button
+        isClickable = elementAtPoint === button || button.contains(elementAtPoint);
+      }
+      
+      console.log('📝 Button clickability test:', {
+        isClickable,
+        elementAtPoint: elementAtPoint?.tagName,
+        buttonRect: rect,
+        centerPoint: { x: centerX, y: centerY }
+      });
+      
+      if (!isClickable) {
+        console.warn('📝 Button may not be clickable! Element at center:', elementAtPoint);
+      }
+    }, 100);
   }
 
   // DEBUG: Create a test button in a fixed position
@@ -814,7 +911,17 @@
 
   // Handle save button click
   async function handleSaveClick(event) {
-    if (state.isProcessing || !state.selectedData) return;
+    console.log('📰 Save button clicked');
+    console.log('📰 Current state:', {
+      isProcessing: state.isProcessing,
+      hasSelectedData: !!state.selectedData,
+      selectedText: state.selectedData?.text?.substring(0, 50) + '...'
+    });
+    
+    if (state.isProcessing || !state.selectedData) {
+      console.log('📰 Cannot save - processing or no data');
+      return;
+    }
 
     state.isProcessing = true;
     
@@ -839,11 +946,12 @@
         
         // Send to sidepanel for AI analysis
         try {
-          await chrome.runtime.sendMessage({
+          console.log('📰 Sending to sidepanel for analysis');
+          const analysisResponse = await chrome.runtime.sendMessage({
             action: 'analyzeTextInSidepanel',
             text: state.selectedData.text,
             source: 'article-selection',
-            title: state.selectedData.metadata?.title || 'Article Selection',
+            title: state.selectedData.metadata?.title || document.title || 'Article Selection',
             url: state.selectedData.metadata?.url || window.location.href,
             originalUrl: state.selectedData.metadata?.url || window.location.href,
             timestamp: null, // No video timestamp for articles
@@ -851,10 +959,13 @@
               ...state.selectedData.metadata,
               paragraph: state.selectedData.paragraph,
               context: state.selectedData.context,
-              selectionTimestamp: state.selectedData.timestamp
+              selectionTimestamp: state.selectedData.timestamp,
+              source: 'article-selection'
             }
           });
+          console.log('📰 Analysis response:', analysisResponse);
         } catch (analysisError) {
+          console.error('📰 Error sending to sidepanel:', analysisError);
           // Not a critical error, continue with success flow
         }
         
@@ -925,9 +1036,14 @@
       const context = paragraphInfo ? getSurroundingContext(paragraphInfo.id) : null;
 
       // Prepare the data to save
+      const detectedLanguage = state.articleMetadata?.language || 
+                              document.documentElement.lang || 
+                              document.querySelector('meta[http-equiv="content-language"]')?.content ||
+                              'en';
+                              
       state.selectedData = {
         text: selectedText,
-        language: state.articleMetadata?.language || document.documentElement.lang || 'en',
+        language: detectedLanguage.substring(0, 2), // Ensure we only use language code, not locale
         metadata: state.articleMetadata,
         paragraph: paragraphInfo ? {
           id: paragraphInfo.id,
@@ -942,6 +1058,13 @@
         },
         timestamp: Date.now()
       };
+      
+      console.log('📰 Prepared selection data:', {
+        text: selectedText.substring(0, 50) + '...',
+        language: state.selectedData.language,
+        hasMetadata: !!state.articleMetadata,
+        hasParagraph: !!paragraphInfo
+      });
 
       // Show the floating button
       console.log('📝 Creating and positioning floating button');
@@ -1031,9 +1154,17 @@
 
   // Wait for DOM to be ready
   if (document.readyState === 'loading') {
+    console.log('📰 Waiting for DOMContentLoaded...');
     document.addEventListener('DOMContentLoaded', initialize);
   } else {
-    initialize();
+    console.log('📰 DOM already loaded, initializing immediately');
+    // Add a small delay for news sites that might have late-loading content
+    if (isNewssite) {
+      console.log('📰 Adding delay for news site initialization');
+      setTimeout(initialize, 1000);
+    } else {
+      initialize();
+    }
   }
 
   // Listen for messages from extension
@@ -1055,6 +1186,33 @@
         metadata: state.articleMetadata,
         paragraphCount: state.paragraphMap.size
       });
+      return false;
+    }
+    
+    if (request.action === 'debugArticleCollector') {
+      // Debug information for troubleshooting
+      const debugInfo = {
+        hostname: window.location.hostname,
+        initialized: !!state.floatingButton,
+        hasSelection: !!window.getSelection().toString(),
+        buttonInDOM: state.floatingButton ? document.contains(state.floatingButton) : false,
+        paragraphCount: state.paragraphMap.size,
+        isNewssite: isNewssite,
+        error: null
+      };
+      
+      // Try to create test button if not exists
+      if (!state.floatingButton) {
+        try {
+          createTestButton();
+          debugInfo.testButtonCreated = true;
+        } catch (error) {
+          debugInfo.error = error.message;
+        }
+      }
+      
+      console.log('📰 Debug info:', debugInfo);
+      sendResponse(debugInfo);
       return false;
     }
   });

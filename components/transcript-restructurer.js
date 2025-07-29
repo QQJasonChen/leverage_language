@@ -77,8 +77,8 @@ class TranscriptRestructurer {
                       <span class="setting-icon">⏰</span>
                       <span class="setting-title">Timestamp Interval</span>
                     </div>
-                    <input type="number" id="whisper-chunk-duration" value="15" min="8" max="30" step="1" title="How often timestamps appear (seconds)">
-                    <span class="setting-description">Seconds between timestamps (8s = frequent, 30s = less frequent)</span>
+                    <input type="number" id="whisper-chunk-duration" value="5" min="3" max="30" step="1" title="How often timestamps appear (seconds)">
+                    <span class="setting-description">Seconds between timestamps (3s = very frequent, 30s = less frequent)</span>
                   </label>
                   
                   <label class="setting-item">
@@ -87,8 +87,8 @@ class TranscriptRestructurer {
                       <span class="setting-title">Sentence Grouping</span>
                     </div>
                     <select id="sentence-grouping" title="How much text to group together">
-                      <option value="short">Short (1-2 sentences)</option>
-                      <option value="medium" selected>Medium (2-3 sentences)</option>
+                      <option value="short" selected>Short (1-2 sentences)</option>
+                      <option value="medium">Medium (2-3 sentences)</option>
                       <option value="long">Long (3-4 sentences)</option>
                     </select>
                     <span class="setting-description">Amount of text between each timestamp</span>
