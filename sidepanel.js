@@ -2529,7 +2529,7 @@ function getSourceType(query) {
   if (query.detectionMethod === 'article-selection' || 
       query.detectionMethod === 'article-learning' || 
       query.detectionMethod === 'right-click-article') {
-    console.log('🔍 -> Returning article (via detectionMethod)');
+    console.log('🔍 -> ✅ FOUND ARTICLE via detectionMethod:', query.detectionMethod);
     return 'article';
   }
   // Check if videoSource has article-like properties (non-YouTube URL)
@@ -2556,7 +2556,7 @@ function getSourceType(query) {
     return 'article';
   }
   else {
-    console.log('🔍 -> Returning video (default)');
+    console.log('🔍 -> ❌ DEFAULTING TO VIDEO - detectionMethod was:', query.detectionMethod);
     return 'video';
   }
 }
