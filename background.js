@@ -353,12 +353,20 @@ async function searchYouGlish(text, tabId, source = 'selection', forcedOpenMetho
         (preferredLang !== 'none' ? 'auto-with-preference' : 'auto') : 
         'manual';
       
+      console.log('🔍 searchYouGlish saving to history with:', {
+        text: cleanText.substring(0, 50) + '...',
+        language: finalLang,
+        detectionMethod: detectionMethod,
+        source: source
+      });
+      
       await historyManager.addRecord(cleanText, finalLang, detectionMethod);
+      console.log('✅ searchYouGlish saved to history successfully');
     } catch (error) {
       console.error('保存歷史記錄失敗:', error);
     }
   } else {
-    console.log('📝 Skipping history save for searchYouGlish (already saved by article handler)');
+    console.log('📝 ⏭️ SKIPPING history save for searchYouGlish (skipHistorySave=true)');
   }
 
   // 根據設定選擇開啟方式
@@ -790,10 +798,23 @@ async function handleArticleTextAnalysis(data, tabId) {
     try {
       console.log('💾 Saving article learning to history:', cleanText, language);
       
-      console.log('📄 Article source info:', articleSource);
-      
       // Use appropriate detection method based on source
       const detectionMethod = data.source === 'right-click-selection' ? 'right-click-article' : 'article-learning';
+      
+      console.log('📄 Article source info being saved:', articleSource);
+      console.log('📄 Detection method being used:', detectionMethod);
+      
+      console.log('🔍 About to save article record to history with:', {
+        text: cleanText.substring(0, 50) + '...',
+        language: language,
+        detectionMethod: detectionMethod,
+        articleSource: {
+          url: articleSource.url,
+          title: articleSource.title,
+          author: articleSource.author,
+          domain: articleSource.domain
+        }
+      });
       
       const savedRecord = await historyManager.addRecord(
         cleanText, 
@@ -802,6 +823,8 @@ async function handleArticleTextAnalysis(data, tabId) {
         [], 
         articleSource
       );
+      
+      console.log('✅ Article record saved to history successfully');
       console.log('✅ Article learning saved to history');
     } catch (error) {
       console.error('❌ Failed to save article learning to history:', error);

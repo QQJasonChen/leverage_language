@@ -2522,43 +2522,52 @@ function getSourceType(query) {
     videoSourceUrl: query.videoSource?.url,
     videoSourceDomain: query.videoSource?.domain,
     videoSourceAuthor: query.videoSource?.author,
-    hasVideoSource: !!query.videoSource
+    hasVideoSource: !!query.videoSource,
+    fullQuery: query
   });
 
-  // Check for article-specific detection methods
+  // PRIORITY 1: Check for article-specific detection methods
   if (query.detectionMethod === 'article-selection' || 
       query.detectionMethod === 'article-learning' || 
       query.detectionMethod === 'right-click-article') {
     console.log('🔍 -> ✅ FOUND ARTICLE via detectionMethod:', query.detectionMethod);
     return 'article';
   }
-  // Check if videoSource has article-like properties (non-YouTube URL)
-  else if (query.videoSource && query.videoSource.url && 
-           !query.videoSource.url.includes('youtube.com') && 
-           !query.videoSource.url.includes('youtu.be') &&
-           !query.videoSource.url.includes('youglish.com')) {
-    console.log('🔍 -> Returning article (via non-video URL)');
-    return 'article';
+  
+  // PRIORITY 2: Check if videoSource has article metadata indicators
+  if (query.videoSource) {
+    const videoSource = query.videoSource;
+    
+    // Check for article author (but not YouTube channel)
+    if (videoSource.author && !videoSource.channel && videoSource.author !== '未知作者') {
+      console.log('🔍 -> ✅ FOUND ARTICLE via author field:', videoSource.author);
+      return 'article';
+    }
+    
+    // Check for article publish date
+    if (videoSource.publishDate) {
+      console.log('🔍 -> ✅ FOUND ARTICLE via publishDate field:', videoSource.publishDate);
+      return 'article';
+    }
+    
+    // Check for article domain without YouTube URL
+    if (videoSource.domain && !videoSource.url) {
+      console.log('🔍 -> ✅ FOUND ARTICLE via domain only:', videoSource.domain);
+      return 'article';
+    }
+    
+    // Check for non-video URLs (articles)
+    if (videoSource.url && 
+        !videoSource.url.includes('youtube.com') && 
+        !videoSource.url.includes('youtu.be') &&
+        !videoSource.url.includes('youglish.com')) {
+      console.log('🔍 -> ✅ FOUND ARTICLE via non-video URL:', videoSource.url);
+      return 'article';
+    }
   }
-  // Check if videoSource has domain without URL (article metadata format)
-  else if (query.videoSource && query.videoSource.domain && !query.videoSource.url) {
-    console.log('🔍 -> Returning article (via domain only)');
-    return 'article';
-  }
-  // Check if videoSource has author field (article metadata indicator)
-  else if (query.videoSource && query.videoSource.author && !query.videoSource.channel) {
-    console.log('🔍 -> Returning article (via author field)');
-    return 'article';
-  }
-  // Check if videoSource has publishDate (article metadata indicator)
-  else if (query.videoSource && query.videoSource.publishDate) {
-    console.log('🔍 -> Returning article (via publishDate field)');
-    return 'article';
-  }
-  else {
-    console.log('🔍 -> ❌ DEFAULTING TO VIDEO - detectionMethod was:', query.detectionMethod);
-    return 'video';
-  }
+  
+  console.log('🔍 -> ❌ DEFAULTING TO VIDEO - detectionMethod was:', query.detectionMethod);
+  return 'video';
 }
 
 // Helper function to get appropriate icon
