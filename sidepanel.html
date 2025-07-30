@@ -2250,6 +2250,45 @@
             font-family: 'Courier New', monospace !important;
         }
 
+        /* Enhanced flashcard styles for AI-generated content */
+        .card-memory-tip {
+            font-size: 13px !important;
+            margin-top: 12px !important;
+            padding: 8px 12px !important;
+            background: #f0f8ff !important;
+            border-left: 3px solid #1976d2 !important;
+            border-radius: 4px !important;
+            color: #1976d2 !important;
+            font-style: italic !important;
+            line-height: 1.4 !important;
+        }
+
+        .card-definition.ai-enhanced {
+            border-left: 2px solid #4caf50 !important;
+            padding-left: 8px !important;
+            background: #f8fff8 !important;
+            border-radius: 3px !important;
+        }
+
+        .card-content .audio-btn.enhanced {
+            background: #1976d2 !important;
+            color: white !important;
+            border-radius: 20px !important;
+            width: auto !important;
+            height: auto !important;
+            padding: 8px 16px !important;
+            font-size: 14px !important;
+            font-weight: 500 !important;
+            margin-top: 12px !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .card-content .audio-btn.enhanced:hover {
+            background: #1565c0 !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 4px 8px rgba(25, 118, 210, 0.3) !important;
+        }
+
         .audio-btn {
             background: rgba(255,255,255,0.2);
             border: none;
@@ -4375,8 +4414,9 @@
                                 <div class="card-back" style="display: none;">
                                     <div class="card-content">
                                         <div id="backText" class="card-text">Loading...</div>
-                                        <div id="cardDefinition" class="card-definition"></div>
                                         <div id="cardPronunciation" class="card-pronunciation"></div>
+                                        <div id="cardDefinition" class="card-definition"></div>
+                                        <div id="cardMemoryTip" class="card-memory-tip" style="display: none;"></div>
                                     </div>
                                 </div>
                             </div>

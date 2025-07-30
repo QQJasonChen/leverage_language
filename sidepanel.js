@@ -9586,87 +9586,113 @@ async function createFlashcardFromCurrentWord() {
   await createFlashcard(flashcardData);
 }
 
-// Create flashcard from saved report
+// Create enhanced flashcard from saved report with AI-generated concise content
 async function createFlashcardFromReport(report) {
   if (!flashcardManager || !report) return;
 
   try {
-    // Extract information from the report
-    const analysisText = typeof report.analysisData === 'string' 
-      ? report.analysisData 
-      : (report.analysisData && report.analysisData.content 
-          ? report.analysisData.content 
-          : '');
+    console.log('🃏 Creating enhanced flashcard for:', report.searchText);
 
-    // Try to extract translation, pronunciation, and definition
-    let translation = '';
-    let pronunciation = '';
-    let definition = '';
-
-    if (analysisText) {
-      // Extract Chinese translation
-      const chineseMatch = analysisText.match(/中文[：:\s]*([^\n]+)/i) ||
-                          analysisText.match(/翻譯[：:\s]*([^\n]+)/i) ||
-                          analysisText.match(/Translation[：:\s]*([^\n]+)/i);
-      if (chineseMatch) {
-        translation = chineseMatch[1].trim();
-      }
-
-      // Extract pronunciation (IPA or phonetic)
-      const pronunciationMatch = analysisText.match(/\[([^\]]+)\]/) ||
-                                analysisText.match(/\/([^\/]+)\//) ||
-                                analysisText.match(/發音[：:\s]*([^\n]+)/i) ||
-                                analysisText.match(/Pronunciation[：:\s]*([^\n]+)/i);
-      if (pronunciationMatch) {
-        pronunciation = pronunciationMatch[1].trim();
-      }
-
-      // Extract definition
-      const definitionMatch = analysisText.match(/定義[：:\s]*([^\n]+)/i) ||
-                             analysisText.match(/Definition[：:\s]*([^\n]+)/i) ||
-                             analysisText.match(/含義[：:\s]*([^\n]+)/i) ||
-                             analysisText.match(/Meaning[：:\s]*([^\n]+)/i);
-      if (definitionMatch) {
-        definition = definitionMatch[1].trim();
-      }
-
-      // If no specific translation found, use first line as translation
-      if (!translation) {
-        const lines = analysisText.split('\n').filter(line => line.trim());
-        if (lines.length > 0) {
-          translation = lines[0].trim();
-        }
-      }
-    }
-
-    // Fallback to basic information if extraction failed
-    if (!translation) {
-      translation = `${report.language} word: ${report.searchText}`;
-    }
-
-    const flashcardData = {
-      front: report.searchText,
-      back: translation,
-      pronunciation: pronunciation,
-      definition: definition,
+    // Prepare report data for enhanced flashcard creation
+    const reportData = {
+      searchText: report.searchText,
       language: report.language,
-      tags: [...(report.tags || []), 'from-report']
+      analysis: report.analysisData,
+      tags: report.tags || [],
+      audioData: report.audioData,
+      audioUrl: report.audioUrl
     };
 
     // Check if we have cached audio for this word
     const cachedAudio = getCachedAudio(report.searchText, report.language);
     if (cachedAudio && cachedAudio.audioUrl) {
-      flashcardData.audioUrl = cachedAudio.audioUrl;
-      console.log('🎯 Added cached audio to flashcard:', report.searchText);
+      reportData.audioUrl = cachedAudio.audioUrl;
+      console.log('🎯 Found cached audio for flashcard:', report.searchText);
     }
 
-    const card = await window.flashcardManager.createFlashcard(flashcardData);
-    console.log('📇 Created flashcard from report:', card);
+    // Use the enhanced flashcard creation method
+    const card = await window.flashcardManager.createEnhancedFromReport(reportData);
+    console.log('✅ Created enhanced flashcard:', card.id);
     
     return card;
+
   } catch (error) {
-    console.error('Failed to create flashcard from report:', error);
-    throw error;
+    console.error('❌ Failed to create enhanced flashcard:', error);
+    
+    // Fallback to legacy creation if enhanced method fails
+    try {
+      console.log('🔄 Attempting legacy flashcard creation as fallback');
+      
+      const analysisText = typeof report.analysisData === 'string' 
+        ? report.analysisData 
+        : (report.analysisData && report.analysisData.content 
+            ? report.analysisData.content 
+            : '');
+
+      let translation = '';
+      let pronunciation = '';
+      let definition = '';
+
+      if (analysisText) {
+        // Extract Chinese translation
+        const chineseMatch = analysisText.match(/中文[：:\s]*([^\n]+)/i) ||
+                            analysisText.match(/翻譯[：:\s]*([^\n]+)/i) ||
+                            analysisText.match(/Translation[：:\s]*([^\n]+)/i);
+        if (chineseMatch) {
+          translation = chineseMatch[1].trim();
+        }
+
+        // Extract pronunciation (IPA or phonetic)
+        const pronunciationMatch = analysisText.match(/\[([^\]]+)\]/) ||
+                                  analysisText.match(/\/([^\/]+)\//) ||
+                                  analysisText.match(/發音[：:\s]*([^\n]+)/i) ||
+                                  analysisText.match(/Pronunciation[：:\s]*([^\n]+)/i);
+        if (pronunciationMatch) {
+          pronunciation = pronunciationMatch[1].trim();
+        }
+
+        // Extract definition - use first meaningful line for flashcard simplicity
+        const lines = analysisText.split('\n').filter(line => line.trim());
+        if (lines.length > 0) {
+          definition = lines[0].trim();
+        }
+
+        // If no specific translation found, use first line as translation
+        if (!translation && lines.length > 0) {
+          translation = lines[0].trim();
+        }
+      }
+
+      // Fallback to basic information if extraction failed
+      if (!translation) {
+        translation = `${report.language} word: ${report.searchText}`;
+      }
+
+      const flashcardData = {
+        front: report.searchText,
+        back: translation,
+        pronunciation: pronunciation,
+        definition: definition,
+        language: report.language,
+        tags: [...(report.tags || []), 'from-report', 'legacy-fallback']
+      };
+
+      // Check if we have cached audio for this word
+      const cachedAudio = getCachedAudio(report.searchText, report.language);
+      if (cachedAudio && cachedAudio.audioUrl) {
+        flashcardData.audioUrl = cachedAudio.audioUrl;
+        console.log('🎯 Added cached audio to fallback flashcard:', report.searchText);
+      }
+
+      const card = await window.flashcardManager.createFlashcard(flashcardData);
+      console.log('📇 Created fallback flashcard from report:', card);
+      
+      return card;
+
+    } catch (fallbackError) {
+      console.error('❌ Even fallback flashcard creation failed:', fallbackError);
+      throw fallbackError;
+    }
   }
 }
 
@@ -9835,20 +9861,107 @@ function loadCurrentCard() {
   if (flashcard) flashcard.classList.remove('flipped');
   if (frontText) frontText.textContent = card.front || 'No front text';
   if (backText) {
+    // Use the concise translation for flashcard back
     backText.textContent = card.back || 'No translation available';
     console.log('Setting back text:', card.back);
   }
-  if (cardDefinition) cardDefinition.textContent = card.definition || '';
-  if (cardPronunciation) cardPronunciation.textContent = card.pronunciation ? `[${card.pronunciation}]` : '';
+  
+  // Enhanced display for AI-generated content
+  if (cardDefinition) {
+    // Show context sentence if available
+    if (card.definition) {
+      cardDefinition.textContent = card.definition;
+      
+      // Add visual indicator for AI-enhanced cards
+      if (card.aiGenerated) {
+        cardDefinition.classList.add('ai-enhanced');
+        cardDefinition.style.fontStyle = 'italic';
+        cardDefinition.style.opacity = '0.9';
+      }
+    } else {
+      cardDefinition.textContent = '';
+    }
+  }
+
+  // Display memory tip separately if available
+  const cardMemoryTip = document.getElementById('cardMemoryTip');
+  if (cardMemoryTip) {
+    if (card.memoryTip) {
+      cardMemoryTip.textContent = `💡 ${card.memoryTip}`;
+      cardMemoryTip.style.display = 'block';
+    } else {
+      cardMemoryTip.style.display = 'none';
+    }
+  }
+  
+  if (cardPronunciation) {
+    const pronunciationText = card.pronunciation ? `[${card.pronunciation}]` : '';
+    cardPronunciation.textContent = pronunciationText;
+    
+    // Style pronunciation for better visibility
+    if (pronunciationText) {
+      cardPronunciation.style.color = '#666';
+      cardPronunciation.style.fontSize = '14px';
+      cardPronunciation.style.marginTop = '4px';
+    }
+  }
   if (flipCardBtn) {
     flipCardBtn.style.display = 'block';
     flipCardBtn.textContent = '翻轉卡片';
   }
   if (answerButtons) answerButtons.style.display = 'none';
 
-  // Show audio button if available
+  // Enhanced audio integration
   if (audioPlayBtn) {
-    audioPlayBtn.style.display = card.audioUrl ? 'block' : 'none';
+    const hasAudio = card.audioUrl || card.audioData;
+    audioPlayBtn.style.display = hasAudio ? 'block' : 'none';
+    
+    if (hasAudio) {
+      // Style the audio button for better visibility
+      audioPlayBtn.classList.add('enhanced');
+      audioPlayBtn.title = 'Play pronunciation audio';
+      
+      // Add visual indicator for AI-generated audio
+      if (card.tags && card.tags.includes('with-audio')) {
+        audioPlayBtn.innerHTML = '🔊 Play Audio';
+      } else {
+        audioPlayBtn.innerHTML = '🔊 Play';
+      }
+      
+      // Enhanced click handler for audio
+      audioPlayBtn.onclick = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        try {
+          audioPlayBtn.style.opacity = '0.7';
+          audioPlayBtn.innerHTML = '⏳ Playing...';
+          
+          // Use flashcard manager's audio playback
+          if (window.flashcardManager && typeof window.flashcardManager.playPronunciation === 'function') {
+            await window.flashcardManager.playPronunciation(card.id);
+          } else {
+            // Fallback to direct audio playback
+            if (card.audioUrl) {
+              const audio = new Audio(card.audioUrl);
+              await audio.play();
+            }
+          }
+          
+        } catch (error) {
+          console.error('❌ Failed to play audio:', error);
+          audioPlayBtn.innerHTML = '❌ Error';
+          setTimeout(() => {
+            audioPlayBtn.innerHTML = '🔊 Play';
+          }, 2000);
+        } finally {
+          setTimeout(() => {
+            audioPlayBtn.style.opacity = '1';
+            audioPlayBtn.innerHTML = '🔊 Play';
+          }, 1000);
+        }
+      };
+    }
   }
 
   // Configure display based on study mode
