@@ -2534,6 +2534,12 @@ function getSourceType(query) {
     return 'article';
   }
   
+  // EXPLICIT CHECK: If detectionMethod contains 'article' anywhere
+  if (query.detectionMethod && query.detectionMethod.includes('article')) {
+    console.log('🔍 -> ✅ FOUND ARTICLE via detectionMethod contains "article":', query.detectionMethod);
+    return 'article';
+  }
+  
   // PRIORITY 2: Check if videoSource has article metadata indicators
   if (query.videoSource) {
     const videoSource = query.videoSource;
@@ -2714,13 +2720,17 @@ function displayHistoryItems(queries) {
       console.log('⚠️ History record has NO videoSource - this will show as video by default');
     }
     
-    // Debug: log the query data to see what we're working with
+    // Debug: log the query data to see what we're working with  
     console.log('🔍 History item debug:', {
       text: query.text?.substring(0, 30) + '...',
       detectionMethod: query.detectionMethod,
       hasVideoSource: !!query.videoSource,
       videoSourceUrl: query.videoSource?.url,
       videoSourceDomain: query.videoSource?.domain,
+      videoSourceAuthor: query.videoSource?.author,
+      videoSourceChannel: query.videoSource?.channel,
+      videoSourcePublishDate: query.videoSource?.publishDate,
+      fullVideoSource: query.videoSource,
       sourceType: getSourceType(query)
     });
     
