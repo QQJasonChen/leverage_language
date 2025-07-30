@@ -141,131 +141,139 @@ function safeCreateHistoryItem(item, historyData) {
     meta.appendChild(websitesSpan);
   }
   
-  // Add video source information if available
-  console.log('🔍 SecurityFixes checking video source:', {
+  // Add source information if available (video or article)
+  console.log('🔍 SecurityFixes checking source:', {
     hasVideoSource: !!historyData.videoSource,
+    detectionMethod: historyData.detectionMethod,
     videoSource: historyData.videoSource
   });
   
   if (historyData.videoSource) {
-    console.log('✅ Creating video source display for:', historyData.text);
-    const videoDiv = safeCreateElement('div', '', 'history-video-source');
-    videoDiv.style.marginTop = '8px';
-    videoDiv.style.padding = '8px';
-    videoDiv.style.backgroundColor = '#f8f9fa';
-    videoDiv.style.borderRadius = '6px';
-    videoDiv.style.borderLeft = '3px solid #ff0000';
+    // Check if this is an article based on detection method
+    const isArticle = historyData.detectionMethod === 'article-selection' || 
+                      historyData.detectionMethod === 'article-learning' || 
+                      historyData.detectionMethod === 'right-click-article' ||
+                      (historyData.videoSource.title && 
+                       historyData.videoSource.domain && 
+                       !historyData.videoSource.channel);
     
-    const videoInfo = safeCreateElement('div', '', 'video-info');
-    videoInfo.style.display = 'flex';
-    videoInfo.style.alignItems = 'center';
-    videoInfo.style.gap = '8px';
-    
-    const videoIcon = safeCreateElement('span', '📹', 'video-icon');
-    videoIcon.style.fontSize = '16px';
-    
-    const videoDetails = safeCreateElement('div', '', 'video-details');
-    videoDetails.style.flex = '1';
-    
-    const videoTitle = safeCreateElement('div', historyData.videoSource.title, 'video-title');
-    videoTitle.style.fontWeight = '500';
-    videoTitle.style.fontSize = '13px';
-    videoTitle.style.color = '#1a73e8';
-    videoTitle.style.marginBottom = '2px';
-    
-    const videoMeta = safeCreateElement('div', '', 'video-meta');
-    videoMeta.style.fontSize = '12px';
-    videoMeta.style.color = '#666';
-    
-    const channelText = historyData.videoSource.channel;
-    const timestampText = formatVideoTimestamp(historyData.videoSource.videoTimestamp);
-    
-    if (timestampText) {
-      videoMeta.textContent = `${channelText} • ⏰ ${timestampText}`;
+    if (isArticle) {
+      console.log('✅ Creating article source display for:', historyData.text);
+      const articleDiv = safeCreateElement('div', '', 'history-article-source');
+      articleDiv.style.marginTop = '8px';
+      articleDiv.style.padding = '8px';
+      articleDiv.style.backgroundColor = '#f0f8ff';
+      articleDiv.style.borderRadius = '6px';
+      articleDiv.style.borderLeft = '3px solid #4285f4';
+      
+      const articleInfo = safeCreateElement('div', '', 'article-info');
+      articleInfo.style.display = 'flex';
+      articleInfo.style.alignItems = 'center';
+      articleInfo.style.gap = '8px';
+      
+      const articleIcon = safeCreateElement('span', '📖', 'article-icon');
+      articleIcon.style.fontSize = '16px';
+      
+      const articleDetails = safeCreateElement('div', '', 'article-details');
+      articleDetails.style.flex = '1';
+      
+      const articleTitle = safeCreateElement('div', historyData.videoSource.title || '未知文章', 'article-title');
+      articleTitle.style.fontWeight = '500';
+      articleTitle.style.fontSize = '13px';
+      articleTitle.style.color = '#1a73e8';
+      articleTitle.style.marginBottom = '2px';
+      
+      const articleMeta = safeCreateElement('div', historyData.videoSource.domain || historyData.videoSource.author || 'Web Article', 'article-meta');
+      articleMeta.style.fontSize = '12px';
+      articleMeta.style.color = '#666';
+      
+      const returnBtn = safeCreateElement('button', '📖 返回文章', 'article-return-btn');
+      returnBtn.style.padding = '4px 8px';
+      returnBtn.style.fontSize = '11px';
+      returnBtn.style.backgroundColor = '#4285f4';
+      returnBtn.style.color = 'white';
+      returnBtn.style.border = 'none';
+      returnBtn.style.borderRadius = '4px';
+      returnBtn.style.cursor = 'pointer';
+      returnBtn.style.fontWeight = '500';
+      returnBtn.setAttribute('data-article-url', historyData.videoSource.url || '');
+      returnBtn.setAttribute('data-sentence', historyData.text);
+      returnBtn.setAttribute('data-paragraph', historyData.videoSource.paragraph || '');
+      returnBtn.setAttribute('data-saved-at', historyData.timestamp);
+      returnBtn.setAttribute('data-notes', historyData.videoSource.notes || '');
+      returnBtn.title = '返回文章並高亮顯示句子';
+      
+      articleDetails.appendChild(articleTitle);
+      articleDetails.appendChild(articleMeta);
+      articleInfo.appendChild(articleIcon);
+      articleInfo.appendChild(articleDetails);
+      articleInfo.appendChild(returnBtn);
+      articleDiv.appendChild(articleInfo);
+      
+      item.appendChild(articleDiv);
     } else {
-      videoMeta.textContent = channelText;
+      console.log('✅ Creating video source display for:', historyData.text);
+      const videoDiv = safeCreateElement('div', '', 'history-video-source');
+      videoDiv.style.marginTop = '8px';
+      videoDiv.style.padding = '8px';
+      videoDiv.style.backgroundColor = '#f8f9fa';
+      videoDiv.style.borderRadius = '6px';
+      videoDiv.style.borderLeft = '3px solid #ff0000';
+      
+      const videoInfo = safeCreateElement('div', '', 'video-info');
+      videoInfo.style.display = 'flex';
+      videoInfo.style.alignItems = 'center';
+      videoInfo.style.gap = '8px';
+      
+      const videoIcon = safeCreateElement('span', '📹', 'video-icon');
+      videoIcon.style.fontSize = '16px';
+      
+      const videoDetails = safeCreateElement('div', '', 'video-details');
+      videoDetails.style.flex = '1';
+      
+      const videoTitle = safeCreateElement('div', historyData.videoSource.title, 'video-title');
+      videoTitle.style.fontWeight = '500';
+      videoTitle.style.fontSize = '13px';
+      videoTitle.style.color = '#1a73e8';
+      videoTitle.style.marginBottom = '2px';
+      
+      const videoMeta = safeCreateElement('div', '', 'video-meta');
+      videoMeta.style.fontSize = '12px';
+      videoMeta.style.color = '#666';
+      
+      const channelText = historyData.videoSource.channel;
+      const timestampText = formatVideoTimestamp(historyData.videoSource.videoTimestamp);
+      
+      if (timestampText) {
+        videoMeta.textContent = `${channelText} • ⏰ ${timestampText}`;
+      } else {
+        videoMeta.textContent = channelText;
+      }
+      
+      const returnBtn = safeCreateElement('button', timestampText ? '⏰ 返回片段' : '📹 返回影片', 'video-return-btn');
+      returnBtn.style.padding = '4px 8px';
+      returnBtn.style.fontSize = '11px';
+      returnBtn.style.backgroundColor = '#ff0000';
+      returnBtn.style.color = 'white';
+      returnBtn.style.border = 'none';
+      returnBtn.style.borderRadius = '4px';
+      returnBtn.style.cursor = 'pointer';
+      returnBtn.style.fontWeight = '500';
+      returnBtn.setAttribute('data-video-url', historyData.videoSource.url || '');
+      
+      if (timestampText) {
+        returnBtn.title = `返回到 ${timestampText} 的學習片段`;
+      }
+      
+      videoDetails.appendChild(videoTitle);
+      videoDetails.appendChild(videoMeta);
+      videoInfo.appendChild(videoIcon);
+      videoInfo.appendChild(videoDetails);
+      videoInfo.appendChild(returnBtn);
+      videoDiv.appendChild(videoInfo);
+      
+      item.appendChild(videoDiv);
     }
-    
-    const returnBtn = safeCreateElement('button', timestampText ? '⏰ 返回片段' : '📹 返回影片', 'video-return-btn');
-    returnBtn.style.padding = '4px 8px';
-    returnBtn.style.fontSize = '11px';
-    returnBtn.style.backgroundColor = '#ff0000';
-    returnBtn.style.color = 'white';
-    returnBtn.style.border = 'none';
-    returnBtn.style.borderRadius = '4px';
-    returnBtn.style.cursor = 'pointer';
-    returnBtn.style.fontWeight = '500';
-    returnBtn.setAttribute('data-video-url', historyData.videoSource.url || '');
-    
-    if (timestampText) {
-      returnBtn.title = `返回到 ${timestampText} 的學習片段`;
-    }
-    
-    videoDetails.appendChild(videoTitle);
-    videoDetails.appendChild(videoMeta);
-    videoInfo.appendChild(videoIcon);
-    videoInfo.appendChild(videoDetails);
-    videoInfo.appendChild(returnBtn);
-    videoDiv.appendChild(videoInfo);
-    
-    item.appendChild(videoDiv);
-  }
-  
-  // Article source section
-  if (historyData.articleSource) {
-    console.log('✅ Creating article source display for:', historyData.text);
-    const articleDiv = safeCreateElement('div', '', 'history-article-source');
-    articleDiv.style.marginTop = '8px';
-    articleDiv.style.padding = '8px';
-    articleDiv.style.backgroundColor = '#f0f8ff';
-    articleDiv.style.borderRadius = '6px';
-    articleDiv.style.borderLeft = '3px solid #4285f4';
-    
-    const articleInfo = safeCreateElement('div', '', 'article-info');
-    articleInfo.style.display = 'flex';
-    articleInfo.style.alignItems = 'center';
-    articleInfo.style.gap = '8px';
-    
-    const articleIcon = safeCreateElement('span', '📄', 'article-icon');
-    articleIcon.style.fontSize = '16px';
-    
-    const articleDetails = safeCreateElement('div', '', 'article-details');
-    articleDetails.style.flex = '1';
-    
-    const articleTitle = safeCreateElement('div', historyData.articleSource.title || 'Article', 'article-title');
-    articleTitle.style.fontWeight = '500';
-    articleTitle.style.fontSize = '13px';
-    articleTitle.style.color = '#1a73e8';
-    articleTitle.style.marginBottom = '2px';
-    
-    const articleMeta = safeCreateElement('div', historyData.articleSource.domain || 'Web Article', 'article-meta');
-    articleMeta.style.fontSize = '12px';
-    articleMeta.style.color = '#666';
-    
-    const returnBtn = safeCreateElement('button', '📄 返回文章', 'article-return-btn');
-    returnBtn.style.padding = '4px 8px';
-    returnBtn.style.fontSize = '11px';
-    returnBtn.style.backgroundColor = '#4285f4';
-    returnBtn.style.color = 'white';
-    returnBtn.style.border = 'none';
-    returnBtn.style.borderRadius = '4px';
-    returnBtn.style.cursor = 'pointer';
-    returnBtn.style.fontWeight = '500';
-    returnBtn.setAttribute('data-article-url', historyData.articleSource.url || '');
-    returnBtn.setAttribute('data-sentence', historyData.text);
-    returnBtn.setAttribute('data-paragraph', historyData.articleSource.paragraph || '');
-    returnBtn.setAttribute('data-saved-at', historyData.timestamp);
-    returnBtn.setAttribute('data-notes', historyData.articleSource.notes || '');
-    returnBtn.title = '返回文章並高亮顯示句子';
-    
-    articleDetails.appendChild(articleTitle);
-    articleDetails.appendChild(articleMeta);
-    articleInfo.appendChild(articleIcon);
-    articleInfo.appendChild(articleDetails);
-    articleInfo.appendChild(returnBtn);
-    articleDiv.appendChild(articleInfo);
-    
-    item.appendChild(articleDiv);
   }
   
   item.appendChild(meta);
