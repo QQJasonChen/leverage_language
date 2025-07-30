@@ -134,7 +134,7 @@ async function checkForArticleAnalysis() {
           articleMetadata: data.articleMetadata,
           paragraph: data.paragraph,
           context: data.context,
-          detectionMethod: 'article-selection', // Add this for identification
+          detectionMethod: data.source || 'article-selection', // Use actual source as detection method
           videoSource: data.videoSource // Include videoSource for display
         };
         
@@ -3302,7 +3302,9 @@ async function generateAIAnalysis(forceRefresh = false) {
           language,
           analysis,
           audioData, // Include cached audio data
-          videoSource // Include video source data
+          videoSource, // Include video source data
+          true, // updateExisting
+          currentQueryData.detectionMethod || 'auto' // Include detection method
         );
         
         if (audioData) {
@@ -5498,7 +5500,9 @@ async function manualSaveReport() {
         currentQueryData.language,
         currentAIAnalysis,
         audioData, // Include cached audio data
-        videoSource // Include video source data
+        videoSource, // Include video source data
+        true, // updateExisting
+        currentQueryData.detectionMethod || 'auto' // Include detection method
       );
       
       if (audioData) {
