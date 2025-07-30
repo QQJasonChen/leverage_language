@@ -6333,6 +6333,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     saveAudioToggleBtn.addEventListener('click', () => toggleSaveAudio());
   }
   
+  // Migrate articles button
+  const migrateArticlesBtn = document.getElementById('migrateArticlesBtn');
+  if (migrateArticlesBtn) {
+    migrateArticlesBtn.addEventListener('click', async () => {
+      if (!storageManager || !storageManager.migrateReportsDetectionMethod) {
+        alert('Storage manager not available');
+        return;
+      }
+      
+      const originalText = migrateArticlesBtn.textContent;
+      migrateArticlesBtn.textContent = '🔧 修復中...';
+      migrateArticlesBtn.disabled = true;
+      
+      try {
+        console.log('🔧 Starting manual article migration...');
+        const result = await storageManager.migrateReportsDetectionMethod();
+        console.log('🔧 Migration result:', result);
+        
+        if (result.success) {
+          alert(`✅ 修復完成！已更新 ${result.updatedCount} 個報告的文章標記`);
+          // Reload the saved reports view
+          loadSavedReports();
+        } else {
+          console.error('Migration failed:', result);
+          alert(`❌ 修復失敗：${result.error || 'Unknown error'}`);
+        }
+      } catch (error) {
+        console.error('Migration error:', error);
+        alert(`❌ 修復失敗：${error.message}`);
+      } finally {
+        migrateArticlesBtn.textContent = originalText;
+        migrateArticlesBtn.disabled = false;
+      }
+    });
+  }
+  
   // Re-analyze reports button
   const reAnalyzeReportsBtn = document.getElementById('reAnalyzeReportsBtn');
   if (reAnalyzeReportsBtn) {
