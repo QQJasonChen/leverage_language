@@ -4589,6 +4589,26 @@ async function loadSavedReports() {
           reports = await storageManager.getAIReports();
         }
       }
+      
+      // Check if detection method migration is needed
+      const needsDetectionMethodMigration = reports.some(report => 
+        !report.detectionMethod && report.videoSource
+      );
+      
+      console.log('🔍 Checking if detection method migration needed:', needsDetectionMethodMigration);
+      console.log('🔍 Reports without detection method:', reports.filter(r => 
+        !r.detectionMethod && r.videoSource
+      ).length);
+      
+      if (needsDetectionMethodMigration && storageManager.migrateReportsDetectionMethod) {
+        console.log('🔄 Migrating existing reports with detection methods...');
+        const migrationResult = await storageManager.migrateReportsDetectionMethod();
+        if (migrationResult.success && migrationResult.updatedCount > 0) {
+          console.log(`✅ Migrated ${migrationResult.updatedCount} reports with detection methods`);
+          // Reload reports after migration
+          reports = await storageManager.getAIReports();
+        }
+      }
     } else {
       // Fallback: get reports directly from storage
       console.log('Using fallback storage method');
