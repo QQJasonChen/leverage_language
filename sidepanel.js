@@ -2614,7 +2614,10 @@ function getReportReturnButton(report) {
   const returnText = getReturnButtonText(sourceType, report.language, !!hasTimestamp);
   const buttonColor = sourceType === 'article' ? '#28a745' : '#ff0000';
   
-  return `<button class="report-action-btn video-return-btn" data-video-url="${report.videoSource.url}" title="${hasTimestamp ? `返回到 ${hasTimestamp} 的學習片段` : returnText}" style="background-color: ${buttonColor}; color: white;">
+  // For articles, use url or originalUrl or articleUrl
+  const returnUrl = report.videoSource.url || report.videoSource.originalUrl || report.videoSource.articleUrl || '#';
+  
+  return `<button class="report-action-btn video-return-btn" data-video-url="${returnUrl}" title="${hasTimestamp ? `返回到 ${hasTimestamp} 的學習片段` : returnText}" style="background-color: ${buttonColor}; color: white;">
     ${hasTimestamp ? '⏰' : sourceIcon}
   </button>`;
 }
@@ -2629,16 +2632,19 @@ function getReportVideoInfo(report) {
   const buttonColor = sourceType === 'article' ? '#28a745' : '#ff0000';
   const hoverColor = sourceType === 'article' ? '#1e7e34' : '#e60000';
   
+  // For articles, use url or originalUrl or articleUrl
+  const returnUrl = report.videoSource.url || report.videoSource.originalUrl || report.videoSource.articleUrl || '#';
+  
   return `<div class="saved-report-video-info" style="margin: 8px 0; padding: 8px; background-color: #f8f9fa; border-radius: 6px; border-left: 3px solid ${borderColor};">
     <div style="display: flex; align-items: center; gap: 8px;">
       <span style="font-size: 16px;">${sourceIcon}</span>
       <div style="flex: 1;">
-        <div style="font-weight: 500; font-size: 13px; color: #1a73e8; margin-bottom: 2px;">${report.videoSource.title}</div>
+        <div style="font-weight: 500; font-size: 13px; color: #1a73e8; margin-bottom: 2px;">${report.videoSource.title || (sourceType === 'article' ? '文章學習' : '影片學習')}</div>
         <div style="font-size: 12px; color: #666;">
-          ${report.videoSource.channel || report.videoSource.domain || ''}${hasTimestamp ? ` • ⏰ ${hasTimestamp}` : ''}
+          ${report.videoSource.channel || report.videoSource.author || report.videoSource.domain || ''}${hasTimestamp ? ` • ⏰ ${hasTimestamp}` : ''}
         </div>
       </div>
-      <button class="video-return-btn-large" data-video-url="${report.videoSource.url}" style="padding: 8px 16px; font-size: 13px; background-color: ${buttonColor}; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; box-shadow: 0 2px 4px rgba(${sourceType === 'article' ? '40, 167, 69' : '255, 0, 0'}, 0.3); transition: all 0.2s;" title="${hasTimestamp ? `返回到 ${hasTimestamp} 的學習片段` : returnText}" onmouseover="this.style.backgroundColor='${hoverColor}'; this.style.transform='translateY(-1px)'" onmouseout="this.style.backgroundColor='${buttonColor}'; this.style.transform='translateY(0)'">${hasTimestamp ? '⏰ 返回片段' : `${sourceIcon} ${returnText}`}</button>
+      <button class="video-return-btn-large" data-video-url="${returnUrl}" style="padding: 8px 16px; font-size: 13px; background-color: ${buttonColor}; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; box-shadow: 0 2px 4px rgba(${sourceType === 'article' ? '40, 167, 69' : '255, 0, 0'}, 0.3); transition: all 0.2s;" title="${hasTimestamp ? `返回到 ${hasTimestamp} 的學習片段` : returnText}" onmouseover="this.style.backgroundColor='${hoverColor}'; this.style.transform='translateY(-1px)'" onmouseout="this.style.backgroundColor='${buttonColor}'; this.style.transform='translateY(0)'">${hasTimestamp ? '⏰ 返回片段' : `${sourceIcon} ${returnText}`}</button>
     </div>
   </div>`;
 }
@@ -4667,8 +4673,8 @@ async function loadSavedReports() {
     // Generate reports HTML with improved design and buttons
     if (reportsList) {
       // Debug: Check video source data in saved reports
-      const reportsWithVideo = reports.filter(r => r.videoSource && r.videoSource.url);
-      const reportsWithTimestamp = reports.filter(r => r.videoSource && r.videoSource.url && r.videoSource.videoTimestamp);
+      const reportsWithVideo = reports.filter(r => r.videoSource && (r.videoSource.url || r.videoSource.originalUrl || r.videoSource.articleUrl || r.videoSource.domain));
+      const reportsWithTimestamp = reports.filter(r => r.videoSource && (r.videoSource.url || r.videoSource.originalUrl || r.videoSource.articleUrl) && r.videoSource.videoTimestamp);
       
       console.log(`📊 SAVED TAB - Reports Display Debug:`, {
         totalReports: reports.length,
@@ -4688,9 +4694,9 @@ async function loadSavedReports() {
       // Build notification HTML
       let notificationHtml = '';
       
-      // Show in UI if no video data found
+      // Show in UI if no source data found
       if (reportsWithVideo.length === 0 && reports.length > 0) {
-        console.warn(`⚠️ NO VIDEO DATA FOUND in ${reports.length} saved reports!`);
+        console.warn(`⚠️ NO SOURCE DATA FOUND in ${reports.length} saved reports!`);
         console.log(`💡 To get "返回片段" buttons:
         1. Go to YouTube
         2. Click "📚 LEARN" button 
@@ -4751,14 +4757,14 @@ async function loadSavedReports() {
                 <button class="report-action-btn delete-btn" data-id="${report.id}" title="刪除報告">
                   🗑️
                 </button>
-                ${report.videoSource && report.videoSource.url ? getReportReturnButton(report) : `
-                  <button class="report-action-btn video-return-btn-disabled" disabled title="此報告沒有影片來源數據 - 請從 YouTube 字幕學習以獲得返回片段功能" style="background-color: #ccc; color: #666; cursor: not-allowed;">
+                ${report.videoSource ? getReportReturnButton(report) : `
+                  <button class="report-action-btn video-return-btn-disabled" disabled title="此報告沒有來源數據 - 請從 YouTube 字幕或文章學習以獲得返回功能" style="background-color: #ccc; color: #666; cursor: not-allowed;">
                     🚫
                   </button>
                 `}
               </div>
             </div>
-            ${report.videoSource && report.videoSource.url ? getReportVideoInfo(report) : ''}
+            ${report.videoSource ? getReportVideoInfo(report) : ''}
             <div class="report-meta">
               <span class="report-date">📅 ${new Date(report.timestamp).toLocaleDateString('zh-TW')} ${new Date(report.timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}</span>
               <div class="report-tags-container">

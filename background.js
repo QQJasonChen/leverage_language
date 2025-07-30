@@ -58,12 +58,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
           // Process as article selection with website info (for Saved tab)
           console.log('📝 Calling handleArticleTextAnalysis...');
           await handleArticleTextAnalysis(selectionData, tab.id);
-          
-          // Also do regular YouGlish search (for website opening), but skip history save to avoid duplicates
-          console.log('📝 Also opening YouGlish website for right-click with article metadata');
-          await searchYouGlish(info.selectionText, tab.id, 'right-click', 'newtab', true);
-          console.log('📝 Both article analysis and YouGlish search completed');
-          return; // Now we've done both
+          console.log('📝 Article analysis completed - skipping YouGlish search for articles');
+          return; // Article analysis is sufficient for articles
         }
       } catch (error) {
         console.log('📝 Could not get article metadata:', error.message);
