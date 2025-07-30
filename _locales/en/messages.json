@@ -540,5 +540,94 @@
   "site_descriptions_title": {
     "message": "📖 Website Descriptions",
     "description": "Site descriptions title"
+  },
+  
+  "websites_view": {
+    "message": "🌐 Websites",
+    "description": "Websites view button"
+  },
+  "saved_reports_view": {
+    "message": "💾 Saved Reports",
+    "description": "Saved reports view button"
+  },
+  "flashcards_view": {
+    "message": "🃏 Flashcards",
+    "description": "Flashcards view button"
+  },
+  "analytics_view": {
+    "message": "📊 Analytics",
+    "description": "Analytics view button"
+  },
+  "analytics_title": {
+    "message": "📊 Learning Analytics",
+    "description": "Analytics title"
+  },
+  "refresh": {
+    "message": "🔄 Refresh",
+    "description": "Refresh button"
+  },
+  "clear_history": {
+    "message": "Clear History",
+    "description": "Clear history button"
+  },
+  "export_reports": {
+    "message": "💾 Export Reports",
+    "description": "Export reports button"
+  },
+  "auto_save_on": {
+    "message": "💾 Auto-Save",
+    "description": "Auto save toggle button"
+  },
+  "save_this_report": {
+    "message": "💾 Save This Report",
+    "description": "Save this report button"
+  },
+  
+  "transcript_view": {
+    "message": "📝 Transcript",
+    "description": "Transcript view button"
+  },
+  "ui_language_chinese": {
+    "message": "中文",
+    "description": "Chinese language option"
+  },
+  "ui_language_japanese": {
+    "message": "日本語",
+    "description": "Japanese language option"
+  },
+  
+  "save_audio": {
+    "message": "🔊 Save Audio",
+    "description": "Save audio button"
+  },
+  
+  "error_detection": {
+    "message": "🔍 Error Detection",
+    "description": "Error detection toggle button"
+  },
+  
+  "quick_search_title": {
+    "message": "Quick Search Results",
+    "description": "Quick search results title"
+  },
+  "quick_translation": {
+    "message": "Quick Translation:",
+    "description": "Quick translation label"
+  },
+  "quick_pronunciation": {
+    "message": "Pronunciation:",
+    "description": "Quick pronunciation label"
+  },
+  "quick_definition": {
+    "message": "Quick Definition:",
+    "description": "Quick definition label"
+  },
+  "quick_search_note": {
+    "message": "Full AI analysis coming soon, please wait...",
+    "description": "Quick search note"
+  },
+  "loading": {
+    "message": "Loading...",
+    "description": "Loading text"
   }
 }

@@ -3664,6 +3664,12 @@
             border-color: #188038;
         }
     </style>
+    
+    <!-- Subtle UI Improvements (Working version) -->
+    <link rel="stylesheet" href="styles/subtle-improvements.css">
+    
+    <!-- Only add working keyboard shortcuts -->
+    <script src="js/simple-keyboard-shortcuts.js"></script>
 </head>
 <body>
     <div class="header">
@@ -3691,15 +3697,15 @@
     <div class="manual-search-section">
         <div class="search-form">
             <div class="search-input-container">
-                <input type="text" id="manualSearchInput" data-i18n-placeholder="manual_search_placeholder" placeholder="輸入單字或片語..." />
+                <input type="text" id="manualSearchInput" data-i18n-placeholder="manual_search_placeholder" placeholder="Enter text to search..." />
                 <select id="manualLanguageSelect">
-                    <option value="auto" data-i18n="smart_detection">自動偵測</option>
-                    <option value="english" data-i18n="language_english">英文</option>
-                    <option value="japanese" data-i18n="language_japanese">日文</option>
-                    <option value="korean" data-i18n="language_korean">韓文</option>
-                    <option value="dutch" data-i18n="language_dutch">荷蘭文</option>
+                    <option value="auto" data-i18n="smart_detection">Smart Detection</option>
+                    <option value="english" data-i18n="language_english">English</option>
+                    <option value="japanese" data-i18n="language_japanese">Japanese</option>
+                    <option value="korean" data-i18n="language_korean">Korean</option>
+                    <option value="dutch" data-i18n="language_dutch">Dutch</option>
                 </select>
-                <button id="manualSearchBtn" data-i18n="search_button">搜尋</button>
+                <button id="manualSearchBtn" data-i18n="search_button">Search</button>
             </div>
         </div>
     </div>
@@ -3731,17 +3737,17 @@
         
         <div id="searchResult" class="search-result" style="display: block;">
             <div class="result-header">
-                <h3 data-i18n="search_results_title">📺 YouGlish 查詢結果</h3>
+                <h3 data-i18n="search_results_title">📺 YouGlish Search Results</h3>
                 <div class="view-controls">
-                    <button id="showAnalysisBtn" class="view-button active" data-i18n="analysis_view">📊 分析</button>
-                    <button id="showVideoBtn" class="view-button" data-i18n="video_view">🎥 影片</button>
-                    <button id="showWebsitesBtn" class="view-button" data-i18n="websites_view">🌐 網站</button>
-                    <button id="showHistoryBtn" class="view-button" data-i18n="history_view">📚 歷史</button>
-                    <button id="showSavedReportsBtn" class="view-button" data-i18n="saved_reports_view">💾 已保存</button>
-                    <button id="showFlashcardsBtn" class="view-button" data-i18n="flashcards_view">🃏 記憶卡</button>
-                    <button id="showAnalyticsBtn" class="view-button">📊 學習統計</button>
-                    <button id="showTranscriptBtn" class="view-button" data-i18n="transcript_view">📝 字幕重構</button>
-                    <button id="openNewTabBtn" class="view-button" data-i18n="new_tab">🔗 新分頁</button>
+                    <button id="showAnalysisBtn" class="view-button active" data-i18n="analysis_view">📊 Analysis</button>
+                    <button id="showVideoBtn" class="view-button" data-i18n="video_view">🎥 Video</button>
+                    <button id="showWebsitesBtn" class="view-button" data-i18n="websites_view">🌐 Websites</button>
+                    <button id="showHistoryBtn" class="view-button" data-i18n="history_view">📚 History</button>
+                    <button id="showSavedReportsBtn" class="view-button" data-i18n="saved_reports_view">💾 Saved Reports</button>
+                    <button id="showFlashcardsBtn" class="view-button" data-i18n="flashcards_view">🃏 Flashcards</button>
+                    <button id="showAnalyticsBtn" class="view-button" data-i18n="analytics_view">📊 Analytics</button>
+                    <button id="showTranscriptBtn" class="view-button" data-i18n="transcript_view">📝 Transcript</button>
+                    <button id="openNewTabBtn" class="view-button" data-i18n="new_tab">🔗 New Tab</button>
                 </div>
             </div>
             
@@ -3771,19 +3777,19 @@
                 <!-- AI 語音發音區域 -->
                 <div id="aiAudioSection" class="ai-audio-section" style="display: none;">
                     <div class="audio-header">
-                        <h5>🔊 AI 語音發音</h5>
+                        <h5 data-i18n="ai_audio_title">🔊 AI Voice Pronunciation</h5>
                         <div class="audio-controls">
-                            <button id="generateAudioBtn" class="audio-button primary">
-                                🎵 生成語音
+                            <button id="generateAudioBtn" class="audio-button primary" data-i18n="generate_audio">
+                                🎵 Generate Audio
                             </button>
-                            <button id="regenerateAudioBtn" class="audio-button secondary" style="display: none;">
-                                🔄 重新生成
+                            <button id="regenerateAudioBtn" class="audio-button secondary" style="display: none;" data-i18n="regenerate_audio">
+                                🔄 Regenerate
                             </button>
-                            <button id="testAudioBtn" class="audio-button secondary" style="font-size: 10px;">
-                                🧪 測試
+                            <button id="testAudioBtn" class="audio-button secondary" style="font-size: 10px;" data-i18n="test_audio">
+                                🧪 Test
                             </button>
-                            <button id="saveAudioToggleBtn" class="audio-button secondary save-audio-toggle active" title="自動儲存語音到報告中">
-                                🔊 儲存語音
+                            <button id="saveAudioToggleBtn" class="audio-button secondary save-audio-toggle active" title="Automatically save audio to reports" data-i18n="save_audio">
+                                🔊 Save Audio
                             </button>
                         </div>
                     </div>
@@ -3791,12 +3797,12 @@
                     <div id="audioContent" class="audio-content">
                         <div id="audioPlaceholder" class="audio-placeholder">
                             <div class="placeholder-icon">🎵</div>
-                            <p class="placeholder-text">點擊「生成語音」開始</p>
+                            <p class="placeholder-text" data-i18n="audio_placeholder">Click 'Generate Audio' to get AI voice pronunciation</p>
                         </div>
                         
                         <div id="audioLoading" class="audio-loading" style="display: none;">
                             <div class="loading-icon">⏳</div>
-                            <p class="loading-text">正在生成語音...</p>
+                            <p class="loading-text" data-i18n="generating_audio">Generating audio, please wait...</p>
                         </div>
                         
                         <div id="audioResult" class="audio-result" style="display: none;">
@@ -3808,17 +3814,17 @@
                             <div class="audio-player">
                                 <audio id="aiAudio" controls preload="metadata" style="width: 100%;">
                                     <source id="audioSource" src="" type="audio/mpeg">
-                                    您的瀏覽器不支援音頻播放
+                                    <span data-i18n="audio_not_supported">Your browser does not support audio playback</span>
                                 </audio>
                                 <div class="audio-actions">
-                                    <button id="playAudioBtn" class="audio-action-btn">
-                                        ▶️ 播放
+                                    <button id="playAudioBtn" class="audio-action-btn" data-i18n="play_audio">
+                                        ▶️ Play
                                     </button>
-                                    <button id="downloadAudioBtn" class="audio-action-btn">
-                                        💾 下載
+                                    <button id="downloadAudioBtn" class="audio-action-btn" data-i18n="download_audio">
+                                        💾 Download
                                     </button>
-                                    <button id="repeatAudioBtn" class="audio-action-btn">
-                                        🔄 重複
+                                    <button id="repeatAudioBtn" class="audio-action-btn" data-i18n="repeat_audio">
+                                        🔄 Repeat
                                     </button>
                                 </div>
                             </div>
@@ -3826,9 +3832,9 @@
                         
                         <div id="audioError" class="audio-error" style="display: none;">
                             <div class="error-icon">⚠️</div>
-                            <p class="error-message">語音生成失敗</p>
+                            <p class="error-message" data-i18n="audio_generation_failed">Audio generation failed</p>
                             <p class="error-details" id="audioErrorDetails"></p>
-                            <button id="retryAudioBtn" class="audio-button secondary">重試</button>
+                            <button id="retryAudioBtn" class="audio-button secondary" data-i18n="retry">Retry</button>
                         </div>
                     </div>
                 </div>
@@ -3847,8 +3853,8 @@
                             <button id="autoSaveToggleBtn" class="ai-button secondary auto-save-toggle active" data-i18n="auto_save_on" title="Click to toggle auto-save">
                                 💾 Auto-Save
                             </button>
-                            <button id="errorDetectionToggleBtn" class="ai-button secondary error-detection-toggle" title="啟用錯誤檢測功能（會增加分析時間）">
-                                🔍 錯誤檢測
+                            <button id="errorDetectionToggleBtn" class="ai-button secondary error-detection-toggle" title="Enable error detection (increases analysis time)" data-i18n="error_detection">
+                                🔍 Error Detection
                             </button>
                             <button id="manualSaveBtn" class="ai-button primary" style="display: none;" data-i18n="save_this_report" title="Save this analysis to your saved reports">
                                 💾 Save This Report
@@ -3873,29 +3879,29 @@
                         <div id="quickSearchResults" class="quick-search-results" style="display: none;">
                             <div class="quick-search-header">
                                 <span class="quick-search-icon">⚡</span>
-                                <span class="quick-search-title" data-i18n="quick_search_title">即時查詢結果</span>
-                                <span class="ai-loading-indicator">🤖 AI 分析中...</span>
+                                <span class="quick-search-title" data-i18n="quick_search_title">Quick Search Results</span>
+                                <span class="ai-loading-indicator" data-i18n="ai_analyzing">🤖 AI analyzing, please wait...</span>
                             </div>
                             
                             <div class="quick-search-content">
                                 <div class="quick-translation">
-                                    <div class="translation-label" data-i18n="quick_translation">快速翻譯：</div>
-                                    <div id="quickTranslation" class="translation-result">載入中...</div>
+                                    <div class="translation-label" data-i18n="quick_translation">Quick Translation:</div>
+                                    <div id="quickTranslation" class="translation-result" data-i18n="loading">Loading...</div>
                                 </div>
                                 
                                 <div class="quick-pronunciation">
-                                    <div class="pronunciation-label" data-i18n="quick_pronunciation">發音：</div>
-                                    <div id="quickPronunciation" class="pronunciation-result">載入中...</div>
+                                    <div class="pronunciation-label" data-i18n="quick_pronunciation">Pronunciation:</div>
+                                    <div id="quickPronunciation" class="pronunciation-result" data-i18n="loading">Loading...</div>
                                 </div>
                                 
                                 <div class="quick-definition">
-                                    <div class="definition-label" data-i18n="quick_definition">簡要定義：</div>
-                                    <div id="quickDefinition" class="definition-result">載入中...</div>
+                                    <div class="definition-label" data-i18n="quick_definition">Quick Definition:</div>
+                                    <div id="quickDefinition" class="definition-result" data-i18n="loading">Loading...</div>
                                 </div>
                                 
                                 <div class="quick-search-note">
                                     <span class="note-icon">💡</span>
-                                    <span data-i18n="quick_search_note">完整 AI 分析即將完成，請稍候...</span>
+                                    <span data-i18n="quick_search_note">Full AI analysis coming soon, please wait...</span>
                                 </div>
                             </div>
                         </div>
@@ -3911,9 +3917,9 @@
                         
                         <div id="aiAnalysisError" class="ai-error" style="display: none;">
                             <div class="error-icon">⚠️</div>
-                            <p class="error-message">AI 分析失敗</p>
+                            <p class="error-message" data-i18n="ai_analysis_failed">AI analysis failed</p>
                             <p class="error-details"></p>
-                            <button id="retryAiAnalysisBtn" class="ai-button secondary">重試</button>
+                            <button id="retryAiAnalysisBtn" class="ai-button secondary" data-i18n="retry">Retry</button>
                         </div>
                     </div>
                 </div>
@@ -4422,8 +4428,8 @@
             <!-- 學習統計視圖 -->
             <div id="analyticsView" class="analytics-view" style="display: none;">
                 <div class="analytics-header">
-                    <h3>📊 學習統計</h3>
-                    <button id="refreshAnalyticsBtn" class="refresh-btn">🔄 重新整理</button>
+                    <h3 data-i18n="analytics_title">📊 Learning Analytics</h3>
+                    <button id="refreshAnalyticsBtn" class="refresh-btn" data-i18n="refresh">🔄 Refresh</button>
                 </div>
                 
                 <div class="analytics-overview">
