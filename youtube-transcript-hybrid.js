@@ -37,12 +37,26 @@
       // ✅ EMERGENCY CIRCUIT BREAKER
       emergencyStop: {
         enabled: true,
-        maxRecordingTime: 180000, // ✅ EMERGENCY: 3 minutes max to prevent freeze
+        maxRecordingTime: 180000, // 3 minutes per chunk
         startTime: null,
         memoryCheckInterval: null,
         lastMemoryCheck: 0,
         consecutiveHighMemory: 0,
         emergencyStopTriggered: false
+      },
+      // ✅ SMART CHUNKING SYSTEM for full videos
+      smartChunking: {
+        enabled: true,
+        isChunkingMode: false,
+        currentChunk: 1,
+        totalChunks: 0,
+        chunkData: [],
+        restartTimer: null,
+        restartDelay: 2000, // 2 second gap between chunks
+        maxChunks: 20, // Maximum 20 chunks = 60 minutes total
+        videoStartTime: null,
+        lastChunkEndTime: 0,
+        fullTranscriptSegments: []
       }
     }
   };
@@ -1893,43 +1907,172 @@
   function triggerEmergencyStop(reason) {
     const whisper = captionCollection.whisper;
     const emergency = whisper.emergencyStop;
+    const chunking = whisper.smartChunking;
     
     if (emergency.emergencyStopTriggered) return;
     
     emergency.emergencyStopTriggered = true;
     
-    console.error(`🚨 EMERGENCY STOP TRIGGERED: ${reason}`);
-    console.error('🛑 Forcibly stopping transcript recording to prevent browser freeze');
+    // ✅ SMART RESTART: Check if we should restart for next chunk
+    const shouldSmartRestart = chunking.enabled && 
+                              chunking.currentChunk < chunking.maxChunks &&
+                              reason === 'MAX_TIME_EXCEEDED';
     
-    // Force stop everything
+    if (shouldSmartRestart) {
+      console.log(`🔄 SMART RESTART: Chunk ${chunking.currentChunk} complete, starting chunk ${chunking.currentChunk + 1}`);
+      initiateSmartRestart();
+    } else {
+      console.error(`🚨 EMERGENCY STOP TRIGGERED: ${reason}`);
+      console.error('🛑 Forcibly stopping transcript recording to prevent browser freeze');
+      
+      // Force stop everything
+      captionCollection.isCollecting = false;
+      
+      // Clear all timers immediately
+      if (emergency.memoryCheckInterval) {
+        clearInterval(emergency.memoryCheckInterval);
+        emergency.memoryCheckInterval = null;
+      }
+      
+      // Send emergency message to sidepanel
+      chrome.runtime.sendMessage({
+        action: 'transcriptEmergencyStop',
+        reason: reason,
+        duration: Date.now() - emergency.startTime,
+        data: {
+          segments: captionCollection.segments.length,
+          audioChunks: whisper.audioChunks.length,
+          pendingTranscriptions: whisper.pendingTranscriptions.size,
+          chunksCompleted: chunking.currentChunk - 1
+        }
+      }).catch(err => console.log('Failed to send emergency stop message:', err));
+      
+      // Force cleanup after delay to allow message to send
+      setTimeout(() => {
+        try {
+          stopHybridTranscriptCollection();
+        } catch (error) {
+          console.error('Error during emergency cleanup:', error);
+        }
+      }, 1000);
+    }
+  }
+
+  // ✅ SMART RESTART: Restart recording for next chunk
+  function initiateSmartRestart() {
+    const whisper = captionCollection.whisper;
+    const chunking = whisper.smartChunking;
+    const emergency = whisper.emergencyStop;
+    
+    console.log(`🔄 Initiating smart restart for chunk ${chunking.currentChunk + 1}/${chunking.maxChunks}`);
+    
+    // Save current chunk data
+    const currentSegments = [...captionCollection.segments];
+    chunking.chunkData.push({
+      chunkNumber: chunking.currentChunk,
+      segments: currentSegments,
+      startTime: chunking.lastChunkEndTime,
+      endTime: Date.now(),
+      segmentCount: currentSegments.length
+    });
+    
+    // Add to full transcript
+    chunking.fullTranscriptSegments.push(...currentSegments);
+    
+    // Send progress update to sidepanel
+    chrome.runtime.sendMessage({
+      action: 'transcriptChunkComplete',
+      chunkNumber: chunking.currentChunk,
+      totalChunks: chunking.maxChunks,
+      segmentsInChunk: currentSegments.length,
+      totalSegments: chunking.fullTranscriptSegments.length,
+      progress: Math.round((chunking.currentChunk / chunking.maxChunks) * 100)
+    }).catch(err => console.log('Failed to send chunk progress:', err));
+    
+    // Force stop current recording
     captionCollection.isCollecting = false;
     
-    // Clear all timers immediately
+    // Clear all timers
     if (emergency.memoryCheckInterval) {
       clearInterval(emergency.memoryCheckInterval);
       emergency.memoryCheckInterval = null;
     }
+    if (whisper.memoryCleanupTimer) {
+      clearInterval(whisper.memoryCleanupTimer);
+      whisper.memoryCleanupTimer = null;
+    }
     
-    // Send emergency message to sidepanel
-    chrome.runtime.sendMessage({
-      action: 'transcriptEmergencyStop',
-      reason: reason,
-      duration: Date.now() - emergency.startTime,
-      data: {
-        segments: captionCollection.segments.length,
-        audioChunks: whisper.audioChunks.length,
-        pendingTranscriptions: whisper.pendingTranscriptions.size
-      }
-    }).catch(err => console.log('Failed to send emergency stop message:', err));
+    // Complete resource cleanup
+    try {
+      performCompleteCleanup();
+    } catch (error) {
+      console.error('Error during chunk cleanup:', error);
+    }
     
-    // Force cleanup after delay to allow message to send
-    setTimeout(() => {
-      try {
-        stopHybridTranscriptCollection();
-      } catch (error) {
-        console.error('Error during emergency cleanup:', error);
+    // Prepare for next chunk
+    chunking.currentChunk++;
+    chunking.lastChunkEndTime = Date.now();
+    emergency.emergencyStopTriggered = false;
+    
+    // Schedule restart after brief delay for cleanup
+    chunking.restartTimer = setTimeout(() => {
+      console.log(`🚀 Starting chunk ${chunking.currentChunk}/${chunking.maxChunks}`);
+      
+      // Reset states for fresh start
+      captionCollection.segments = [];
+      captionCollection.startTime = Date.now();
+      emergency.startTime = Date.now();
+      
+      // Restart collection
+      startHybridTranscriptCollection('whisper');
+      
+    }, chunking.restartDelay);
+  }
+  
+  // ✅ COMPLETE CLEANUP: Aggressive cleanup between chunks
+  function performCompleteCleanup() {
+    const whisper = captionCollection.whisper;
+    
+    // Stop and cleanup audio resources
+    if (whisper.audioStream) {
+      whisper.audioStream.getTracks().forEach(track => track.stop());
+      whisper.audioStream = null;
+    }
+    
+    if (whisper.stopAudioMonitoring) {
+      whisper.stopAudioMonitoring();
+      whisper.stopAudioMonitoring = null;
+    }
+    
+    // Cleanup Web Audio API
+    if (whisper.audioContext) {
+      if (whisper.audioSource) {
+        whisper.audioSource.disconnect();
+        whisper.audioSource = null;
       }
-    }, 1000);
+      if (whisper.analyserNode) {
+        whisper.analyserNode.disconnect();
+        whisper.analyserNode = null;
+      }
+      whisper.audioContext.close().catch(() => {});
+      whisper.audioContext = null;
+    }
+    
+    // Clear all memory structures
+    whisper.mediaRecorder = null;
+    whisper.audioChunks = [];
+    whisper.pendingTranscriptions.clear();
+    whisper.processedTimeRanges = [];
+    whisper.isRecording = false;
+    whisper.initializationAttempted = false;
+    
+    // Clear intervals
+    if (captionCollection.interval) {
+      clearInterval(captionCollection.interval);
+      captionCollection.interval = null;
+    }
+    
+    console.log('🧹 Complete cleanup performed for chunk restart');
   }
 
   // ✅ CRITICAL FIX: Periodic memory cleanup to prevent browser freeze
@@ -2844,6 +2987,27 @@
     captionCollection.isCollecting = true;
     captionCollection.startTime = Date.now();
     
+    // ✅ SMART CHUNKING: Initialize for full video support
+    const chunking = captionCollection.whisper.smartChunking;
+    if (chunking.enabled && !chunking.isChunkingMode) {
+      chunking.isChunkingMode = true;
+      chunking.currentChunk = 1;
+      chunking.videoStartTime = Date.now();
+      chunking.lastChunkEndTime = Date.now();
+      chunking.chunkData = [];
+      chunking.fullTranscriptSegments = [];
+      
+      console.log(`🎯 Smart chunking initialized: ${chunking.maxChunks} chunks max (${chunking.maxChunks * 3} minutes total)`);
+      
+      // Send chunking info to sidepanel
+      chrome.runtime.sendMessage({
+        action: 'transcriptChunkingStarted',
+        maxChunks: chunking.maxChunks,
+        chunkDuration: 3, // minutes per chunk
+        totalDuration: chunking.maxChunks * 3
+      }).catch(err => console.log('Failed to send chunking start message:', err));
+    }
+    
     // ✅ FIX: Initialize Whisper immediately when user selects Whisper mode
     if (subtitleMode === 'without-subtitles') {
       console.log('🎙️ User selected Whisper mode - initializing audio capture immediately...');
@@ -3435,9 +3599,36 @@
     }
     
     const duration = (Date.now() - captionCollection.startTime) / 1000;
+    const chunking = whisper.smartChunking;
     let segments = [...captionCollection.segments];
     
-    console.log(`✅ HYBRID Collection complete: ${segments.length} segments in ${duration}s`);
+    // ✅ SMART CHUNKING: Return full transcript if chunking was used
+    if (chunking.isChunkingMode && chunking.fullTranscriptSegments.length > 0) {
+      // Add current chunk if it has content
+      if (segments.length > 0) {
+        chunking.fullTranscriptSegments.push(...segments);
+      }
+      
+      segments = [...chunking.fullTranscriptSegments];
+      console.log(`✅ SMART CHUNKING Complete: ${segments.length} total segments from ${chunking.currentChunk} chunks`);
+      
+      // Send completion message
+      chrome.runtime.sendMessage({
+        action: 'transcriptChunkingComplete',
+        totalChunks: chunking.currentChunk,
+        totalSegments: segments.length,
+        totalDuration: duration
+      }).catch(err => console.log('Failed to send chunking complete message:', err));
+      
+      // Reset chunking state
+      chunking.isChunkingMode = false;
+      chunking.currentChunk = 1;
+      chunking.chunkData = [];
+      chunking.fullTranscriptSegments = [];
+      
+    } else {
+      console.log(`✅ HYBRID Collection complete: ${segments.length} segments in ${duration}s`);
+    }
     
     // Apply master cleanup for auto-generated captions
     if (captionCollection.autoGenerated && segments.length > 0) {
