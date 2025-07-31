@@ -61,13 +61,21 @@ let currentQueryData = {};
 let currentAIAnalysis = null;
 let lastProcessedQuery = null;
 
-// Flashcard creation throttling with aggressive memory management
+// Extension resource management and crash prevention
 let flashcardCreationCount = 0;
 let lastFlashcardCreationTime = 0;
-const FLASHCARD_CREATION_LIMIT = 3; // Reduced to 3 per minute for stability
+const FLASHCARD_CREATION_LIMIT = 2; // Ultra-conservative: 2 per minute
 const FLASHCARD_COOLDOWN_PERIOD = 60000; // 1 minute
 window.audioCache = new Map(); // Track audio for cleanup - make global
 let memoryCleanupInterval = null;
+
+// Chrome crash prevention measures
+let extensionResourceMonitor = {
+  activeOperations: 0,
+  memoryPressure: false,
+  maxConcurrentOps: 1, // Only 1 operation at a time
+  lastCleanup: Date.now()
+};
 
 // Check for YouTube analysis data when sidepanel opens
 async function checkForYouTubeAnalysis() {
@@ -6261,6 +6269,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize memory cleanup first
   initializeMemoryCleanup();
   
+  // Set up emergency shutdown monitoring
+  setupEmergencyMonitoring();
+  
   // Initialize history filters first to ensure window.setCurrentHistoryData is available
   initializeHistoryFilters();
   
@@ -9850,27 +9861,135 @@ function initializeMemoryCleanup() {
   console.log('🧹 Memory cleanup interval initialized');
 }
 
+// Resource monitoring for Chrome crash prevention
+function checkResourcePressure() {
+  const now = Date.now();
+  const timeSinceLastCleanup = now - extensionResourceMonitor.lastCleanup;
+  
+  // Force cleanup every 30 seconds regardless
+  if (timeSinceLastCleanup > 30000) {
+    performMemoryCleanup();
+    extensionResourceMonitor.lastCleanup = now;
+  }
+  
+  // Check memory pressure indicators
+  if (window.audioCache.size > 5) {
+    extensionResourceMonitor.memoryPressure = true;
+    console.warn('🚨 Extension memory pressure detected - forcing cleanup');
+    performMemoryCleanup();
+  } else {
+    extensionResourceMonitor.memoryPressure = false;
+  }
+  
+  return extensionResourceMonitor.memoryPressure;
+}
+
+// Operation semaphore to prevent Chrome overload
+async function acquireOperationLock(operationName) {
+  if (extensionResourceMonitor.activeOperations >= extensionResourceMonitor.maxConcurrentOps) {
+    console.warn(`🚦 ${operationName} blocked - too many concurrent operations`);
+    throw new Error('Extension busy - please wait before retrying');
+  }
+  
+  if (checkResourcePressure()) {
+    console.warn(`🚨 ${operationName} blocked - memory pressure detected`);
+    throw new Error('Extension under memory pressure - operation cancelled');
+  }
+  
+  extensionResourceMonitor.activeOperations++;
+  console.log(`🔓 ${operationName} started (${extensionResourceMonitor.activeOperations} active)`);
+}
+
+function releaseOperationLock(operationName) {
+  extensionResourceMonitor.activeOperations = Math.max(0, extensionResourceMonitor.activeOperations - 1);
+  console.log(`🔒 ${operationName} completed (${extensionResourceMonitor.activeOperations} active)`);
+}
+
 // Cleanup on page unload
 window.addEventListener('beforeunload', () => {
   performMemoryCleanup();
   if (memoryCleanupInterval) {
     clearInterval(memoryCleanupInterval);
   }
+  
+  // Emergency cleanup
+  extensionResourceMonitor.activeOperations = 0;
+  try {
+    if (window.audioCache) window.audioCache.clear();
+  } catch (e) {
+    console.warn('Emergency cleanup failed:', e);
+  }
 });
+
+// Emergency monitoring to prevent Chrome crashes
+function setupEmergencyMonitoring() {
+  console.log('🛡️ Setting up emergency monitoring for Chrome crash prevention');
+  
+  // Monitor for excessive memory usage
+  setInterval(() => {
+    const now = Date.now();
+    
+    // Force cleanup if operations are stuck
+    if (extensionResourceMonitor.activeOperations > 0) {
+      const timeSinceLastOp = now - extensionResourceMonitor.lastCleanup;
+      if (timeSinceLastOp > 60000) { // 1 minute stuck
+        console.error('🚨 EMERGENCY: Operations stuck for 1+ minute - forcing reset');
+        extensionResourceMonitor.activeOperations = 0;
+        performMemoryCleanup();
+      }
+    }
+    
+    // Monitor audio cache size
+    if (window.audioCache && window.audioCache.size > 3) {
+      console.warn('🚨 EMERGENCY: Audio cache too large - forcing cleanup');
+      performMemoryCleanup();
+    }
+    
+    // Monitor flashcard creation rate
+    if (flashcardCreationCount > FLASHCARD_CREATION_LIMIT) {
+      console.warn('🚨 EMERGENCY: Flashcard creation rate exceeded - resetting');
+      flashcardCreationCount = 0;
+      lastFlashcardCreationTime = now;
+    }
+    
+  }, 15000); // Check every 15 seconds
+  
+  // Emergency error handler
+  window.addEventListener('error', (event) => {
+    console.error('🚨 EMERGENCY: Unhandled error detected:', event.error);
+    
+    // If it's related to our extension, force cleanup
+    if (event.error?.stack?.includes('createFlashcardFromReport') ||
+        event.error?.stack?.includes('aiService') ||
+        event.error?.stack?.includes('audioCache')) {
+      console.error('🚨 EMERGENCY: Extension-related error - forcing cleanup');
+      extensionResourceMonitor.activeOperations = 0;
+      performMemoryCleanup();
+    }
+  });
+  
+  console.log('✅ Emergency monitoring active');
+}
 
 // Create flashcard from saved report with AI enhancement and safety checks
 async function createFlashcardFromReport(report) {
-  console.log('🃏 Starting createFlashcardFromReport for:', report?.searchText);
+  const operationName = `FlashcardCreation[${report?.searchText?.substring(0, 20) || 'unknown'}]`;
   
-  if (!flashcardManager) {
-    console.error('❌ FlashcardManager not available');
-    throw new Error('FlashcardManager not initialized');
-  }
-  
-  if (!report || !report.searchText || !report.language) {
-    console.error('❌ Invalid or incomplete report provided:', report);
-    throw new Error('Invalid report data - missing searchText or language');
-  }
+  try {
+    // Acquire operation lock to prevent Chrome overload
+    await acquireOperationLock(operationName);
+    
+    console.log('🃏 Starting createFlashcardFromReport for:', report?.searchText);
+    
+    if (!flashcardManager) {
+      console.error('❌ FlashcardManager not available');
+      throw new Error('FlashcardManager not initialized');
+    }
+    
+    if (!report || !report.searchText || !report.language) {
+      console.error('❌ Invalid or incomplete report provided:', report);
+      throw new Error('Invalid report data - missing searchText or language');
+    }
 
   try {
     // First try AI-enhanced flashcard creation with timeout
@@ -9963,6 +10082,15 @@ async function createFlashcardFromReport(report) {
   } catch (error) {
     console.error('❌ Error in createFlashcardFromReport:', error);
     throw error;
+  } finally {
+    // Always release the operation lock
+    releaseOperationLock(operationName);
+  }
+  
+  } catch (lockError) {
+    // Handle operation lock acquisition failure
+    console.error('❌ Failed to acquire operation lock:', lockError);
+    throw lockError;
   }
 }
 
