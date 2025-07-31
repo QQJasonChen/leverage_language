@@ -61,14 +61,6 @@ let currentQueryData = {};
 let currentAIAnalysis = null;
 let lastProcessedQuery = null;
 
-// Flashcard creation throttling with aggressive memory management
-let flashcardCreationCount = 0;
-let lastFlashcardCreationTime = 0;
-const FLASHCARD_CREATION_LIMIT = 3; // Reduced to 3 per minute for stability
-const FLASHCARD_COOLDOWN_PERIOD = 60000; // 1 minute
-window.audioCache = new Map(); // Track audio for cleanup - make global
-let memoryCleanupInterval = null;
-
 // Check for YouTube analysis data when sidepanel opens
 async function checkForYouTubeAnalysis() {
   try {
@@ -1039,32 +1031,7 @@ window.addEventListener('load', async () => {
         
         // Execute the action function if it exists
         if (typeof window[action] === 'function') {
-          console.log('Executing action:', action);
-          try {
-            // Add timeout protection for flashcard-related actions
-            if (action.includes('createFlashcard') || action.includes('flashcard')) {
-              const actionTimeout = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Action timeout')), 10000);
-              });
-              
-              const actionPromise = Promise.resolve(window[action]());
-              
-              Promise.race([actionPromise, actionTimeout]).catch(error => {
-                console.error('Flashcard action failed or timed out:', action, error);
-                if (error.message.includes('timeout')) {
-                  showMessage('建立記憶卡超時，請重試', 'error');
-                } else {
-                  showMessage('建立記憶卡失敗', 'error');
-                }
-              });
-            } else {
-              // Normal execution for non-flashcard actions
-              window[action]();
-            }
-          } catch (error) {
-            console.error('Action execution failed:', action, error);
-            showMessage('操作失敗，請重試', 'error');
-          }
+          window[action]();
         } else if (action.includes('(')) {
           // Handle function calls with parameters (security-limited)
           try {
@@ -1215,48 +1182,6 @@ function showSearchResult(queryData) {
                 
                 if (audioData) {
                   log('✅ Audio cached for future flashcard use');
-                  
-                  // Update existing saved report with audio data if auto-save is enabled
-                  if (autoSaveEnabled && storageManager && typeof storageManager.getAIReports === 'function') {
-                    try {
-                      // Find and update the existing report with audio data
-                      const reports = await storageManager.getAIReports();
-                      const matchingReport = reports.find(r => 
-                        r.searchText === currentQueryData.text && 
-                        r.language === currentQueryData.language
-                      );
-                      
-                      if (matchingReport && !matchingReport.audioData) {
-                        // Update the report with audio data
-                        matchingReport.audioData = {
-                          audioUrl: audioData.audioUrl,
-                          size: audioData.size,
-                          voice: audioData.voice || 'OpenAI TTS'
-                        };
-                        
-                        // Save the updated report back
-                        await storageManager.saveAIReport(
-                          matchingReport.searchText,
-                          matchingReport.language,
-                          matchingReport.analysis,
-                          matchingReport.audioData,
-                          matchingReport.videoSource,
-                          true, // updateExisting = true
-                          matchingReport.detectionMethod
-                        );
-                        
-                        log('🔄 Updated saved report with audio data');
-                        
-                        // Refresh the saved reports display if we're on that tab
-                        const saveTab = document.getElementById('saveTab');
-                        if (saveTab && saveTab.style.display !== 'none') {
-                          loadSavedReports();
-                        }
-                      }
-                    } catch (error) {
-                      log('⚠️ Failed to update report with audio:', error);
-                    }
-                  }
                 } else if (aiService && aiService.isAudioAvailable && aiService.isAudioAvailable()) {
                   // Fallback to original audio generation
                   log('⚠️ OpenAI TTS not available, using fallback audio generation');
@@ -4929,25 +4854,10 @@ async function loadSavedReports() {
         if (createFlashcardBtn) {
           createFlashcardBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            
-            // Disable button during processing
-            createFlashcardBtn.disabled = true;
-            const originalText = createFlashcardBtn.textContent;
-            createFlashcardBtn.textContent = '⏳';
-            
             try {
               const report = reports.find(r => r.id === reportId);
               if (report) {
-                // Add timeout to prevent freeze
-                const timeoutPromise = new Promise((_, reject) => {
-                  setTimeout(() => reject(new Error('Flashcard creation timeout')), 10000);
-                });
-                
-                await Promise.race([
-                  createFlashcardFromReport(report),
-                  timeoutPromise
-                ]);
-                
+                await createFlashcardFromReport(report);
                 showMessage(`已為「${report.searchText}」建立記憶卡！`, 'success');
                 
                 // Track analytics
@@ -4962,19 +4872,11 @@ async function loadSavedReports() {
               }
             } catch (error) {
               console.error('Failed to create flashcard from report:', error);
-              const report = reports.find(r => r.id === reportId);
               if (error.message.includes('already exists')) {
-                const searchText = report?.searchText || '此項目';
-                showMessage(`記憶卡「${searchText}」已存在`, 'warning');
-              } else if (error.message.includes('timeout')) {
-                showMessage('操作超時，請重試', 'error');
+                showMessage(`記憶卡「${report.searchText}」已存在`, 'warning');
               } else {
                 showMessage('建立記憶卡失敗', 'error');
               }
-            } finally {
-              // Restore button state
-              createFlashcardBtn.disabled = false;
-              createFlashcardBtn.textContent = originalText;
             }
           });
         }
@@ -6258,9 +6160,6 @@ function displayFilteredSavedReports(reports) {
 
 // Initialize all buttons and features
 document.addEventListener('DOMContentLoaded', async () => {
-  // Initialize memory cleanup first
-  initializeMemoryCleanup();
-  
   // Initialize history filters first to ensure window.setCurrentHistoryData is available
   initializeHistoryFilters();
   
@@ -9631,283 +9530,75 @@ function showCreateFlashcardDialog() {
   }, 100);
 }
 
-// Create flashcard (with cached audio support and enhanced protection)
+// Create flashcard (with cached audio support)
 async function createFlashcard(data) {
-  console.log('📝 Creating flashcard with data:', {
-    front: data.front,
-    language: data.language,
-    hasAudio: !!data.audioUrl
-  });
-  
-  // Throttling check
-  const now = Date.now();
-  if (now - lastFlashcardCreationTime > FLASHCARD_COOLDOWN_PERIOD) {
-    // Reset counter after cooldown period
-    flashcardCreationCount = 0;
-  }
-  
-  if (flashcardCreationCount >= FLASHCARD_CREATION_LIMIT) {
-    const remainingTime = Math.ceil((FLASHCARD_COOLDOWN_PERIOD - (now - lastFlashcardCreationTime)) / 1000);
-    console.warn(`⚠️ Flashcard creation rate limit reached. Wait ${remainingTime}s`);
-    throw new Error(`請等待 ${remainingTime} 秒後再建立記憶卡`);
-  }
-  
-  if (!flashcardManager) {
-    console.error('❌ FlashcardManager not available');
-    throw new Error('FlashcardManager not available');
-  }
+  if (!flashcardManager) return;
 
   try {
-    // Add ultra-aggressive timeout protection (3 seconds)
-    const createTimeout = new Promise((_, reject) => {
-      setTimeout(() => {
-        console.error('⏰ Flashcard creation timeout after 3 seconds');
-        performMemoryCleanup(); // Clean up on timeout
-        reject(new Error('Flashcard creation timeout'));
-      }, 3000); // Ultra-short timeout to prevent freezing
-    });
-
-    const createProcess = (async () => {
-      // Check if we have cached audio for this word
-      const cachedAudio = getCachedAudio(data.front, data.language || 'english');
-      if (cachedAudio && cachedAudio.audioUrl) {
-        data.audioUrl = cachedAudio.audioUrl;
-        console.log('🎯 Added cached audio to flashcard:', data.front);
-      }
-
-      console.log('💾 Calling flashcardManager.createFlashcard...');
-      const card = await window.flashcardManager.createFlashcard(data);
-      console.log('✅ Flashcard created with ID:', card?.id);
-      
-      return card;
-    })();
-
-    const card = await Promise.race([createProcess, createTimeout]);
-    
-    // Update throttling counters on successful creation
-    flashcardCreationCount++;
-    lastFlashcardCreationTime = now;
-    console.log(`📊 Flashcard creation count: ${flashcardCreationCount}/${FLASHCARD_CREATION_LIMIT}`);
-    
-    // Immediate memory cleanup after successful creation
-    performMemoryCleanup();
-    
-    // Defer UI updates to prevent blocking
-    setTimeout(async () => {
-      try {
-        // Only refresh view if we're in flashcards view
-        const flashcardsView = document.getElementById('flashcardsView');
-        if (flashcardsView && flashcardsView.style.display !== 'none') {
-          await loadFlashcardsView();
-        }
-      } catch (refreshError) {
-        console.warn('⚠️ Failed to refresh flashcards view:', refreshError);
-      }
-    }, 200);
-    
-    // Show success message with throttling info
-    const remaining = FLASHCARD_CREATION_LIMIT - flashcardCreationCount;
-    if (remaining <= 1) {
-      showMessage(`記憶卡建立成功！(剩餘 ${remaining} 次)`, 'success');
-    } else {
-      showMessage('記憶卡建立成功！', 'success');
+    // Check if we have cached audio for this word
+    const cachedAudio = getCachedAudio(data.front, data.language || 'english');
+    if (cachedAudio && cachedAudio.audioUrl) {
+      data.audioUrl = cachedAudio.audioUrl;
+      console.log('🎯 Added cached audio to flashcard:', data.front);
     }
+
+    const card = await window.flashcardManager.createFlashcard(data);
+    console.log('📇 Created new flashcard:', card);
     
-    return card;
+    // Refresh the flashcards view
+    await loadFlashcardsView();
     
+    // Show success message
+    showMessage('記憶卡建立成功！', 'success');
   } catch (error) {
-    console.error('❌ Failed to create flashcard:', error);
-    
-    if (error.message.includes('timeout')) {
-      showMessage('建立記憶卡超時，請重試', 'error');
-    } else if (error.message.includes('already exists')) {
+    console.error('Failed to create flashcard:', error);
+    if (error.message.includes('already exists')) {
       showMessage('記憶卡已存在，無需重複建立', 'warning');
     } else {
       showMessage('建立記憶卡失敗', 'error');
     }
-    
-    throw error; // Re-throw for calling functions to handle
   }
 }
 
-// Create flashcard from current word with safety protection
+// Create flashcard from current word
 async function createFlashcardFromCurrentWord() {
-  console.log('🃏 Creating flashcard from current word:', currentQueryData?.text);
-  
-  if (!flashcardManager) {
-    console.error('❌ FlashcardManager not available');
-    showMessage('記憶卡管理器未就緒', 'error');
-    return;
-  }
-  
-  if (!currentQueryData?.text) {
-    console.log('⚠️ No current query text available');
+  if (!currentQueryData.text) {
     showMessage('沒有當前查詢的單字', 'warning');
     return;
   }
 
-  try {
-    // Add timeout protection
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Current word flashcard creation timeout')), 8000);
-    });
+  // Get translation from quick search if available
+  const translation = document.getElementById('quickTranslation')?.textContent || 
+                     await getQuickTranslation(currentQueryData.text, currentQueryData.language);
+  
+  const pronunciation = document.getElementById('quickPronunciation')?.textContent || '';
+  const definition = document.getElementById('quickDefinition')?.textContent || '';
 
-    const createPromise = (async () => {
-      // Get translation from quick search if available
-      const translation = document.getElementById('quickTranslation')?.textContent || 
-                         await getQuickTranslation(currentQueryData.text, currentQueryData.language);
-      
-      const pronunciation = document.getElementById('quickPronunciation')?.textContent || '';
-      const definition = document.getElementById('quickDefinition')?.textContent || '';
+  const flashcardData = {
+    front: currentQueryData.text,
+    back: translation,
+    pronunciation: pronunciation,
+    definition: definition,
+    language: currentQueryData.language,
+    tags: ['current-word']
+  };
 
-      const flashcardData = {
-        front: currentQueryData.text,
-        back: translation,
-        pronunciation: pronunciation,
-        definition: definition,
-        language: currentQueryData.language,
-        tags: ['current-word']
-      };
-
-      console.log('📝 Creating flashcard from current word with data:', flashcardData);
-      return await createFlashcard(flashcardData);
-    })();
-
-    await Promise.race([createPromise, timeoutPromise]);
-    console.log('✅ Current word flashcard created successfully');
-    
-  } catch (error) {
-    console.error('❌ Failed to create flashcard from current word:', error);
-    if (error.message.includes('timeout')) {
-      showMessage('建立記憶卡超時，請重試', 'error');
-    } else if (error.message.includes('already exists')) {
-      showMessage('此單字的記憶卡已存在', 'warning');
-    } else {
-      showMessage('建立記憶卡失敗', 'error');
-    }
-  }
+  await createFlashcard(flashcardData);
 }
 
-// Aggressive memory cleanup functions
-function performMemoryCleanup() {
-  console.log('🧹 Performing aggressive memory cleanup...');
-  
-  try {
-    // Clear audio cache if it's getting too large
-    if (window.audioCache.size > 10) {
-      console.log(`🗑️ Clearing ${window.audioCache.size} cached audio items`);
-      window.audioCache.forEach((audioData, key) => {
-        try {
-          if (audioData && audioData.blobUrl && audioData.blobUrl.startsWith('blob:')) {
-            URL.revokeObjectURL(audioData.blobUrl);
-          }
-        } catch (e) {
-          console.warn('Failed to revoke audio URL:', e);
-        }
-      });
-      window.audioCache.clear();
-    }
-    
-    // Clear temporary DOM elements
-    const tempElements = document.querySelectorAll('[data-temp="true"]');
-    tempElements.forEach(el => el.remove());
-    
-    // Clear any hanging audio elements
-    const audioElements = document.querySelectorAll('audio');
-    audioElements.forEach(audio => {
-      if (audio.src && audio.src.startsWith('blob:')) {
-        audio.pause();
-        audio.src = '';
-        if (audio.parentNode) {
-          audio.parentNode.removeChild(audio);
-        }
-      }
-    });
-    
-    // Force garbage collection if available (Chrome dev tools)
-    if (window.gc && typeof window.gc === 'function') {
-      window.gc();
-      console.log('🗑️ Forced garbage collection');
-    }
-    
-    console.log('✅ Memory cleanup completed');
-  } catch (error) {
-    console.error('❌ Memory cleanup failed:', error);
-  }
-}
-
-// Initialize memory cleanup interval
-function initializeMemoryCleanup() {
-  if (memoryCleanupInterval) {
-    clearInterval(memoryCleanupInterval);
-  }
-  
-  // Clean up memory every 30 seconds
-  memoryCleanupInterval = setInterval(() => {
-    performMemoryCleanup();
-  }, 30000);
-  
-  console.log('🧹 Memory cleanup interval initialized');
-}
-
-// Cleanup on page unload
-window.addEventListener('beforeunload', () => {
-  performMemoryCleanup();
-  if (memoryCleanupInterval) {
-    clearInterval(memoryCleanupInterval);
-  }
-});
-
-// Create flashcard from saved report with AI enhancement and safety checks
+// Create flashcard from saved report
 async function createFlashcardFromReport(report) {
-  console.log('🃏 Starting createFlashcardFromReport for:', report?.searchText);
-  
-  if (!flashcardManager) {
-    console.error('❌ FlashcardManager not available');
-    throw new Error('FlashcardManager not initialized');
-  }
-  
-  if (!report || !report.searchText || !report.language) {
-    console.error('❌ Invalid or incomplete report provided:', report);
-    throw new Error('Invalid report data - missing searchText or language');
-  }
+  if (!flashcardManager || !report) return;
 
   try {
-    // First try AI-enhanced flashcard creation with timeout
-    if (window.aiService && window.aiService.isAvailable()) {
-      console.log('🤖 Attempting AI-enhanced flashcard creation...');
-      
-      try {
-        // Add timeout protection for AI enhancement
-        const aiTimeout = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('AI flashcard generation timeout')), 8000);
-        });
-
-        const result = await Promise.race([
-          window.flashcardManager.createEnhancedFromReport(report),
-          aiTimeout
-        ]);
-
-        console.log('✅ AI-enhanced flashcard created successfully:', result?.id);
-        return result;
-
-      } catch (aiError) {
-        console.warn('⚠️ AI enhancement failed, falling back to manual extraction:', aiError.message);
-        // Continue to fallback method below
-      }
-    } else {
-      console.log('ℹ️ AI service not available, using manual extraction');
-    }
-
-    // Fallback: Manual extraction from existing analysis (like before)
-    console.log('🔄 Using manual content extraction...');
-    
+    // Extract information from the report
     const analysisText = typeof report.analysisData === 'string' 
       ? report.analysisData 
       : (report.analysisData && report.analysisData.content 
           ? report.analysisData.content 
           : '');
 
+    // Try to extract translation, pronunciation, and definition
     let translation = '';
     let pronunciation = '';
     let definition = '';
@@ -9916,56 +9607,68 @@ async function createFlashcardFromReport(report) {
       // Extract Chinese translation
       const chineseMatch = analysisText.match(/中文[：:\s]*([^\n]+)/i) ||
                           analysisText.match(/翻譯[：:\s]*([^\n]+)/i) ||
-                          analysisText.match(/意思[：:\s]*([^\n]+)/i);
-      if (chineseMatch) translation = chineseMatch[1].trim();
+                          analysisText.match(/Translation[：:\s]*([^\n]+)/i);
+      if (chineseMatch) {
+        translation = chineseMatch[1].trim();
+      }
 
-      // Extract pronunciation
-      const pronMatch = analysisText.match(/發音[：:\s]*([^\n]+)/i) ||
-                       analysisText.match(/\[([^\]]+)\]/);
-      if (pronMatch) pronunciation = pronMatch[1].trim();
+      // Extract pronunciation (IPA or phonetic)
+      const pronunciationMatch = analysisText.match(/\[([^\]]+)\]/) ||
+                                analysisText.match(/\/([^\/]+)\//) ||
+                                analysisText.match(/發音[：:\s]*([^\n]+)/i) ||
+                                analysisText.match(/Pronunciation[：:\s]*([^\n]+)/i);
+      if (pronunciationMatch) {
+        pronunciation = pronunciationMatch[1].trim();
+      }
 
       // Extract definition
-      const defMatch = analysisText.match(/定義[：:\s]*([^\n]+)/i) ||
-                      analysisText.match(/解釋[：:\s]*([^\n]+)/i);
-      if (defMatch) definition = defMatch[1].trim();
+      const definitionMatch = analysisText.match(/定義[：:\s]*([^\n]+)/i) ||
+                             analysisText.match(/Definition[：:\s]*([^\n]+)/i) ||
+                             analysisText.match(/含義[：:\s]*([^\n]+)/i) ||
+                             analysisText.match(/Meaning[：:\s]*([^\n]+)/i);
+      if (definitionMatch) {
+        definition = definitionMatch[1].trim();
+      }
+
+      // If no specific translation found, use first line as translation
+      if (!translation) {
+        const lines = analysisText.split('\n').filter(line => line.trim());
+        if (lines.length > 0) {
+          translation = lines[0].trim();
+        }
+      }
     }
 
-    // Fallback extraction if nothing found
-    if (!translation && analysisText) {
-      translation = analysisText.substring(0, 100) + '...';
+    // Fallback to basic information if extraction failed
+    if (!translation) {
+      translation = `${report.language} word: ${report.searchText}`;
     }
 
     const flashcardData = {
       front: report.searchText,
-      back: translation || 'Translation needed',
-      definition: definition || 'Definition needed',
+      back: translation,
       pronunciation: pronunciation,
+      definition: definition,
       language: report.language,
-      tags: (report.tags || []).concat(['from-report', 'manual-extraction'])
+      tags: [...(report.tags || []), 'from-report']
     };
 
-    console.log('📝 Creating flashcard with manually extracted data:', flashcardData);
-
-    // Include audio if available
+    // Check if we have cached audio for this word
     const cachedAudio = getCachedAudio(report.searchText, report.language);
     if (cachedAudio && cachedAudio.audioUrl) {
       flashcardData.audioUrl = cachedAudio.audioUrl;
-      console.log('🔊 Added cached audio to flashcard');
+      console.log('🎯 Added cached audio to flashcard:', report.searchText);
     }
 
-    // Create flashcard with manual extraction
-    console.log('💾 Calling flashcardManager.createFlashcard with manual data...');
-    const result = await window.flashcardManager.createFlashcard(flashcardData, false);
-    console.log('✅ Manual flashcard created successfully:', result?.id);
+    const card = await window.flashcardManager.createFlashcard(flashcardData);
+    console.log('📇 Created flashcard from report:', card);
     
-    return result;
-    
+    return card;
   } catch (error) {
-    console.error('❌ Error in createFlashcardFromReport:', error);
+    console.error('Failed to create flashcard from report:', error);
     throw error;
   }
 }
-
 
 // Create flashcards from all saved reports
 async function createAllFlashcardsFromReports() {
@@ -10004,16 +9707,7 @@ async function createAllFlashcardsFromReports() {
       const report = filteredReports[i];
       
       try {
-        // Add timeout protection for bulk creation
-        const createTimeout = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Bulk flashcard timeout')), 5000);
-        });
-        
-        await Promise.race([
-          createFlashcardFromReport(report),
-          createTimeout
-        ]);
-        
+        await createFlashcardFromReport(report);
         successCount++;
 
         // Show progress
@@ -10021,13 +9715,8 @@ async function createAllFlashcardsFromReports() {
           createAllBtn.textContent = `🔄 建立中 ${i + 1}/${filteredReports.length}`;
         }
 
-        // More aggressive delay and cleanup every 3 cards
-        if (i % 3 === 0) {
-          performMemoryCleanup();
-          await new Promise(resolve => setTimeout(resolve, 1000)); // Longer delay every 3 cards
-        } else {
-          await new Promise(resolve => setTimeout(resolve, 200)); // Small delay between cards
-        }
+        // Small delay to prevent overwhelming the system
+        await new Promise(resolve => setTimeout(resolve, 100));
       } catch (error) {
         console.error(`Failed to create flashcard for ${report.searchText}:`, error);
         if (error.message && error.message.includes('already exists')) {
@@ -10146,107 +9835,20 @@ function loadCurrentCard() {
   if (flashcard) flashcard.classList.remove('flipped');
   if (frontText) frontText.textContent = card.front || 'No front text';
   if (backText) {
-    // Use the concise translation for flashcard back
     backText.textContent = card.back || 'No translation available';
     console.log('Setting back text:', card.back);
   }
-  
-  // Enhanced display for AI-generated content
-  if (cardDefinition) {
-    // Show context sentence if available
-    if (card.definition) {
-      cardDefinition.textContent = card.definition;
-      
-      // Add visual indicator for AI-enhanced cards
-      if (card.aiGenerated) {
-        cardDefinition.classList.add('ai-enhanced');
-        cardDefinition.style.fontStyle = 'italic';
-        cardDefinition.style.opacity = '0.9';
-      }
-    } else {
-      cardDefinition.textContent = '';
-    }
-  }
-
-  // Display memory tip separately if available
-  const cardMemoryTip = document.getElementById('cardMemoryTip');
-  if (cardMemoryTip) {
-    if (card.memoryTip) {
-      cardMemoryTip.textContent = `💡 ${card.memoryTip}`;
-      cardMemoryTip.style.display = 'block';
-    } else {
-      cardMemoryTip.style.display = 'none';
-    }
-  }
-  
-  if (cardPronunciation) {
-    const pronunciationText = card.pronunciation ? `[${card.pronunciation}]` : '';
-    cardPronunciation.textContent = pronunciationText;
-    
-    // Style pronunciation for better visibility
-    if (pronunciationText) {
-      cardPronunciation.style.color = '#666';
-      cardPronunciation.style.fontSize = '14px';
-      cardPronunciation.style.marginTop = '4px';
-    }
-  }
+  if (cardDefinition) cardDefinition.textContent = card.definition || '';
+  if (cardPronunciation) cardPronunciation.textContent = card.pronunciation ? `[${card.pronunciation}]` : '';
   if (flipCardBtn) {
     flipCardBtn.style.display = 'block';
     flipCardBtn.textContent = '翻轉卡片';
   }
   if (answerButtons) answerButtons.style.display = 'none';
 
-  // Enhanced audio integration
+  // Show audio button if available
   if (audioPlayBtn) {
-    const hasAudio = card.audioUrl || card.audioData;
-    audioPlayBtn.style.display = hasAudio ? 'block' : 'none';
-    
-    if (hasAudio) {
-      // Style the audio button for better visibility
-      audioPlayBtn.classList.add('enhanced');
-      audioPlayBtn.title = 'Play pronunciation audio';
-      
-      // Add visual indicator for AI-generated audio
-      if (card.tags && card.tags.includes('with-audio')) {
-        audioPlayBtn.innerHTML = '🔊 Play Audio';
-      } else {
-        audioPlayBtn.innerHTML = '🔊 Play';
-      }
-      
-      // Enhanced click handler for audio
-      audioPlayBtn.onclick = async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        try {
-          audioPlayBtn.style.opacity = '0.7';
-          audioPlayBtn.innerHTML = '⏳ Playing...';
-          
-          // Use flashcard manager's audio playback
-          if (window.flashcardManager && typeof window.flashcardManager.playPronunciation === 'function') {
-            await window.flashcardManager.playPronunciation(card.id);
-          } else {
-            // Fallback to direct audio playback
-            if (card.audioUrl) {
-              const audio = new Audio(card.audioUrl);
-              await audio.play();
-            }
-          }
-          
-        } catch (error) {
-          console.error('❌ Failed to play audio:', error);
-          audioPlayBtn.innerHTML = '❌ Error';
-          setTimeout(() => {
-            audioPlayBtn.innerHTML = '🔊 Play';
-          }, 2000);
-        } finally {
-          setTimeout(() => {
-            audioPlayBtn.style.opacity = '1';
-            audioPlayBtn.innerHTML = '🔊 Play';
-          }, 1000);
-        }
-      };
-    }
+    audioPlayBtn.style.display = card.audioUrl ? 'block' : 'none';
   }
 
   // Configure display based on study mode
@@ -10653,28 +10255,6 @@ async function playCardPronunciation() {
 
 // Global audio cache to reuse generated audio
 window.audioCache = window.audioCache || new Map();
-
-// Cleanup function to prevent memory leaks
-function cleanupFlashcardMemory() {
-  // Clear audio cache if it gets too large (>50 items)
-  if (window.audioCache && window.audioCache.size > 50) {
-    console.log('🧹 Cleaning up audio cache...');
-    const entries = Array.from(window.audioCache.entries());
-    // Keep only the 25 most recent entries
-    window.audioCache.clear();
-    entries.slice(-25).forEach(([key, value]) => {
-      window.audioCache.set(key, value);
-    });
-  }
-  
-  // Force garbage collection if available
-  if (window.gc) {
-    window.gc();
-  }
-}
-
-// Run cleanup periodically
-setInterval(cleanupFlashcardMemory, 30000); // Every 30 seconds
 
 // Generate audio using OpenAI TTS API (with caching)
 async function generateOpenAIAudio(text, language, playImmediately = true) {

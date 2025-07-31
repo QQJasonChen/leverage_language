@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LeverageLanguage - AI Language Learning</title>
+    
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Professional UI Styles -->
+    <link rel="stylesheet" href="styles/professional-ui.css">
+    <link rel="stylesheet" href="styles/content-sections.css">
+    
+    <style>
+        /* Custom components for this app */
+        
+        /* Welcome State */
+        .welcome-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 400px;
+            text-align: center;
+            padding: var(--space-8);
+        }
+        
+        .welcome-icon {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%);
+            border-radius: var(--radius-xl);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: var(--text-2xl);
+            font-weight: var(--font-weight-bold);
+            margin-bottom: var(--space-4);
+        }
+        
+        .welcome-title {
+            font-size: var(--text-2xl);
+            font-weight: var(--font-weight-semibold);
+            color: var(--color-neutral-800);
+            margin-bottom: var(--space-2);
+        }
+        
+        .welcome-subtitle {
+            font-size: var(--text-base);
+            color: var(--color-neutral-500);
+            margin-bottom: var(--space-6);
+            max-width: 280px;
+        }
+        
+        /* Search Input */
+        .search-container {
+            position: relative;
+            margin-bottom: var(--space-6);
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: var(--space-4) var(--space-12) var(--space-4) var(--space-4);
+            border: 2px solid var(--color-neutral-200);
+            border-radius: var(--radius-lg);
+            font-size: var(--text-base);
+            transition: all var(--transition-fast);
+        }
+        
+        .search-input:focus {
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+        }
+        
+        .search-button {
+            position: absolute;
+            right: var(--space-2);
+            top: 50%;
+            transform: translateY(-50%);
+            padding: var(--space-2);
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .search-button:hover {
+            background: var(--color-primary-hover);
+        }
+        
+        /* Analysis Result */
+        .analysis-result {
+            background: white;
+            border: 1px solid var(--color-neutral-200);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+        
+        .analysis-header {
+            padding: var(--space-6);
+            border-bottom: 1px solid var(--color-neutral-200);
+            background: linear-gradient(135deg, var(--color-primary-light) 0%, rgba(79, 70, 229, 0.05) 100%);
+        }
+        
+        .analysis-query {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            margin-bottom: var(--space-4);
+        }
+        
+        .query-text {
+            font-size: var(--text-xl);
+            font-weight: var(--font-weight-semibold);
+            color: var(--color-neutral-800);
+            flex: 1;
+        }
+        
+        .language-badge {
+            padding: var(--space-1) var(--space-3);
+            background: var(--color-primary);
+            color: white;
+            border-radius: var(--radius-md);
+            font-size: var(--text-sm);
+            font-weight: var(--font-weight-medium);
+        }
+        
+        .analysis-actions {
+            display: flex;
+            gap: var(--space-2);
+            flex-wrap: wrap;
+        }
+        
+        .analysis-content {
+            padding: var(--space-6);
+        }
+        
+        /* AI Response */
+        .ai-response {
+            background: var(--color-neutral-50);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: var(--radius-lg);
+            padding: var(--space-6);
+            margin-bottom: var(--space-6);
+        }
+        
+        .ai-response-header {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            margin-bottom: var(--space-4);
+        }
+        
+        .ai-icon {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: var(--text-sm);
+            font-weight: var(--font-weight-bold);
+        }
+        
+        .ai-response-title {
+            font-size: var(--text-lg);
+            font-weight: var(--font-weight-semibold);
+            color: var(--color-neutral-800);
+        }
+        
+        .ai-response-content {
+            font-size: var(--text-base);
+            line-height: var(--line-height-relaxed);
+            color: var(--color-neutral-700);
+        }
+        
+        /* History Item */
+        .history-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+            padding: var(--space-4);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--space-3);
+            transition: all var(--transition-fast);
+            cursor: pointer;
+        }
+        
+        .history-item:hover {
+            border-color: var(--color-primary-border);
+            background: var(--color-primary-light);
+        }
+        
+        .history-item-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: var(--font-weight-semibold);
+            flex-shrink: 0;
+        }
+        
+        .history-item-icon.article {
+            background: var(--color-secondary-light);
+            color: var(--color-secondary);
+        }
+        
+        .history-item-icon.video {
+            background: var(--color-accent-light);
+            color: var(--color-accent);
+        }
+        
+        .history-item-content {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .history-item-text {
+            font-size: var(--text-base);
+            font-weight: var(--font-weight-medium);
+            color: var(--color-neutral-800);
+            margin-bottom: var(--space-1);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .history-item-meta {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            font-size: var(--text-sm);
+            color: var(--color-neutral-500);
+        }
+        
+        /* Saved Report Item */
+        .saved-item {
+            background: white;
+            border: 1px solid var(--color-neutral-200);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--space-4);
+            overflow: hidden;
+            transition: all var(--transition-fast);
+        }
+        
+        .saved-item:hover {
+            border-color: var(--color-primary-border);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .saved-item-header {
+            padding: var(--space-4);
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-4);
+        }
+        
+        .saved-item-content {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .saved-item-text {
+            font-size: var(--text-lg);
+            font-weight: var(--font-weight-semibold);
+            color: var(--color-neutral-800);
+            margin-bottom: var(--space-2);
+            cursor: pointer;
+        }
+        
+        .saved-item-text:hover {
+            color: var(--color-primary);
+        }
+        
+        .saved-item-badges {
+            display: flex;
+            gap: var(--space-2);
+            flex-wrap: wrap;
+            margin-bottom: var(--space-3);
+        }
+        
+        .saved-item-meta {
+            font-size: var(--text-sm);
+            color: var(--color-neutral-500);
+        }
+        
+        .saved-item-actions {
+            display: flex;
+            gap: var(--space-2);
+            flex-shrink: 0;
+        }
+        
+        .saved-item-preview {
+            padding: 0 var(--space-4) var(--space-4);
+            font-size: var(--text-sm);
+            color: var(--color-neutral-600);
+            line-height: var(--line-height-relaxed);
+        }
+        
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-10);
+            text-align: center;
+        }
+        
+        .empty-state-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--color-neutral-100);
+            border-radius: var(--radius-xl);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--color-neutral-400);
+            font-size: var(--text-xl);
+            margin-bottom: var(--space-4);
+        }
+        
+        .empty-state-title {
+            font-size: var(--text-lg);
+            font-weight: var(--font-weight-semibold);
+            color: var(--color-neutral-700);
+            margin-bottom: var(--space-2);
+        }
+        
+        .empty-state-description {
+            font-size: var(--text-sm);
+            color: var(--color-neutral-500);
+            max-width: 280px;
+        }
+        
+        /* Loading States */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-8);
+        }
+        
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid var(--color-neutral-200);
+            border-top: 3px solid var(--color-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Hide elements initially */
+        .view-section {
+            display: none;
+        }
+        
+        .view-section.active {
+            display: block;
+        }
+        
+        /* Quick stats cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--space-4);
+            margin-bottom: var(--space-6);
+        }
+        
+        .stat-card {
+            background: white;
+            border: 1px solid var(--color-neutral-200);
+            border-radius: var(--radius-lg);
+            padding: var(--space-5);
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: var(--text-3xl);
+            font-weight: var(--font-weight-bold);
+            color: var(--color-primary);
+            margin-bottom: var(--space-2);
+        }
+        
+        .stat-label {
+            font-size: var(--text-sm);
+            color: var(--color-neutral-500);
+            font-weight: var(--font-weight-medium);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="app-logo">
+                <div class="app-logo-icon">L</div>
+                <div class="app-logo-text">LeverageLanguage</div>
+            </div>
+            <div class="app-header-actions">
+                <button class="btn btn-ghost btn-sm" id="settingsBtn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M12 1v6m0 6v6"></path>
+                        <path d="M1 12h6m6 0h6"></path>
+                    </svg>
+                    Settings
+                </button>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="app-nav">
+            <button class="nav-item active" data-view="analysis">
+                <svg class="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                    <polyline points="13,2 13,9 20,9"></polyline>
+                </svg>
+                Analysis
+            </button>
+            <button class="nav-item" data-view="history">
+                <svg class="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12,6 12,12 16,14"></polyline>
+                </svg>
+                History
+            </button>
+            <button class="nav-item" data-view="saved">
+                <svg class="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                </svg>
+                Saved Reports
+            </button>
+            <button class="nav-item" data-view="flashcards">
+                <svg class="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                </svg>
+                Flashcards
+            </button>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="app-main">
+            <div class="content-container scrollable">
+                
+                <!-- Analysis View -->
+                <div id="analysisView" class="view-section active">
+                    <!-- Welcome State -->
+                    <div id="welcomeState" class="welcome-state">
+                        <div class="welcome-icon">AI</div>
+                        <h1 class="welcome-title">AI-Powered Language Learning</h1>
+                        <p class="welcome-subtitle">Select text on any webpage or video to get instant AI analysis and learning insights.</p>
+                        
+                        <div class="search-container">
+                            <input type="text" class="search-input" placeholder="Enter text to analyze..." id="manualSearchInput">
+                            <button class="search-button" id="manualSearchBtn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <path d="m21 21-4.35-4.35"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div class="flex gap-2">
+                            <button class="btn btn-primary" id="learnMoreBtn">Learn More</button>
+                            <button class="btn btn-secondary" id="viewHistoryBtn">View History</button>
+                        </div>
+                    </div>
+
+                    <!-- Analysis Result -->
+                    <div id="analysisResult" class="analysis-result" style="display: none;">
+                        <div class="analysis-header">
+                            <div class="analysis-query">
+                                <div class="query-text" id="currentQueryText">Sample text for analysis</div>
+                                <div class="language-badge" id="currentLanguage">English</div>
+                            </div>
+                            <div class="analysis-actions">
+                                <button class="btn btn-success btn-sm" id="saveReportBtn">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                                    </svg>
+                                    Save Report
+                                </button>
+                                <button class="btn btn-secondary btn-sm" id="playAudioBtn">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                    </svg>
+                                    Play Audio
+                                </button>
+                                <button class="btn btn-ghost btn-sm" id="exportBtn">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="7,10 12,15 17,10"></polyline>
+                                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                                    </svg>
+                                    Export
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="analysis-content">
+                            <div class="ai-response">
+                                <div class="ai-response-header">
+                                    <div class="ai-icon">AI</div>
+                                    <h3 class="ai-response-title">Analysis Result</h3>
+                                </div>
+                                <div class="ai-response-content" id="aiAnalysisContent">
+                                    <div class="loading">
+                                        <div class="spinner"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- History View -->
+                <div id="historyView" class="view-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">Learning History</h2>
+                            <p class="card-subtitle">Your recent language learning activities</p>
+                        </div>
+                        <div class="card-body">
+                            <div id="historyList">
+                                <!-- History items will be inserted here -->
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">📚</div>
+                                    <h3 class="empty-state-title">No history yet</h3>
+                                    <p class="empty-state-description">Start analyzing text to build your learning history</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Saved Reports View -->
+                <div id="savedView" class="view-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">Saved Reports</h2>
+                            <p class="card-subtitle">Your collection of AI analysis reports</p>
+                        </div>
+                        <div class="card-body">
+                            <!-- Quick Stats -->
+                            <div class="stats-grid" id="savedStatsGrid">
+                                <div class="stat-card">
+                                    <div class="stat-value" id="totalReportsCount">0</div>
+                                    <div class="stat-label">Total Reports</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value" id="correctReportsCount">0</div>
+                                    <div class="stat-label">Correct Texts</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value" id="errorReportsCount">0</div>
+                                    <div class="stat-label">With Errors</div>
+                                </div>
+                            </div>
+                            
+                            <div id="savedReportsList">
+                                <!-- Saved items will be inserted here -->
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">💾</div>
+                                    <h3 class="empty-state-title">No saved reports</h3>
+                                    <p class="empty-state-description">Save your AI analysis results to access them later</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Flashcards View -->
+                <div id="flashcardsView" class="view-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">Flashcards</h2>
+                            <p class="card-subtitle">Study your vocabulary and key phrases</p>
+                        </div>
+                        <div class="card-body">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">🃏</div>
+                                <h3 class="empty-state-title">No flashcards yet</h3>
+                                <p class="empty-state-description">Create flashcards from your saved reports to enhance learning</p>
+                                <button class="btn btn-primary" style="margin-top: var(--space-4);">Create First Flashcard</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="sidepanel.js"></script>
+    <script src="js/professional-ui-controller.js"></script>
+    <script src="js/ui-integration-bridge.js"></script>
+</body>
+</html>
