@@ -26,10 +26,15 @@
       audioStream: null,
       isRecording: false,
       chunkStartTime: 0,
-      chunkDuration: 15, // ✅ FIX: Increased to 15-second chunks to reduce overlap
-      chunkGap: 1, // ✅ NEW: 1-second gap between chunks to prevent duplicates
+      chunkDuration: 5, // ✅ ULTRA-MINIMAL: 5-second chunks to prevent memory buildup
+      chunkGap: 3, // ✅ ULTRA-MINIMAL: 3-second gap for processing and cleanup
       pendingTranscriptions: new Map(), // Track ongoing transcriptions
       lastTranscriptionTime: 0,
+      apiRateLimit: {
+        minDelay: 3000, // ✅ ULTRA-MINIMAL: 3 seconds minimum between API calls
+        lastCallTime: 0,
+        queue: []
+      },
       initializationAttempted: false, // Track if we've tried to initialize
       processedTimeRanges: [], // ✅ NEW: Track processed time ranges to avoid duplicates
       languageOverride: 'auto', // ✅ NEW: User language override
@@ -37,7 +42,7 @@
       // ✅ EMERGENCY CIRCUIT BREAKER
       emergencyStop: {
         enabled: true,
-        maxRecordingTime: 180000, // 3 minutes per chunk
+        maxRecordingTime: 60000, // ✅ ULTRA-MINIMAL: 1 minute max to prevent any freeze
         startTime: null,
         memoryCheckInterval: null,
         lastMemoryCheck: 0,
@@ -1752,12 +1757,15 @@
           }
         };
         
-        // Start monitoring after a delay
+        // ✅ ULTRA-MINIMAL: Disable audio monitoring to save resources
+        // Audio monitoring commented out to prevent resource usage
+        /*
         whisper.monitoringInitTimer = setTimeout(() => {
           if (audioMonitoringActive) {
             monitorAudio();
           }
         }, 2000);
+        */
         
       } catch (error) {
         console.log('⚠️ Audio monitoring not available:', error.message);
@@ -1774,16 +1782,17 @@
       
       captionCollection.whisper.mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
-          // ✅ CRITICAL FIX: More aggressive memory protection
-          if (captionCollection.whisper.audioChunks.length > 5) {
-            console.log('🧹 CRITICAL: Clearing old audio chunks to prevent memory overflow');
-            // Keep only the last 2 chunks to prevent memory buildup
-            captionCollection.whisper.audioChunks = captionCollection.whisper.audioChunks.slice(-2);
+          // ✅ ULTRA-MINIMAL: Keep only 1 audio chunk at a time
+          if (captionCollection.whisper.audioChunks.length > 0) {
+            console.log('🧹 ULTRA-MINIMAL: Clearing all previous audio chunks');
+            // Replace all chunks with just the current one
+            captionCollection.whisper.audioChunks = [event.data];
+          } else {
+            captionCollection.whisper.audioChunks.push(event.data);
           }
           
-          captionCollection.whisper.audioChunks.push(event.data);
           console.log(`🎵 Audio chunk collected: ${event.data.size} bytes`);
-          console.log(`📊 Total chunks collected: ${captionCollection.whisper.audioChunks.length}`);
+          console.log(`📊 Total chunks: ${captionCollection.whisper.audioChunks.length} (max 1)`);
           
           // ✅ NEW: Check if chunk size is reasonable (should be > 10KB for 10 seconds of audio)
           if (event.data.size < 10000) {
@@ -1863,9 +1872,9 @@
       const now = Date.now();
       const recordingDuration = now - emergency.startTime;
       
-      // 1. Check maximum recording time (3 minutes)
+      // 1. Check maximum recording time (1 minute)
       if (recordingDuration > emergency.maxRecordingTime) {
-        console.error('🚨 EMERGENCY STOP: Maximum recording time exceeded (3 minutes)');
+        console.error('🚨 EMERGENCY STOP: Maximum recording time exceeded (1 minute)');
         triggerEmergencyStop('MAX_TIME_EXCEEDED');
         return;
       }
@@ -1901,7 +1910,7 @@
       
     }, 15000); // Check every 15 seconds
     
-    console.log('✅ Emergency monitoring started (3min max, memory checks every 15s)');
+    console.log('✅ ULTRA-MINIMAL: Emergency monitoring (1min max, checks every 15s)');
   }
   
   function triggerEmergencyStop(reason) {
@@ -2122,9 +2131,9 @@
       
       console.log(`📊 Memory status: ${whisper.audioChunks.length} chunks, ${whisper.pendingTranscriptions.size} pending, ${whisper.processedTimeRanges.length} ranges, ${captionCollection.segments.length} segments`);
       
-    }, 10000); // ✅ ULTRA-AGGRESSIVE: Run every 10 seconds instead of 30
+    }, 5000); // ✅ ULTRA-MINIMAL: Run every 5 seconds for immediate cleanup
     
-    console.log('✅ Started ULTRA-AGGRESSIVE memory cleanup (every 10s)');
+    console.log('✅ ULTRA-MINIMAL: Started memory cleanup (every 5s)');
   }
 
   function startContinuousAudioRecording() {
@@ -2245,6 +2254,20 @@
   }
 
   async function transcribeWithWhisper(audioBlob, startTime) {
+    // ✅ ULTRA-MINIMAL: Rate limit API calls
+    const whisper = captionCollection.whisper;
+    const rateLimit = whisper.apiRateLimit;
+    const now = Date.now();
+    const timeSinceLastCall = now - rateLimit.lastCallTime;
+    
+    if (timeSinceLastCall < rateLimit.minDelay) {
+      const delay = rateLimit.minDelay - timeSinceLastCall;
+      console.log(`⏳ Rate limiting: Waiting ${delay}ms before API call`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+    
+    rateLimit.lastCallTime = Date.now();
+    
     // Send audio to OpenAI Whisper for transcription
     try {
       console.log('🤖 Sending audio to Whisper for transcription...');
@@ -2271,12 +2294,12 @@
       console.log('🌐 Making API request to OpenAI Whisper...');
       console.log(`🌍 Using language: "${detectedLanguage}" for transcription`);
       
-      // ✅ PREVENT HANGING: Add timeout to Whisper API request
+      // ✅ ULTRA-MINIMAL: Shorter timeout for 5-second chunks
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
-        console.log('⏰ Whisper API request timeout after 30s');
+        console.log('⏰ Whisper API request timeout after 10s');
         controller.abort();
-      }, 30000); // 30 second timeout
+      }, 10000); // ✅ ULTRA-MINIMAL: 10 second timeout
       
       const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
         method: 'POST',
@@ -2997,14 +3020,14 @@
       chunking.chunkData = [];
       chunking.fullTranscriptSegments = [];
       
-      console.log(`🎯 Smart chunking initialized: ${chunking.maxChunks} chunks max (${chunking.maxChunks * 3} minutes total)`);
+      console.log(`🎯 ULTRA-MINIMAL: Smart chunking initialized: ${chunking.maxChunks} chunks max (${chunking.maxChunks} minutes total)`);
       
       // Send chunking info to sidepanel
       chrome.runtime.sendMessage({
         action: 'transcriptChunkingStarted',
         maxChunks: chunking.maxChunks,
-        chunkDuration: 3, // minutes per chunk
-        totalDuration: chunking.maxChunks * 3
+        chunkDuration: 1, // ✅ ULTRA-MINIMAL: 1 minute per chunk
+        totalDuration: chunking.maxChunks // 20 minutes total
       }).catch(err => console.log('Failed to send chunking start message:', err));
     }
     
