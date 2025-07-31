@@ -32,7 +32,8 @@
       lastTranscriptionTime: 0,
       initializationAttempted: false, // Track if we've tried to initialize
       processedTimeRanges: [], // ✅ NEW: Track processed time ranges to avoid duplicates
-      languageOverride: 'auto' // ✅ NEW: User language override
+      languageOverride: 'auto', // ✅ NEW: User language override
+      memoryCleanupTimer: null // ✅ CRITICAL: Periodic memory cleanup timer
     }
   };
 
@@ -1749,10 +1750,11 @@
       
       captionCollection.whisper.mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
-          // ✅ MEMORY PROTECTION: Limit audio chunks to prevent memory leaks
-          if (captionCollection.whisper.audioChunks.length > 10) {
-            console.log('🧹 Clearing old audio chunks to prevent memory overflow');
-            captionCollection.whisper.audioChunks = [];
+          // ✅ CRITICAL FIX: More aggressive memory protection
+          if (captionCollection.whisper.audioChunks.length > 5) {
+            console.log('🧹 CRITICAL: Clearing old audio chunks to prevent memory overflow');
+            // Keep only the last 2 chunks to prevent memory buildup
+            captionCollection.whisper.audioChunks = captionCollection.whisper.audioChunks.slice(-2);
           }
           
           captionCollection.whisper.audioChunks.push(event.data);
@@ -1816,6 +1818,58 @@
     }
   }
 
+  // ✅ CRITICAL FIX: Periodic memory cleanup to prevent browser freeze
+  function startPeriodicMemoryCleanup() {
+    const whisper = captionCollection.whisper;
+    
+    // Clear any existing cleanup timer
+    if (whisper.memoryCleanupTimer) {
+      clearInterval(whisper.memoryCleanupTimer);
+    }
+    
+    whisper.memoryCleanupTimer = setInterval(() => {
+      if (!captionCollection.isCollecting) {
+        clearInterval(whisper.memoryCleanupTimer);
+        whisper.memoryCleanupTimer = null;
+        return;
+      }
+      
+      console.log('🧹 CRITICAL: Running periodic memory cleanup...');
+      
+      // 1. Limit audio chunks aggressively
+      if (whisper.audioChunks.length > 3) {
+        whisper.audioChunks = whisper.audioChunks.slice(-2);
+        console.log('🧹 Trimmed audio chunks to prevent memory buildup');
+      }
+      
+      // 2. Clear old pending transcriptions (> 2 minutes old)
+      const cutoffTime = Date.now() - (2 * 60 * 1000);
+      for (const [key, value] of whisper.pendingTranscriptions.entries()) {
+        if (value.timestamp < cutoffTime) {
+          whisper.pendingTranscriptions.delete(key);
+          console.log('🧹 Removed stale transcription:', key);
+        }
+      }
+      
+      // 3. Limit processed time ranges (keep only last 20)
+      if (whisper.processedTimeRanges.length > 20) {
+        whisper.processedTimeRanges = whisper.processedTimeRanges.slice(-10);
+        console.log('🧹 Trimmed processed time ranges');
+      }
+      
+      // 4. Limit caption segments (keep only last 100)
+      if (captionCollection.segments.length > 100) {
+        captionCollection.segments = captionCollection.segments.slice(-50);
+        console.log('🧹 Trimmed caption segments to prevent memory overflow');
+      }
+      
+      console.log(`📊 Memory status: ${whisper.audioChunks.length} chunks, ${whisper.pendingTranscriptions.size} pending, ${whisper.processedTimeRanges.length} ranges, ${captionCollection.segments.length} segments`);
+      
+    }, 30000); // Run every 30 seconds
+    
+    console.log('✅ Started periodic memory cleanup (every 30s)');
+  }
+
   function startContinuousAudioRecording() {
     // ✅ NEW: Start continuous audio recording for Whisper mode
     const whisper = captionCollection.whisper;
@@ -1826,6 +1880,9 @@
     }
     
     console.log('🎵 Starting continuous audio recording for Whisper transcription...');
+    
+    // ✅ CRITICAL FIX: Start periodic memory cleanup to prevent browser freeze
+    startPeriodicMemoryCleanup();
     
     const startRecordingChunk = () => {
       if (!captionCollection.isCollecting) {
@@ -3224,11 +3281,29 @@
       console.log('⏰ Cleared monitoring init timer');
     }
     
-    // Reset Whisper state
+    // ✅ CRITICAL FIX: Clear periodic memory cleanup timer
+    if (whisper.memoryCleanupTimer) {
+      clearInterval(whisper.memoryCleanupTimer);
+      whisper.memoryCleanupTimer = null;
+      console.log('⏰ Cleared memory cleanup timer');
+    }
+    
+    // ✅ CRITICAL: Reset Whisper state and clear all memory leaks
     whisper.mediaRecorder = null;
     whisper.audioChunks = [];
     whisper.isRecording = false;
-    whisper.initializationAttempted = false; // Allow re-initialization next time
+    whisper.initializationAttempted = false;
+    
+    // ✅ CRITICAL FIX: Clear memory leak sources
+    whisper.pendingTranscriptions.clear();
+    whisper.processedTimeRanges = [];
+    console.log('🧹 CRITICAL: Cleared pending transcriptions and processed ranges');
+    
+    // ✅ CRITICAL FIX: Force garbage collection hint
+    if (window.gc && typeof window.gc === 'function') {
+      window.gc();
+      console.log('🗑️ Triggered garbage collection');
+    }
     
     if (captionCollection.interval) {
       clearInterval(captionCollection.interval);
