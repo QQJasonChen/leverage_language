@@ -1182,6 +1182,48 @@ function showSearchResult(queryData) {
                 
                 if (audioData) {
                   log('✅ Audio cached for future flashcard use');
+                  
+                  // Update existing saved report with audio data if auto-save is enabled
+                  if (autoSaveEnabled && storageManager && typeof storageManager.getAIReports === 'function') {
+                    try {
+                      // Find and update the existing report with audio data
+                      const reports = await storageManager.getAIReports();
+                      const matchingReport = reports.find(r => 
+                        r.searchText === currentQueryData.text && 
+                        r.language === currentQueryData.language
+                      );
+                      
+                      if (matchingReport && !matchingReport.audioData) {
+                        // Update the report with audio data
+                        matchingReport.audioData = {
+                          audioUrl: audioData.audioUrl,
+                          size: audioData.size,
+                          voice: audioData.voice || 'OpenAI TTS'
+                        };
+                        
+                        // Save the updated report back
+                        await storageManager.saveAIReport(
+                          matchingReport.searchText,
+                          matchingReport.language,
+                          matchingReport.analysis,
+                          matchingReport.audioData,
+                          matchingReport.videoSource,
+                          true, // updateExisting = true
+                          matchingReport.detectionMethod
+                        );
+                        
+                        log('🔄 Updated saved report with audio data');
+                        
+                        // Refresh the saved reports display if we're on that tab
+                        const saveTab = document.getElementById('saveTab');
+                        if (saveTab && saveTab.style.display !== 'none') {
+                          loadSavedReports();
+                        }
+                      }
+                    } catch (error) {
+                      log('⚠️ Failed to update report with audio:', error);
+                    }
+                  }
                 } else if (aiService && aiService.isAudioAvailable && aiService.isAudioAvailable()) {
                   // Fallback to original audio generation
                   log('⚠️ OpenAI TTS not available, using fallback audio generation');
@@ -4854,10 +4896,25 @@ async function loadSavedReports() {
         if (createFlashcardBtn) {
           createFlashcardBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
+            
+            // Disable button during processing
+            createFlashcardBtn.disabled = true;
+            const originalText = createFlashcardBtn.textContent;
+            createFlashcardBtn.textContent = '⏳';
+            
             try {
               const report = reports.find(r => r.id === reportId);
               if (report) {
-                await createFlashcardFromReport(report);
+                // Add timeout to prevent freeze
+                const timeoutPromise = new Promise((_, reject) => {
+                  setTimeout(() => reject(new Error('Flashcard creation timeout')), 10000);
+                });
+                
+                await Promise.race([
+                  createFlashcardFromReport(report),
+                  timeoutPromise
+                ]);
+                
                 showMessage(`已為「${report.searchText}」建立記憶卡！`, 'success');
                 
                 // Track analytics
@@ -4874,9 +4931,15 @@ async function loadSavedReports() {
               console.error('Failed to create flashcard from report:', error);
               if (error.message.includes('already exists')) {
                 showMessage(`記憶卡「${report.searchText}」已存在`, 'warning');
+              } else if (error.message.includes('timeout')) {
+                showMessage('操作超時，請重試', 'error');
               } else {
                 showMessage('建立記憶卡失敗', 'error');
               }
+            } finally {
+              // Restore button state
+              createFlashcardBtn.disabled = false;
+              createFlashcardBtn.textContent = originalText;
             }
           });
         }
@@ -9586,115 +9649,86 @@ async function createFlashcardFromCurrentWord() {
   await createFlashcard(flashcardData);
 }
 
-// Create enhanced flashcard from saved report with AI-generated concise content
+
+// Create flashcard from saved report (simple version with safety checks)
 async function createFlashcardFromReport(report) {
-  if (!flashcardManager || !report) return;
+  console.log('🃏 Starting createFlashcardFromReport for:', report?.searchText);
+  
+  if (!flashcardManager) {
+    console.error('❌ FlashcardManager not available');
+    throw new Error('FlashcardManager not initialized');
+  }
+  
+  if (!report) {
+    console.error('❌ No report provided');
+    throw new Error('No report provided');
+  }
 
   try {
-    console.log('🃏 Creating enhanced flashcard for:', report.searchText);
+    const analysisText = typeof report.analysisData === 'string' 
+      ? report.analysisData 
+      : (report.analysisData && report.analysisData.content 
+          ? report.analysisData.content 
+          : '');
 
-    // Prepare report data for enhanced flashcard creation
-    const reportData = {
-      searchText: report.searchText,
+    let translation = '';
+    let pronunciation = '';
+    let definition = '';
+
+    if (analysisText) {
+      // Extract Chinese translation
+      const chineseMatch = analysisText.match(/中文[：:\s]*([^\n]+)/i) ||
+                          analysisText.match(/翻譯[：:\s]*([^\n]+)/i) ||
+                          analysisText.match(/意思[：:\s]*([^\n]+)/i);
+      if (chineseMatch) translation = chineseMatch[1].trim();
+
+      // Extract pronunciation
+      const pronMatch = analysisText.match(/發音[：:\s]*([^\n]+)/i) ||
+                       analysisText.match(/\[([^\]]+)\]/);
+      if (pronMatch) pronunciation = pronMatch[1].trim();
+
+      // Extract definition
+      const defMatch = analysisText.match(/定義[：:\s]*([^\n]+)/i) ||
+                      analysisText.match(/解釋[：:\s]*([^\n]+)/i);
+      if (defMatch) definition = defMatch[1].trim();
+    }
+
+    // Fallback extraction if nothing found
+    if (!translation && analysisText) {
+      translation = analysisText.substring(0, 100) + '...';
+    }
+
+    const flashcardData = {
+      front: report.searchText,
+      back: translation || 'Translation needed',
+      definition: definition || 'Definition needed',
+      pronunciation: pronunciation,
       language: report.language,
-      analysis: report.analysisData,
-      tags: report.tags || [],
-      audioData: report.audioData,
-      audioUrl: report.audioUrl
+      tags: (report.tags || []).concat(['from-report'])
     };
 
-    // Check if we have cached audio for this word
+    console.log('📝 Creating flashcard with data:', flashcardData);
+
+    // Include audio if available
     const cachedAudio = getCachedAudio(report.searchText, report.language);
     if (cachedAudio && cachedAudio.audioUrl) {
-      reportData.audioUrl = cachedAudio.audioUrl;
-      console.log('🎯 Found cached audio for flashcard:', report.searchText);
+      flashcardData.audioUrl = cachedAudio.audioUrl;
+      console.log('🔊 Added cached audio to flashcard');
     }
 
-    // Use the enhanced flashcard creation method
-    const card = await window.flashcardManager.createEnhancedFromReport(reportData);
-    console.log('✅ Created enhanced flashcard:', card.id);
+    // Directly call the basic createFlashcard method
+    console.log('💾 Calling flashcardManager.createFlashcard...');
+    const result = await window.flashcardManager.createFlashcard(flashcardData, false);
+    console.log('✅ Flashcard created successfully:', result?.id);
     
-    return card;
-
+    return result;
+    
   } catch (error) {
-    console.error('❌ Failed to create enhanced flashcard:', error);
-    
-    // Fallback to legacy creation if enhanced method fails
-    try {
-      console.log('🔄 Attempting legacy flashcard creation as fallback');
-      
-      const analysisText = typeof report.analysisData === 'string' 
-        ? report.analysisData 
-        : (report.analysisData && report.analysisData.content 
-            ? report.analysisData.content 
-            : '');
-
-      let translation = '';
-      let pronunciation = '';
-      let definition = '';
-
-      if (analysisText) {
-        // Extract Chinese translation
-        const chineseMatch = analysisText.match(/中文[：:\s]*([^\n]+)/i) ||
-                            analysisText.match(/翻譯[：:\s]*([^\n]+)/i) ||
-                            analysisText.match(/Translation[：:\s]*([^\n]+)/i);
-        if (chineseMatch) {
-          translation = chineseMatch[1].trim();
-        }
-
-        // Extract pronunciation (IPA or phonetic)
-        const pronunciationMatch = analysisText.match(/\[([^\]]+)\]/) ||
-                                  analysisText.match(/\/([^\/]+)\//) ||
-                                  analysisText.match(/發音[：:\s]*([^\n]+)/i) ||
-                                  analysisText.match(/Pronunciation[：:\s]*([^\n]+)/i);
-        if (pronunciationMatch) {
-          pronunciation = pronunciationMatch[1].trim();
-        }
-
-        // Extract definition - use first meaningful line for flashcard simplicity
-        const lines = analysisText.split('\n').filter(line => line.trim());
-        if (lines.length > 0) {
-          definition = lines[0].trim();
-        }
-
-        // If no specific translation found, use first line as translation
-        if (!translation && lines.length > 0) {
-          translation = lines[0].trim();
-        }
-      }
-
-      // Fallback to basic information if extraction failed
-      if (!translation) {
-        translation = `${report.language} word: ${report.searchText}`;
-      }
-
-      const flashcardData = {
-        front: report.searchText,
-        back: translation,
-        pronunciation: pronunciation,
-        definition: definition,
-        language: report.language,
-        tags: [...(report.tags || []), 'from-report', 'legacy-fallback']
-      };
-
-      // Check if we have cached audio for this word
-      const cachedAudio = getCachedAudio(report.searchText, report.language);
-      if (cachedAudio && cachedAudio.audioUrl) {
-        flashcardData.audioUrl = cachedAudio.audioUrl;
-        console.log('🎯 Added cached audio to fallback flashcard:', report.searchText);
-      }
-
-      const card = await window.flashcardManager.createFlashcard(flashcardData);
-      console.log('📇 Created fallback flashcard from report:', card);
-      
-      return card;
-
-    } catch (fallbackError) {
-      console.error('❌ Even fallback flashcard creation failed:', fallbackError);
-      throw fallbackError;
-    }
+    console.error('❌ Error in createFlashcardFromReport:', error);
+    throw error;
   }
 }
+
 
 // Create flashcards from all saved reports
 async function createAllFlashcardsFromReports() {
