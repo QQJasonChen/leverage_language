@@ -33,7 +33,17 @@
       initializationAttempted: false, // Track if we've tried to initialize
       processedTimeRanges: [], // ✅ NEW: Track processed time ranges to avoid duplicates
       languageOverride: 'auto', // ✅ NEW: User language override
-      memoryCleanupTimer: null // ✅ CRITICAL: Periodic memory cleanup timer
+      memoryCleanupTimer: null, // ✅ CRITICAL: Periodic memory cleanup timer
+      // ✅ EMERGENCY CIRCUIT BREAKER
+      emergencyStop: {
+        enabled: true,
+        maxRecordingTime: 180000, // ✅ EMERGENCY: 3 minutes max to prevent freeze
+        startTime: null,
+        memoryCheckInterval: null,
+        lastMemoryCheck: 0,
+        consecutiveHighMemory: 0,
+        emergencyStopTriggered: false
+      }
     }
   };
 
@@ -1818,6 +1828,110 @@
     }
   }
 
+  // ✅ EMERGENCY CIRCUIT BREAKER: Automatically stops recording if issues detected
+  function startEmergencyMonitoring() {
+    const whisper = captionCollection.whisper;
+    const emergency = whisper.emergencyStop;
+    
+    if (!emergency.enabled) return;
+    
+    emergency.startTime = Date.now();
+    emergency.emergencyStopTriggered = false;
+    emergency.consecutiveHighMemory = 0;
+    
+    emergency.memoryCheckInterval = setInterval(() => {
+      if (!captionCollection.isCollecting) {
+        clearInterval(emergency.memoryCheckInterval);
+        emergency.memoryCheckInterval = null;
+        return;
+      }
+      
+      const now = Date.now();
+      const recordingDuration = now - emergency.startTime;
+      
+      // 1. Check maximum recording time (3 minutes)
+      if (recordingDuration > emergency.maxRecordingTime) {
+        console.error('🚨 EMERGENCY STOP: Maximum recording time exceeded (3 minutes)');
+        triggerEmergencyStop('MAX_TIME_EXCEEDED');
+        return;
+      }
+      
+      // 2. ULTRA-AGGRESSIVE memory indicators
+      const memoryIssues = 
+        whisper.audioChunks.length > 3 ||
+        whisper.pendingTranscriptions.size > 5 ||
+        whisper.processedTimeRanges.length > 15 ||
+        captionCollection.segments.length > 75;
+      
+      if (memoryIssues) {
+        emergency.consecutiveHighMemory++;
+        console.warn(`⚠️ EMERGENCY: High memory usage detected (${emergency.consecutiveHighMemory}/3)`);
+        
+        if (emergency.consecutiveHighMemory >= 3) {
+          console.error('🚨 EMERGENCY STOP: Consecutive high memory usage detected');
+          triggerEmergencyStop('HIGH_MEMORY_USAGE');
+          return;
+        }
+      } else {
+        emergency.consecutiveHighMemory = 0;
+      }
+      
+      // 3. Check for frozen state (no activity for 2 minutes)
+      if (whisper.lastTranscriptionTime > 0 && (now - whisper.lastTranscriptionTime) > 120000) {
+        console.error('🚨 EMERGENCY STOP: No transcription activity for 2 minutes');
+        triggerEmergencyStop('ACTIVITY_TIMEOUT');
+        return;
+      }
+      
+      console.log(`🛡️ Emergency monitor: ${Math.floor(recordingDuration/1000)}s recorded, memory OK`);
+      
+    }, 15000); // Check every 15 seconds
+    
+    console.log('✅ Emergency monitoring started (3min max, memory checks every 15s)');
+  }
+  
+  function triggerEmergencyStop(reason) {
+    const whisper = captionCollection.whisper;
+    const emergency = whisper.emergencyStop;
+    
+    if (emergency.emergencyStopTriggered) return;
+    
+    emergency.emergencyStopTriggered = true;
+    
+    console.error(`🚨 EMERGENCY STOP TRIGGERED: ${reason}`);
+    console.error('🛑 Forcibly stopping transcript recording to prevent browser freeze');
+    
+    // Force stop everything
+    captionCollection.isCollecting = false;
+    
+    // Clear all timers immediately
+    if (emergency.memoryCheckInterval) {
+      clearInterval(emergency.memoryCheckInterval);
+      emergency.memoryCheckInterval = null;
+    }
+    
+    // Send emergency message to sidepanel
+    chrome.runtime.sendMessage({
+      action: 'transcriptEmergencyStop',
+      reason: reason,
+      duration: Date.now() - emergency.startTime,
+      data: {
+        segments: captionCollection.segments.length,
+        audioChunks: whisper.audioChunks.length,
+        pendingTranscriptions: whisper.pendingTranscriptions.size
+      }
+    }).catch(err => console.log('Failed to send emergency stop message:', err));
+    
+    // Force cleanup after delay to allow message to send
+    setTimeout(() => {
+      try {
+        stopHybridTranscriptCollection();
+      } catch (error) {
+        console.error('Error during emergency cleanup:', error);
+      }
+    }, 1000);
+  }
+
   // ✅ CRITICAL FIX: Periodic memory cleanup to prevent browser freeze
   function startPeriodicMemoryCleanup() {
     const whisper = captionCollection.whisper;
@@ -1836,10 +1950,10 @@
       
       console.log('🧹 CRITICAL: Running periodic memory cleanup...');
       
-      // 1. Limit audio chunks aggressively
-      if (whisper.audioChunks.length > 3) {
-        whisper.audioChunks = whisper.audioChunks.slice(-2);
-        console.log('🧹 Trimmed audio chunks to prevent memory buildup');
+      // 1. ULTRA-AGGRESSIVE: Limit audio chunks to absolute minimum
+      if (whisper.audioChunks.length > 2) {
+        whisper.audioChunks = whisper.audioChunks.slice(-1);
+        console.log('🧹 ULTRA-AGGRESSIVE: Trimmed audio chunks to 1 max');
       }
       
       // 2. Clear old pending transcriptions (> 2 minutes old)
@@ -1865,9 +1979,9 @@
       
       console.log(`📊 Memory status: ${whisper.audioChunks.length} chunks, ${whisper.pendingTranscriptions.size} pending, ${whisper.processedTimeRanges.length} ranges, ${captionCollection.segments.length} segments`);
       
-    }, 30000); // Run every 30 seconds
+    }, 10000); // ✅ ULTRA-AGGRESSIVE: Run every 10 seconds instead of 30
     
-    console.log('✅ Started periodic memory cleanup (every 30s)');
+    console.log('✅ Started ULTRA-AGGRESSIVE memory cleanup (every 10s)');
   }
 
   function startContinuousAudioRecording() {
@@ -1880,6 +1994,9 @@
     }
     
     console.log('🎵 Starting continuous audio recording for Whisper transcription...');
+    
+    // ✅ EMERGENCY: Start safety monitoring first
+    startEmergencyMonitoring();
     
     // ✅ CRITICAL FIX: Start periodic memory cleanup to prevent browser freeze
     startPeriodicMemoryCleanup();
@@ -3286,6 +3403,13 @@
       clearInterval(whisper.memoryCleanupTimer);
       whisper.memoryCleanupTimer = null;
       console.log('⏰ Cleared memory cleanup timer');
+    }
+    
+    // ✅ EMERGENCY: Clear emergency monitoring timer
+    if (whisper.emergencyStop && whisper.emergencyStop.memoryCheckInterval) {
+      clearInterval(whisper.emergencyStop.memoryCheckInterval);
+      whisper.emergencyStop.memoryCheckInterval = null;
+      console.log('⏰ Cleared emergency monitoring timer');
     }
     
     // ✅ CRITICAL: Reset Whisper state and clear all memory leaks
