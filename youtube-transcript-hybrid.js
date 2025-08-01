@@ -100,28 +100,8 @@
 
     // Handle stop collection request
     if (request.action === 'stopCaptionCollection') {
-      // Mark as user-stopped to prevent smart restart
-      if (captionCollection.whisper.smartRestart) {
-        captionCollection.whisper.smartRestart.userStopped = true;
-      }
-      
       const result = stopCaptionCollection();
-      
-      // If smart restart was active, return combined segments
-      const whisper = captionCollection.whisper;
-      if (whisper.smartRestart && whisper.smartRestart.allSegments.length > 0) {
-        const allSegments = [...whisper.smartRestart.allSegments, ...result.segments];
-        console.log(`🏁 Returning ${allSegments.length} total segments from ${whisper.smartRestart.segmentNumber} recording segments`);
-        sendResponse({ 
-          success: true, 
-          segments: allSegments, 
-          duration: result.duration,
-          totalSegments: whisper.smartRestart.segmentNumber,
-          smartRestartUsed: true
-        });
-      } else {
-        sendResponse({ success: true, segments: result.segments, duration: result.duration });
-      }
+      sendResponse({ success: true, segments: result.segments, duration: result.duration });
       return false;
     }
 
@@ -2795,14 +2775,8 @@
     // Store user's subtitle mode choice
     captionCollection.userSubtitleMode = subtitleMode;
     
-    // ✅ SMART RESTART: Reset smart restart system for fresh start (unless already restarting)
+    // Get whisper object reference
     const whisper = captionCollection.whisper;
-    if (!whisper.smartRestart.isRestarting) {
-      whisper.smartRestart.segmentNumber = 1;
-      whisper.smartRestart.allSegments = [];
-      whisper.smartRestart.userStopped = false;
-      console.log(`🔄 Smart restart initialized - can record up to ${whisper.smartRestart.maxSegments} segments (${whisper.smartRestart.maxSegments} minutes total)`);
-    }
     
     // ✅ NEW: Apply Whisper settings to collection state
     if (subtitleMode === 'without-subtitles') {
