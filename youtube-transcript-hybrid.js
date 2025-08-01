@@ -26,8 +26,8 @@
       audioStream: null,
       isRecording: false,
       chunkStartTime: 0,
-      chunkDuration: 15, // ✅ FIX: Increased to 15-second chunks to reduce overlap
-      chunkGap: 1, // ✅ NEW: 1-second gap between chunks to prevent duplicates
+      chunkDuration: 8, // ✅ SAFE: 8-second chunks for quality without freezing
+      chunkGap: 3, // ✅ SAFE: 3-second gap for memory cleanup and stability
       pendingTranscriptions: new Map(), // Track ongoing transcriptions
       lastTranscriptionTime: 0,
       initializationAttempted: false, // Track if we've tried to initialize
@@ -76,8 +76,8 @@
       
       // ✅ NEW: Handle Whisper timing settings
       const whisperSettings = request.whisperSettings || {
-        chunkDuration: 15,
-        chunkGap: 1,
+        chunkDuration: 8,
+        chunkGap: 3,
         sentenceGrouping: 'medium'
       };
       
@@ -1884,6 +1884,26 @@
     // ✅ CRITICAL FIX: Start periodic memory cleanup to prevent browser freeze
     startPeriodicMemoryCleanup();
     
+    // ✅ EMERGENCY CIRCUIT BREAKER: Auto-stop after 2 minutes to prevent freezing
+    const emergencyStopTimer = setTimeout(() => {
+      if (captionCollection.isCollecting) {
+        console.log('🚨 EMERGENCY STOP: Auto-stopping transcript recording after 2 minutes to prevent tab freezing');
+        console.log('💡 This helps maintain browser stability during long recordings');
+        stopCaptionCollection();
+        
+        // Send emergency message to sidepanel
+        chrome.runtime.sendMessage({
+          action: 'transcriptEmergencyStop',
+          reason: 'Automatic safety stop after 2 minutes',
+          duration: 120000,
+          segments: captionCollection.segments.length
+        }).catch(err => console.log('Failed to send emergency stop message:', err));
+      }
+    }, 120000); // 2 minutes maximum
+    
+    // Store timer for cleanup
+    whisper.emergencyStopTimer = emergencyStopTimer;
+    
     const startRecordingChunk = () => {
       if (!captionCollection.isCollecting) {
         console.log('🛑 Collection stopped, ending audio recording');
@@ -2701,8 +2721,8 @@
     
     // ✅ NEW: Apply user's Whisper timing settings
     const defaultWhisperSettings = {
-      chunkDuration: 15,
-      chunkGap: 1,
+      chunkDuration: 8,
+      chunkGap: 3,
       sentenceGrouping: 'medium',
       languageOverride: 'auto'
     };
@@ -3264,6 +3284,11 @@
       clearTimeout(whisper.chunkTimer);
       whisper.chunkTimer = null;
       console.log('⏰ Cleared chunk timer');
+    }
+    if (whisper.emergencyStopTimer) {
+      clearTimeout(whisper.emergencyStopTimer);
+      whisper.emergencyStopTimer = null;
+      console.log('⏰ Cleared emergency stop timer');
     }
     if (whisper.gapTimer) {
       clearTimeout(whisper.gapTimer);
