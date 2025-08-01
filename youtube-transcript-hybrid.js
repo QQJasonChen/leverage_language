@@ -1842,7 +1842,7 @@
         const memoryUsagePercent = (memInfo.usedJSHeapSize / memInfo.jsHeapSizeLimit) * 100;
         console.log(`🧠 Memory usage: ${Math.round(memoryUsagePercent)}% (${Math.round(memInfo.usedJSHeapSize/1024/1024)}MB)`);
         
-        if (memoryUsagePercent > 80) {
+        if (memoryUsagePercent > 70) {
           console.log('🚨 MEMORY PRESSURE: High memory usage detected - emergency stopping to prevent freeze');
           captionCollection.isCollecting = false;
           stopCaptionCollection();
@@ -2760,6 +2760,10 @@
       return;
     }
     
+    // ✅ CRITICAL FIX: Complete state reset before starting new recording to prevent second-recording freeze
+    console.log('🗂️ RESET: Performing complete system reset before new recording...');
+    await performCompleteStateReset();
+    
     // ✅ NEW: Apply user's Whisper timing settings
     const defaultWhisperSettings = {
       chunkDuration: 5,
@@ -3391,6 +3395,108 @@
     }
     
     return { segments, duration };
+  }
+  
+  // ✅ CRITICAL FIX: Complete state reset function to prevent second-recording freezes
+  async function performCompleteStateReset() {
+    console.log('🧨 DEEP RESET: Starting comprehensive state reset...');
+    
+    const whisper = captionCollection.whisper;
+    
+    // 1. Force stop any existing recording (even if isCollecting is false)
+    if (whisper.mediaRecorder && whisper.mediaRecorder.state !== 'inactive') {
+      console.log('🛑 Force stopping existing MediaRecorder...');
+      whisper.mediaRecorder.stop();
+      await new Promise(resolve => setTimeout(resolve, 200)); // Wait for stop
+    }
+    
+    // 2. Clean up all audio resources completely 
+    if (whisper.audioStream) {
+      whisper.audioStream.getTracks().forEach(track => {
+        track.stop();
+        console.log('🔇 Force stopped audio track');
+      });
+      whisper.audioStream = null;
+    }
+    
+    // 3. Force close audio context and wait
+    if (whisper.audioContext && whisper.audioContext.state !== 'closed') {
+      console.log('🔇 Force closing audio context...');
+      try {
+        if (whisper.audioSource) whisper.audioSource.disconnect();
+        if (whisper.analyserNode) whisper.analyserNode.disconnect();
+        await whisper.audioContext.close();
+        console.log('✅ Audio context closed');
+      } catch (error) {
+        console.log('⚠️ Error closing audio context:', error.message);
+      }
+      whisper.audioContext = null;
+    }
+    
+    // 4. Clear ALL timers forcefully
+    const timerProperties = [
+      'chunkTimer', 'emergencyStopTimer', 'gapTimer', 'autoStopTimer', 
+      'monitoringInitTimer', 'memoryCleanupTimer'
+    ];
+    
+    timerProperties.forEach(timer => {
+      if (whisper[timer]) {
+        if (timer === 'memoryCleanupTimer') {
+          clearInterval(whisper[timer]);
+        } else {
+          clearTimeout(whisper[timer]);
+        }
+        whisper[timer] = null;
+        console.log(`✅ Cleared ${timer}`);
+      }
+    });
+    
+    // 5. Stop audio monitoring function
+    if (whisper.stopAudioMonitoring) {
+      whisper.stopAudioMonitoring();
+      whisper.stopAudioMonitoring = null;
+      console.log('✅ Audio monitoring stopped');
+    }
+    
+    // 6. Reset all Whisper state completely
+    whisper.audioChunks = [];
+    whisper.mediaRecorder = null;
+    whisper.isRecording = false;
+    whisper.chunkStartTime = 0;
+    whisper.lastTranscriptionTime = 0;
+    whisper.initializationAttempted = false;
+    whisper.processedTimeRanges = [];
+    whisper.pendingTranscriptions.clear();
+    whisper.audioSource = null;
+    whisper.analyserNode = null;
+    
+    // 7. Reset main collection state
+    captionCollection.segments = [];
+    captionCollection.isCollecting = false;
+    captionCollection.startTime = 0;
+    captionCollection.lastCaptionTime = 0;
+    captionCollection.currentVideoTime = 0;
+    captionCollection.lastCollectedTimestamp = 0;
+    captionCollection.currentChunkStartTime = 0;
+    captionCollection.currentChunkStartTimestamp = null;
+    captionCollection.chunkCounter = 0;
+    
+    // 8. Clear main collection interval
+    if (captionCollection.interval) {
+      clearInterval(captionCollection.interval);
+      captionCollection.interval = null;
+    }
+    
+    // 9. Force garbage collection hint
+    if (window.gc && typeof window.gc === 'function') {
+      window.gc();
+      console.log('🗑️ Triggered garbage collection');
+    }
+    
+    // 10. Wait for everything to settle
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    console.log('✅ DEEP RESET: Complete state reset finished - system ready for fresh recording');
   }
 
   async function downloadCompleteTranscript(videoId) {
