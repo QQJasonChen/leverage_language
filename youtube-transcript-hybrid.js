@@ -33,17 +33,7 @@
       initializationAttempted: false, // Track if we've tried to initialize
       processedTimeRanges: [], // ✅ NEW: Track processed time ranges to avoid duplicates
       languageOverride: 'auto', // ✅ NEW: User language override
-      memoryCleanupTimer: null, // ✅ CRITICAL: Periodic memory cleanup timer
-      // ✅ SMART RESTART SYSTEM for longer videos
-      smartRestart: {
-        enabled: true,
-        segmentNumber: 1,
-        maxSegments: 20, // 20 segments × 1 minute = 20 minutes max
-        restartDelay: 3000, // 3 second pause between segments
-        allSegments: [], // Store all segments from all recording sessions
-        isRestarting: false,
-        userStopped: false // Track if user manually stopped
-      }
+      memoryCleanupTimer: null // ✅ CRITICAL: Periodic memory cleanup timer
     }
   };
 
@@ -1927,68 +1917,6 @@
     console.log('✅ Started aggressive memory cleanup (every 10s)');
   }
 
-  // ✅ SMART RESTART: Safely restart recording for longer videos
-  function triggerSmartRestart() {
-    const whisper = captionCollection.whisper;
-    const restart = whisper.smartRestart;
-    
-    if (restart.isRestarting) {
-      console.log('⚠️ Smart restart already in progress');
-      return;
-    }
-    
-    restart.isRestarting = true;
-    
-    // 1. Save current segments to the master collection
-    if (captionCollection.segments.length > 0) {
-      restart.allSegments.push(...captionCollection.segments);
-      console.log(`📦 Saved ${captionCollection.segments.length} segments from recording segment ${restart.segmentNumber}`);
-    }
-    
-    // 2. Cleanly stop current recording
-    console.log('🛑 Stopping current recording segment...');
-    const currentSegments = stopCaptionCollection();
-    
-    // 3. Wait for cleanup and restart
-    setTimeout(() => {
-      if (!restart.userStopped && restart.segmentNumber < restart.maxSegments) {
-        restart.segmentNumber++;
-        restart.isRestarting = false;
-        
-        console.log(`🔄 SMART RESTART: Starting segment ${restart.segmentNumber}/${restart.maxSegments}`);
-        console.log(`📊 Total segments collected so far: ${restart.allSegments.length}`);
-        
-        // Restart with same settings
-        const chunkDuration = 45; // Default chunk duration for main collection
-        const subtitleMode = captionCollection.userSubtitleMode || 'without-subtitles';
-        const whisperSettings = {
-          chunkDuration: whisper.chunkDuration,
-          chunkGap: whisper.chunkGap,
-          sentenceGrouping: 'medium',
-          languageOverride: whisper.languageOverride
-        };
-        
-        // Clear old data and restart fresh
-        captionCollection.segments = [];
-        captionCollection.isCollecting = false;
-        
-        startCaptionCollection(chunkDuration, subtitleMode, whisperSettings);
-        
-        // Send restart notification
-        chrome.runtime.sendMessage({
-          action: 'transcriptSegmentRestarted',
-          segmentNumber: restart.segmentNumber,
-          maxSegments: restart.maxSegments,
-          totalSegments: restart.allSegments.length,
-          progress: Math.round((restart.segmentNumber / restart.maxSegments) * 100)
-        }).catch(err => console.log('Failed to send restart message:', err));
-        
-      } else {
-        console.log('🏁 Smart restart completed or stopped by user');
-        restart.isRestarting = false;
-      }
-    }, restart.restartDelay); // 3 second delay for cleanup
-  }
 
   function startContinuousAudioRecording() {
     // ✅ NEW: Start continuous audio recording for Whisper mode
@@ -2004,41 +1932,23 @@
     // ✅ CRITICAL FIX: Start periodic memory cleanup to prevent browser freeze
     startPeriodicMemoryCleanup();
     
-    // ✅ SMART RESTART CIRCUIT BREAKER: Auto-restart after 1 minute to continue long recordings
+    // ✅ SIMPLE SAFETY STOP: Auto-stop after 1 minute to prevent any freezing
     const emergencyStopTimer = setTimeout(() => {
-      if (captionCollection.isCollecting && !whisper.smartRestart.userStopped) {
-        const segment = whisper.smartRestart.segmentNumber;
-        const maxSegments = whisper.smartRestart.maxSegments;
+      if (captionCollection.isCollecting) {
+        console.log('🛑 SAFETY STOP: Auto-stopping after 1 minute to prevent freezing');
+        console.log('💡 Recording complete! You can start a new recording for more content');
+        stopCaptionCollection();
         
-        if (segment < maxSegments) {
-          console.log(`🔄 SMART RESTART: Completing segment ${segment}/${maxSegments} - preparing restart in ${whisper.smartRestart.restartDelay/1000}s`);
-          console.log('💡 This prevents freezing while maintaining continuous recording');
-          
-          // Trigger smart restart instead of full stop
-          triggerSmartRestart();
-          
-          // Send progress message to sidepanel
-          chrome.runtime.sendMessage({
-            action: 'transcriptSegmentComplete',
-            segmentNumber: segment,
-            maxSegments: maxSegments,
-            progress: Math.round((segment / maxSegments) * 100),
-            nextRestartIn: whisper.smartRestart.restartDelay,
-            segments: captionCollection.segments.length
-          }).catch(err => console.log('Failed to send segment complete message:', err));
-        } else {
-          console.log(`✅ SMART RESTART: Reached maximum segments (${maxSegments}) - stopping gracefully`);
-          stopCaptionCollection();
-          
-          chrome.runtime.sendMessage({
-            action: 'transcriptComplete',
-            totalSegments: maxSegments,
-            totalRecordingTime: maxSegments * 60,
-            segments: whisper.smartRestart.allSegments.length
-          }).catch(err => console.log('Failed to send completion message:', err));
-        }
+        // Send completion message to sidepanel
+        chrome.runtime.sendMessage({
+          action: 'transcriptSafetyStop',
+          reason: 'Completed 1-minute safe recording window',
+          duration: 60000,
+          segments: captionCollection.segments.length,
+          canRestart: true
+        }).catch(err => console.log('Failed to send safety stop message:', err));
       }
-    }, 60000); // 1 minute per segment
+    }, 60000); // 1 minute maximum - safe and reliable
     
     // Store timer for cleanup
     whisper.emergencyStopTimer = emergencyStopTimer;
