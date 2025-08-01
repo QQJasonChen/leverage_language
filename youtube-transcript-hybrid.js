@@ -26,8 +26,8 @@
       audioStream: null,
       isRecording: false,
       chunkStartTime: 0,
-      chunkDuration: 8, // ✅ SAFE: 8-second chunks for quality without freezing
-      chunkGap: 3, // ✅ SAFE: 3-second gap for memory cleanup and stability
+      chunkDuration: 5, // ✅ ULTRA-SAFE: 5-second chunks to minimize memory load
+      chunkGap: 5, // ✅ ULTRA-SAFE: 5-second gaps for thorough cleanup
       pendingTranscriptions: new Map(), // Track ongoing transcriptions
       lastTranscriptionTime: 0,
       initializationAttempted: false, // Track if we've tried to initialize
@@ -76,8 +76,8 @@
       
       // ✅ NEW: Handle Whisper timing settings
       const whisperSettings = request.whisperSettings || {
-        chunkDuration: 8,
-        chunkGap: 3,
+        chunkDuration: 5,
+        chunkGap: 5,
         sentenceGrouping: 'medium'
       };
       
@@ -1836,14 +1836,41 @@
       
       console.log('🧹 CRITICAL: Running periodic memory cleanup...');
       
+      // 0. ✅ MEMORY PRESSURE DETECTION - Stop if memory usage is too high
+      if (window.performance && window.performance.memory) {
+        const memInfo = window.performance.memory;
+        const memoryUsagePercent = (memInfo.usedJSHeapSize / memInfo.jsHeapSizeLimit) * 100;
+        console.log(`🧠 Memory usage: ${Math.round(memoryUsagePercent)}% (${Math.round(memInfo.usedJSHeapSize/1024/1024)}MB)`);
+        
+        if (memoryUsagePercent > 80) {
+          console.log('🚨 MEMORY PRESSURE: High memory usage detected - emergency stopping to prevent freeze');
+          captionCollection.isCollecting = false;
+          stopCaptionCollection();
+          
+          chrome.runtime.sendMessage({
+            action: 'transcriptEmergencyStop',
+            reason: 'High memory usage detected',
+            memoryUsage: Math.round(memoryUsagePercent) + '%',
+            segments: captionCollection.segments.length
+          }).catch(err => console.log('Failed to send memory pressure message:', err));
+          return;
+        }
+      }
+      
       // 1. Limit audio chunks aggressively
-      if (whisper.audioChunks.length > 3) {
-        whisper.audioChunks = whisper.audioChunks.slice(-2);
+      if (whisper.audioChunks.length > 2) {
+        whisper.audioChunks = whisper.audioChunks.slice(-1);
         console.log('🧹 Trimmed audio chunks to prevent memory buildup');
       }
       
-      // 2. Clear old pending transcriptions (> 2 minutes old)
-      const cutoffTime = Date.now() - (2 * 60 * 1000);
+      // 2. ✅ AGGRESSIVE: Limit concurrent pending transcriptions to prevent pile-up
+      if (whisper.pendingTranscriptions.size > 2) {
+        console.log('🚨 Too many pending transcriptions - clearing all to prevent freeze');
+        whisper.pendingTranscriptions.clear();
+      }
+      
+      // 3. Clear old pending transcriptions (> 30 seconds old)
+      const cutoffTime = Date.now() - (30 * 1000); // Reduced from 2 minutes to 30 seconds
       for (const [key, value] of whisper.pendingTranscriptions.entries()) {
         if (value.timestamp < cutoffTime) {
           whisper.pendingTranscriptions.delete(key);
@@ -1851,23 +1878,23 @@
         }
       }
       
-      // 3. Limit processed time ranges (keep only last 20)
-      if (whisper.processedTimeRanges.length > 20) {
-        whisper.processedTimeRanges = whisper.processedTimeRanges.slice(-10);
+      // 4. Limit processed time ranges (keep only last 10)
+      if (whisper.processedTimeRanges.length > 10) {
+        whisper.processedTimeRanges = whisper.processedTimeRanges.slice(-5);
         console.log('🧹 Trimmed processed time ranges');
       }
       
-      // 4. Limit caption segments (keep only last 100)
-      if (captionCollection.segments.length > 100) {
-        captionCollection.segments = captionCollection.segments.slice(-50);
+      // 5. Limit caption segments (keep only last 20)
+      if (captionCollection.segments.length > 20) {
+        captionCollection.segments = captionCollection.segments.slice(-15);
         console.log('🧹 Trimmed caption segments to prevent memory overflow');
       }
       
       console.log(`📊 Memory status: ${whisper.audioChunks.length} chunks, ${whisper.pendingTranscriptions.size} pending, ${whisper.processedTimeRanges.length} ranges, ${captionCollection.segments.length} segments`);
       
-    }, 30000); // Run every 30 seconds
+    }, 10000); // Run every 10 seconds for aggressive cleanup
     
-    console.log('✅ Started periodic memory cleanup (every 30s)');
+    console.log('✅ Started aggressive memory cleanup (every 10s)');
   }
 
   function startContinuousAudioRecording() {
@@ -1884,22 +1911,22 @@
     // ✅ CRITICAL FIX: Start periodic memory cleanup to prevent browser freeze
     startPeriodicMemoryCleanup();
     
-    // ✅ EMERGENCY CIRCUIT BREAKER: Auto-stop after 2 minutes to prevent freezing
+    // ✅ EMERGENCY CIRCUIT BREAKER: Auto-stop after 1 minute to prevent freezing
     const emergencyStopTimer = setTimeout(() => {
       if (captionCollection.isCollecting) {
-        console.log('🚨 EMERGENCY STOP: Auto-stopping transcript recording after 2 minutes to prevent tab freezing');
-        console.log('💡 This helps maintain browser stability during long recordings');
+        console.log('🚨 EMERGENCY STOP: Auto-stopping transcript recording after 1 minute to prevent tab freezing');
+        console.log('💡 This maintains browser stability - you can restart for more content');
         stopCaptionCollection();
         
         // Send emergency message to sidepanel
         chrome.runtime.sendMessage({
           action: 'transcriptEmergencyStop',
-          reason: 'Automatic safety stop after 2 minutes',
-          duration: 120000,
+          reason: 'Automatic safety stop after 1 minute',
+          duration: 60000,
           segments: captionCollection.segments.length
         }).catch(err => console.log('Failed to send emergency stop message:', err));
       }
-    }, 120000); // 2 minutes maximum
+    }, 60000); // 1 minute maximum for safety
     
     // Store timer for cleanup
     whisper.emergencyStopTimer = emergencyStopTimer;
@@ -1934,6 +1961,12 @@
       
       // Start recording
       if (whisper.mediaRecorder.state !== 'recording') {
+        // ✅ CRITICAL: Prevent pile-up by checking pending transcriptions
+        if (whisper.pendingTranscriptions.size > 1) {
+          console.log('⚠️ Skipping recording start - too many pending transcriptions to prevent freeze');
+          return;
+        }
+        
         console.log(`🔴 Starting MediaRecorder for ${whisper.chunkDuration}s chunk`);
         console.log(`📊 MediaRecorder state before start: ${whisper.mediaRecorder.state}`);
         
@@ -1981,6 +2014,12 @@
     whisper.chunkStartTime = startTime;
     
     if (whisper.mediaRecorder && whisper.mediaRecorder.state !== 'recording') {
+      // ✅ CRITICAL: Prevent pile-up by checking pending transcriptions
+      if (whisper.pendingTranscriptions.size > 1) {
+        console.log('⚠️ Skipping new audio chunk start - too many pending transcriptions');
+        return;
+      }
+      
       whisper.mediaRecorder.start();
       whisper.isRecording = true;
       
@@ -2721,8 +2760,8 @@
     
     // ✅ NEW: Apply user's Whisper timing settings
     const defaultWhisperSettings = {
-      chunkDuration: 8,
-      chunkGap: 3,
+      chunkDuration: 5,
+      chunkGap: 5,
       sentenceGrouping: 'medium',
       languageOverride: 'auto'
     };
