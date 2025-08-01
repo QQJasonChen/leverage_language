@@ -5,6 +5,39 @@
   'use strict';
 
   console.log('🎬 HYBRID YouTube transcript content script loaded');
+  
+  // ✅ AI POLISH: Function to improve transcript quality with AI
+  async function polishTranscriptWithAI(text) {
+    try {
+      // Only polish if text is substantial and contains issues
+      if (!text || text.length < 20 || text.match(/[.!?]$/)) {
+        return text; // Skip if too short or already well-punctuated
+      }
+      
+      // Simple punctuation fixes
+      let polished = text
+        .replace(/\s+/g, ' ') // Fix multiple spaces
+        .replace(/([a-z])([A-Z])/g, '$1. $2') // Add period before capital letters
+        .replace(/\s*,\s*/g, ', ') // Fix comma spacing
+        .replace(/\s*\.\s*/g, '. ') // Fix period spacing
+        .trim();
+      
+      // Ensure sentence ends with punctuation
+      if (!polished.match(/[.!?]$/)) {
+        polished += '.';
+      }
+      
+      // Capitalize first letter
+      polished = polished.charAt(0).toUpperCase() + polished.slice(1);
+      
+      console.log('🤖 AI Polish applied to transcript');
+      return polished;
+      
+    } catch (error) {
+      console.warn('⚠️ AI polish failed, using original text:', error);
+      return text;
+    }
+  }
 
   // Caption collection state with Whisper transcription
   let captionCollection = {
@@ -26,7 +59,7 @@
       audioStream: null,
       isRecording: false,
       chunkStartTime: 0,
-      chunkDuration: 8, // ✅ OPTIMIZED: 8-second chunks for better sentences
+      chunkDuration: 15, // ✅ QUALITY: 15-second chunks for complete sentences
       chunkGap: 1, // ✅ OPTIMIZED: 1-second gap with overlap
       pendingTranscriptions: new Map(), // Track ongoing transcriptions
       lastTranscriptionTime: 0,
@@ -42,7 +75,7 @@
       // ✅ EMERGENCY CIRCUIT BREAKER
       emergencyStop: {
         enabled: true,
-        maxRecordingTime: 30000, // ✅ SAFE: 30 seconds max to prevent freezing
+        maxRecordingTime: 75000, // ✅ MATCH UI: 75 seconds per chunk as shown in settings
         startTime: null,
         memoryCheckInterval: null,
         lastMemoryCheck: 0,
@@ -58,7 +91,7 @@
         chunkData: [],
         restartTimer: null,
         restartDelay: 2000, // 2 second gap between chunks
-        maxChunks: 60, // Maximum 60 chunks = 30 minutes total (30s each)
+        maxChunks: 24, // Maximum 24 chunks = 30 minutes total (75s each)
         videoStartTime: null,
         lastChunkEndTime: 0,
         fullTranscriptSegments: [],
@@ -1874,26 +1907,26 @@
       const now = Date.now();
       const recordingDuration = now - emergency.startTime;
       
-      // 1. Check maximum recording time (30 seconds)
+      // 1. Check maximum recording time (75 seconds)
       if (recordingDuration > emergency.maxRecordingTime) {
-        console.error('🚨 EMERGENCY STOP: Maximum recording time exceeded (30 seconds)');
+        console.error('🚨 EMERGENCY STOP: Maximum recording time exceeded (75 seconds)');
         triggerEmergencyStop('MAX_TIME_EXCEEDED');
         return;
       }
       
-      // 2. SAFE memory indicators - prevent any buildup
+      // 2. QUALITY memory indicators - allow more for 75-second chunks
       const memoryIssues = 
-        whisper.audioChunks.length > 2 ||
-        whisper.pendingTranscriptions.size > 2 ||
-        whisper.processedTimeRanges.length > 8 ||
-        captionCollection.segments.length > 20;
+        whisper.audioChunks.length > 5 ||
+        whisper.pendingTranscriptions.size > 3 ||
+        whisper.processedTimeRanges.length > 15 ||
+        captionCollection.segments.length > 50;
       
       if (memoryIssues) {
         emergency.consecutiveHighMemory++;
         console.warn(`⚠️ EMERGENCY: High memory usage detected (${emergency.consecutiveHighMemory}/3)`);
         
-        if (emergency.consecutiveHighMemory >= 1) {
-          console.error('🚨 EMERGENCY STOP: Memory buildup detected');
+        if (emergency.consecutiveHighMemory >= 3) {
+          console.error('🚨 EMERGENCY STOP: Persistent memory buildup detected');
           triggerEmergencyStop('HIGH_MEMORY_USAGE');
           return;
         }
@@ -2057,12 +2090,12 @@
       captionCollection.lastCollectedTimestamp = videoTimestamp; // ✅ CRITICAL: Track video position
       emergency.startTime = Date.now();
       
-      // Restart collection with safe settings for next chunk
+      // Restart collection with quality settings for next chunk
       const whisperSettings = {
-        chunkDuration: whisper.chunkDuration, // 8 seconds
+        chunkDuration: whisper.chunkDuration, // 15 seconds
         chunkGap: whisper.chunkGap, // 1 second 
         apiRateLimit: whisper.apiRateLimit.minDelay, // 3000ms
-        sentenceGrouping: 'minimal'
+        sentenceGrouping: 'medium'
       };
       startCaptionCollection(whisper.chunkDuration, 'whisper-only', whisperSettings);
       
@@ -2133,10 +2166,10 @@
       
       console.log('🧹 CRITICAL: Running periodic memory cleanup...');
       
-      // 1. SAFE: Clear audio chunks aggressively
-      if (whisper.audioChunks.length > 1) {
-        whisper.audioChunks = whisper.audioChunks.slice(-1);
-        console.log('🧹 SAFE: Trimmed audio chunks to 1 max');
+      // 1. QUALITY: Keep more audio chunks for better processing
+      if (whisper.audioChunks.length > 3) {
+        whisper.audioChunks = whisper.audioChunks.slice(-2);
+        console.log('🧹 QUALITY: Trimmed audio chunks to 2 max');
       }
       
       // 2. BALANCED: Clear old pending transcriptions (> 30 seconds old)
@@ -2154,17 +2187,17 @@
         console.log('🧹 SAFE: Trimmed processed time ranges to 5');
       }
       
-      // 4. SAFE: Limit segments to prevent memory issues
-      if (captionCollection.segments.length > 20) {
-        captionCollection.segments = captionCollection.segments.slice(-15);
-        console.log('🧹 SAFE: Trimmed segments to 15 max');
+      // 4. QUALITY: Allow more segments for better transcript quality
+      if (captionCollection.segments.length > 75) {
+        captionCollection.segments = captionCollection.segments.slice(-50);
+        console.log('🧹 QUALITY: Trimmed segments to 50 max');
       }
       
       console.log(`📊 Memory status: ${whisper.audioChunks.length} chunks, ${whisper.pendingTranscriptions.size} pending, ${whisper.processedTimeRanges.length} ranges, ${captionCollection.segments.length} segments`);
       
-    }, 1000); // ✅ SAFE: Run every 1 second for aggressive cleanup
+    }, 3000); // ✅ QUALITY: Run every 3 seconds for better processing
     
-    console.log('✅ SAFE: Started memory cleanup (every 1s)');
+    console.log('✅ QUALITY: Started memory cleanup (every 3s)');
   }
 
   function startContinuousAudioRecording() {
@@ -2421,17 +2454,36 @@
       return (timeOverlap && textSimilarity) || veryCloseTime;
     });
     
-    // ✅ NEW: Check against last chunk text for overlap deduplication
-    if (chunking.lastChunkText && transcriptionText.startsWith(chunking.lastChunkText.slice(-20))) {
-      console.log('🔄 Detected overlap with previous chunk, trimming...');
-      const overlapIndex = transcriptionText.indexOf(chunking.lastChunkText.slice(-20));
-      if (overlapIndex > -1) {
-        transcriptionText = transcriptionText.substring(overlapIndex + 20).trim();
+    // ✅ ENHANCED: Better overlap detection and sentence boundary preservation
+    if (chunking.lastChunkText && transcriptionText.length > 0) {
+      // Check for word-level overlap
+      const lastWords = chunking.lastChunkText.split(' ').slice(-5); // Last 5 words
+      const currentWords = transcriptionText.split(' ');
+      
+      // Find overlap point
+      for (let i = 0; i < Math.min(lastWords.length, currentWords.length); i++) {
+        if (lastWords[lastWords.length - 1 - i] === currentWords[i]) {
+          // Found overlap, remove duplicated words
+          transcriptionText = currentWords.slice(i + 1).join(' ').trim();
+          console.log(`🔄 Removed ${i + 1} overlapping words`);
+          break;
+        }
+      }
+      
+      // Ensure we start with a complete sentence
+      const sentenceStart = transcriptionText.match(/^[^.!?]*[.!?]\s*/);
+      if (sentenceStart) {
+        transcriptionText = transcriptionText.substring(sentenceStart[0].length).trim();
+        console.log('📝 Started from complete sentence boundary');
       }
     }
     
-    // Store last chunk text for next comparison
-    chunking.lastChunkText = transcriptionText;
+    // ✅ AI POLISH: Improve punctuation and grammar if available
+    transcriptionText = await polishTranscriptWithAI(transcriptionText);
+    
+    // Store last chunk text for next comparison (keep last 50 words)
+    const words = transcriptionText.split(' ');
+    chunking.lastChunkText = words.slice(-50).join(' ');
     
     // ✅ SIMPLIFIED: Basic time range check to prevent crashes
     const wasAlreadyProcessed = captionCollection.whisper.processedTimeRanges.length > 50; // Prevent memory buildup
@@ -3064,7 +3116,7 @@
       chunking.chunkData = [];
       chunking.fullTranscriptSegments = [];
       
-      console.log(`🎯 ULTRA-MINIMAL: Smart chunking initialized: ${chunking.maxChunks} chunks max (${chunking.maxChunks} minutes total)`);
+      console.log(`🎯 QUALITY: Smart chunking initialized: ${chunking.maxChunks} chunks max (${Math.round(chunking.maxChunks * 75 / 60)} minutes total)`);
       
       // Send chunking info to sidepanel
       chrome.runtime.sendMessage({
