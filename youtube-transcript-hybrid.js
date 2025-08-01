@@ -2385,7 +2385,7 @@
         const isGoodTranscription = validateTranscriptionQuality(transcription.text, detectedLanguage);
         if (isGoodTranscription) {
           // Create segment with high-quality Whisper transcription
-          createWhisperSegment(transcription.text, startTime, startTime + captionCollection.whisper.chunkDuration);
+          await createWhisperSegment(transcription.text, startTime, startTime + captionCollection.whisper.chunkDuration);
           
           // ✅ NEW: Adaptive chunk sizing based on transcription success
           adaptChunkSizeBasedOnQuality(true, transcription.text.length);
@@ -2412,7 +2412,7 @@
     }
   }
 
-  function createWhisperSegment(transcriptionText, startTime, endTime) {
+  async function createWhisperSegment(transcriptionText, startTime, endTime) {
     // Create a high-quality segment from Whisper transcription
     if (!transcriptionText || transcriptionText.trim().length < 3) {
       console.log('⚠️ Whisper returned empty/short transcription');
@@ -2479,7 +2479,12 @@
     }
     
     // ✅ AI POLISH: Improve punctuation and grammar if available
-    transcriptionText = await polishTranscriptWithAI(transcriptionText);
+    try {
+      transcriptionText = await polishTranscriptWithAI(transcriptionText);
+    } catch (error) {
+      console.warn('⚠️ AI polish failed:', error);
+      // Continue with original text if polish fails
+    }
     
     // Store last chunk text for next comparison (keep last 50 words)
     const words = transcriptionText.split(' ');
@@ -3073,6 +3078,11 @@
   }
 
   async function startCaptionCollection(chunkDuration = 45, subtitleMode = 'with-subtitles', whisperSettings = {}) {
+    if (!captionCollection) {
+      console.error('❌ captionCollection not initialized');
+      return;
+    }
+    
     if (captionCollection.isCollecting) {
       console.log('📡 HYBRID Caption collection already in progress');
       return;
@@ -3601,8 +3611,14 @@
   }
 
   function stopCaptionCollection() {
-    if (!captionCollection || !captionCollection.isCollecting) {
+    if (!captionCollection) {
+      console.warn('⚠️ captionCollection not initialized during stop');
       return { segments: [], duration: 0 };
+    }
+    
+    if (!captionCollection.isCollecting) {
+      console.log('ℹ️ Collection not active, returning existing segments');
+      return { segments: captionCollection.segments || [], duration: 0 };
     }
     
     console.log('🛑 HYBRID Stopping Whisper-based collection...');
