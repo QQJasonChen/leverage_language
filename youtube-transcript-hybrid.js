@@ -26,12 +26,12 @@
       audioStream: null,
       isRecording: false,
       chunkStartTime: 0,
-      chunkDuration: 5, // ✅ ULTRA-MINIMAL: 5-second chunks to prevent memory buildup
-      chunkGap: 3, // ✅ ULTRA-MINIMAL: 3-second gap for processing and cleanup
+      chunkDuration: 3, // ✅ EXTREME: 3-second chunks to prevent tab freeze
+      chunkGap: 5, // ✅ EXTREME: 5-second gap for processing and cleanup
       pendingTranscriptions: new Map(), // Track ongoing transcriptions
       lastTranscriptionTime: 0,
       apiRateLimit: {
-        minDelay: 3000, // ✅ ULTRA-MINIMAL: 3 seconds minimum between API calls
+        minDelay: 5000, // ✅ EXTREME: 5 seconds minimum between API calls
         lastCallTime: 0,
         queue: []
       },
@@ -42,7 +42,7 @@
       // ✅ EMERGENCY CIRCUIT BREAKER
       emergencyStop: {
         enabled: true,
-        maxRecordingTime: 60000, // ✅ ULTRA-MINIMAL: 1 minute max to prevent any freeze
+        maxRecordingTime: 30000, // ✅ EXTREME: 30 seconds max to prevent tab freeze
         startTime: null,
         memoryCheckInterval: null,
         lastMemoryCheck: 0,
@@ -1872,26 +1872,26 @@
       const now = Date.now();
       const recordingDuration = now - emergency.startTime;
       
-      // 1. Check maximum recording time (1 minute)
+      // 1. Check maximum recording time (30 seconds)
       if (recordingDuration > emergency.maxRecordingTime) {
-        console.error('🚨 EMERGENCY STOP: Maximum recording time exceeded (1 minute)');
+        console.error('🚨 EMERGENCY STOP: Maximum recording time exceeded (30 seconds)');
         triggerEmergencyStop('MAX_TIME_EXCEEDED');
         return;
       }
       
-      // 2. ULTRA-AGGRESSIVE memory indicators
+      // 2. EXTREME memory indicators - trigger on any memory buildup
       const memoryIssues = 
-        whisper.audioChunks.length > 3 ||
-        whisper.pendingTranscriptions.size > 5 ||
-        whisper.processedTimeRanges.length > 15 ||
-        captionCollection.segments.length > 75;
+        whisper.audioChunks.length > 1 ||
+        whisper.pendingTranscriptions.size > 1 ||
+        whisper.processedTimeRanges.length > 5 ||
+        captionCollection.segments.length > 10;
       
       if (memoryIssues) {
         emergency.consecutiveHighMemory++;
         console.warn(`⚠️ EMERGENCY: High memory usage detected (${emergency.consecutiveHighMemory}/3)`);
         
-        if (emergency.consecutiveHighMemory >= 3) {
-          console.error('🚨 EMERGENCY STOP: Consecutive high memory usage detected');
+        if (emergency.consecutiveHighMemory >= 1) {
+          console.error('🚨 EMERGENCY STOP: Any memory buildup detected');
           triggerEmergencyStop('HIGH_MEMORY_USAGE');
           return;
         }
@@ -2020,20 +2020,49 @@
     
     // Prepare for next chunk
     chunking.currentChunk++;
+    
+    // ✅ FIX TIMESTAMPS: Capture current video time before restart
+    const player = document.querySelector('#movie_player');
+    const video = document.querySelector('video');
+    let currentVideoTime = 0;
+    
+    if (player && typeof player.getCurrentTime === 'function') {
+      currentVideoTime = player.getCurrentTime();
+    } else if (video && typeof video.currentTime === 'number') {
+      currentVideoTime = video.currentTime;
+    }
+    
+    const videoTimestamp = currentVideoTime || (chunking.currentChunk - 1) * 60; // Fallback estimation
     chunking.lastChunkEndTime = Date.now();
     emergency.emergencyStopTriggered = false;
     
+    console.log(`📊 Chunk ${chunking.currentChunk-1} complete. Video time: ${videoTimestamp}s`);
+    
     // Schedule restart after brief delay for cleanup
     chunking.restartTimer = setTimeout(() => {
-      console.log(`🚀 Starting chunk ${chunking.currentChunk}/${chunking.maxChunks}`);
+      console.log(`🚀 Starting chunk ${chunking.currentChunk}/${chunking.maxChunks} at video time ${videoTimestamp}s`);
       
-      // Reset states for fresh start
+      // ✅ PRESERVE PREVIOUS CHUNKS: Save current segments before clearing
+      if (captionCollection.segments.length > 0) {
+        chunking.fullTranscriptSegments.push(...captionCollection.segments);
+        console.log(`💾 Preserved ${captionCollection.segments.length} segments from chunk ${chunking.currentChunk-1}`);
+        console.log(`📚 Total preserved segments: ${chunking.fullTranscriptSegments.length}`);
+      }
+      
+      // Reset states for fresh start but preserve video timestamp context
       captionCollection.segments = [];
       captionCollection.startTime = Date.now();
+      captionCollection.lastCollectedTimestamp = videoTimestamp; // ✅ CRITICAL: Track video position
       emergency.startTime = Date.now();
       
-      // Restart collection
-      startHybridTranscriptCollection('whisper');
+      // Restart collection with ultra-minimal settings for next chunk
+      const whisperSettings = {
+        chunkDuration: whisper.chunkDuration, // 5 seconds
+        chunkGap: whisper.chunkGap, // 3 seconds 
+        apiRateLimit: whisper.apiRateLimit.minDelay, // 3000ms
+        sentenceGrouping: 'minimal'
+      };
+      startCaptionCollection(whisper.chunkDuration, 'whisper-only', whisperSettings);
       
     }, chunking.restartDelay);
   }
@@ -2102,38 +2131,35 @@
       
       console.log('🧹 CRITICAL: Running periodic memory cleanup...');
       
-      // 1. ULTRA-AGGRESSIVE: Limit audio chunks to absolute minimum
-      if (whisper.audioChunks.length > 2) {
-        whisper.audioChunks = whisper.audioChunks.slice(-1);
-        console.log('🧹 ULTRA-AGGRESSIVE: Trimmed audio chunks to 1 max');
+      // 1. EXTREME: Clear all audio chunks immediately after processing
+      if (whisper.audioChunks.length > 0) {
+        whisper.audioChunks = [];
+        console.log('🧹 EXTREME: Cleared all audio chunks immediately');
       }
       
-      // 2. Clear old pending transcriptions (> 2 minutes old)
-      const cutoffTime = Date.now() - (2 * 60 * 1000);
-      for (const [key, value] of whisper.pendingTranscriptions.entries()) {
-        if (value.timestamp < cutoffTime) {
-          whisper.pendingTranscriptions.delete(key);
-          console.log('🧹 Removed stale transcription:', key);
-        }
+      // 2. EXTREME: Clear ALL pending transcriptions immediately
+      if (whisper.pendingTranscriptions.size > 0) {
+        whisper.pendingTranscriptions.clear();
+        console.log('🧹 EXTREME: Cleared all pending transcriptions');
       }
       
-      // 3. Limit processed time ranges (keep only last 20)
-      if (whisper.processedTimeRanges.length > 20) {
-        whisper.processedTimeRanges = whisper.processedTimeRanges.slice(-10);
-        console.log('🧹 Trimmed processed time ranges');
+      // 3. EXTREME: Clear processed time ranges regularly
+      if (whisper.processedTimeRanges.length > 3) {
+        whisper.processedTimeRanges = [];
+        console.log('🧹 EXTREME: Cleared processed time ranges');
       }
       
-      // 4. Limit caption segments (keep only last 100)
-      if (captionCollection.segments.length > 100) {
-        captionCollection.segments = captionCollection.segments.slice(-50);
-        console.log('🧹 Trimmed caption segments to prevent memory overflow');
+      // 4. EXTREME: Limit caption segments aggressively
+      if (captionCollection.segments.length > 5) {
+        captionCollection.segments = captionCollection.segments.slice(-3);
+        console.log('🧹 EXTREME: Trimmed segments to 3 max');
       }
       
       console.log(`📊 Memory status: ${whisper.audioChunks.length} chunks, ${whisper.pendingTranscriptions.size} pending, ${whisper.processedTimeRanges.length} ranges, ${captionCollection.segments.length} segments`);
       
-    }, 5000); // ✅ ULTRA-MINIMAL: Run every 5 seconds for immediate cleanup
+    }, 500); // ✅ EXTREME: Run every 500ms for immediate cleanup
     
-    console.log('✅ ULTRA-MINIMAL: Started memory cleanup (every 5s)');
+    console.log('✅ EXTREME: Started aggressive memory cleanup (every 500ms)');
   }
 
   function startContinuousAudioRecording() {
