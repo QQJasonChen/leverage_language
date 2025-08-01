@@ -26,8 +26,8 @@
       audioStream: null,
       isRecording: false,
       chunkStartTime: 0,
-      chunkDuration: 5, // ✅ ULTRA-SAFE: 5-second chunks to minimize memory load
-      chunkGap: 5, // ✅ ULTRA-SAFE: 5-second gaps for thorough cleanup
+      chunkDuration: 3, // ✅ ULTRA-CONSERVATIVE: 3-second chunks to prevent ANY freezing
+      chunkGap: 7, // ✅ ULTRA-CONSERVATIVE: 7-second gaps for maximum cleanup
       pendingTranscriptions: new Map(), // Track ongoing transcriptions
       lastTranscriptionTime: 0,
       initializationAttempted: false, // Track if we've tried to initialize
@@ -1892,7 +1892,7 @@
       
       console.log(`📊 Memory status: ${whisper.audioChunks.length} chunks, ${whisper.pendingTranscriptions.size} pending, ${whisper.processedTimeRanges.length} ranges, ${captionCollection.segments.length} segments`);
       
-    }, 10000); // Run every 10 seconds for aggressive cleanup
+    }, 5000); // Run every 5 seconds - ultra-aggressive cleanup to prevent freezing
     
     console.log('✅ Started aggressive memory cleanup (every 10s)');
   }
@@ -1928,7 +1928,7 @@
           canRestart: true
         }).catch(err => console.log('Failed to send safety stop message:', err));
       }
-    }, 60000); // 1 minute maximum - safe and reliable
+    }, 45000); // 45 seconds maximum - ultra-safe to prevent any freezing
     
     // Store timer for cleanup
     whisper.emergencyStopTimer = emergencyStopTimer;

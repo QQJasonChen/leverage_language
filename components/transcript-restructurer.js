@@ -41,14 +41,8 @@ class TranscriptRestructurer {
             <div class="ai-settings-section">
               <h4>⚙️ Processing Settings</h4>
               <div class="settings-group">
-                <label class="setting-item">
-                  <div class="setting-header">
-                    <span class="setting-icon">🤖</span>
-                    <span class="setting-title">AI Enhancement</span>
-                  </div>
-                  <input type="checkbox" id="use-ai-restructure" checked>
-                  <span class="setting-description">Use AI for better punctuation and grammar</span>
-                </label>
+                <!-- AI Enhancement always enabled -->
+                <input type="hidden" id="use-ai-restructure" checked>
                 
                 <label class="setting-item">
                   <div class="setting-header">
@@ -140,8 +134,8 @@ class TranscriptRestructurer {
             <div class="transcription-method-section">
               <h4>🎯 Choose Transcription Method</h4>
               <div class="subtitle-mode-buttons">
-                <label class="subtitle-mode-card active" data-mode="with-subtitles">
-                  <input type="radio" name="subtitle-mode" value="with-subtitles" id="with-subtitles" checked>
+                <label class="subtitle-mode-card" data-mode="with-subtitles">
+                  <input type="radio" name="subtitle-mode" value="with-subtitles" id="with-subtitles">
                   <div class="card-header">
                     <span class="mode-icon">📝</span>
                     <span class="mode-title">Creator Subtitles</span>
@@ -155,8 +149,8 @@ class TranscriptRestructurer {
                   </div>
                 </label>
                 
-                <label class="subtitle-mode-card" data-mode="without-subtitles">
-                  <input type="radio" name="subtitle-mode" value="without-subtitles" id="without-subtitles">
+                <label class="subtitle-mode-card active" data-mode="without-subtitles">
+                  <input type="radio" name="subtitle-mode" value="without-subtitles" id="without-subtitles" checked>
                   <div class="card-header">
                     <span class="mode-icon">🎙️</span>
                     <span class="mode-title">Whisper Transcription</span>
