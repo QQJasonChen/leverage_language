@@ -54,18 +54,23 @@ class TranscriptRestructurer {
       const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tabs[0]) {
         const url = tabs[0].url;
+        console.log('🔍 Platform detection - Current URL:', url);
         if (url.includes('youtube.com')) {
+          console.log('✅ Detected YouTube platform');
           return 'youtube';
         } else if (url.includes('netflix.com')) {
+          console.log('✅ Detected Netflix platform');
           return 'netflix';
         }
       }
       
       // Fallback to checking available objects
       if (typeof YouTubeTranscriptFetcher !== 'undefined') {
+        console.log('📺 Fallback to YouTube (YouTubeTranscriptFetcher available)');
         return 'youtube';
       }
       
+      console.log('📺 Default fallback to YouTube');
       return 'youtube'; // Default fallback
     } catch (error) {
       console.log('⚠️ Platform detection error:', error);
@@ -86,6 +91,13 @@ class TranscriptRestructurer {
           <h3>${platformIcon} ${platformName} Transcript Restructurer</h3>
           <div class="platform-indicator">
             <span class="platform-badge platform-${this.currentPlatform}">${platformName}</span>
+            <button class="refresh-platform-btn" title="Refresh platform detection">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M23 4v6h-6"/>
+                <path d="M1 20v-6h6"/>
+                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+              </svg>
+            </button>
           </div>
           <div class="header-buttons">
             <button class="start-collection-btn" title="${collectTitle}">
@@ -286,6 +298,12 @@ class TranscriptRestructurer {
     const captureBtn = this.container.querySelector('.capture-subtitle-btn');
     if (captureBtn && this.currentPlatform === 'netflix') {
       captureBtn.addEventListener('click', () => this.captureCurrentSubtitle());
+    }
+    
+    // Platform refresh button
+    const refreshBtn = this.container.querySelector('.refresh-platform-btn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => this.refreshPlatform());
     }
     
     // ✅ NEW: Add interactive card selection for subtitle modes
@@ -2760,6 +2778,33 @@ Sentence to fix: "${preCleanedText}"`;
         color: white;
       }
       
+      .refresh-platform-btn {
+        background: rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-left: 8px;
+        color: currentColor;
+      }
+      
+      .refresh-platform-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: rotate(180deg);
+        border-color: rgba(255, 255, 255, 0.5);
+      }
+      
+      .refresh-platform-btn svg {
+        width: 12px;
+        height: 12px;
+        stroke-width: 2;
+      }
+      
       .header-buttons {
         display: flex;
         gap: 10px;
@@ -3538,6 +3583,22 @@ Sentence to fix: "${preCleanedText}"`;
     this.transcriptData = newTranscriptData;
     this.renderTranscript();
     this.updateStats();
+  }
+
+  // ✅ NEW: Method to refresh platform detection and reinitialize UI
+  async refreshPlatform() {
+    console.log('🔄 Refreshing platform detection...');
+    const oldPlatform = this.currentPlatform;
+    this.currentPlatform = await this.detectPlatform();
+    
+    if (oldPlatform !== this.currentPlatform) {
+      console.log(`🔄 Platform changed from ${oldPlatform} to ${this.currentPlatform}, reinitializing UI...`);
+      this.init();
+    } else {
+      console.log(`✅ Platform unchanged (${this.currentPlatform})`);
+    }
+    
+    return this.currentPlatform;
   }
 }
 

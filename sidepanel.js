@@ -4576,6 +4576,11 @@ async function loadTranscriptView() {
       }
     } else {
       console.log('♻️ Using existing TranscriptRestructurer');
+      // ✅ NEW: Refresh platform detection when reusing existing instance
+      if (window.transcriptRestructurer && window.transcriptRestructurer.refreshPlatform) {
+        console.log('🔄 Refreshing platform detection for existing TranscriptRestructurer...');
+        await window.transcriptRestructurer.refreshPlatform();
+      }
     }
     
     console.log('✅ Transcript view loaded successfully');
