@@ -1029,6 +1029,11 @@ function updateAuthUI(user) {
 // Initialize services when scripts load
 window.addEventListener('load', async () => {
   try {
+    // 🚨 EMERGENCY: Run cleanup IMMEDIATELY on page load
+    if (typeof emergencyCleanup === 'function') {
+      emergencyCleanup();
+    }
+    
     if (typeof StorageManager !== 'undefined') {
       storageManager = new StorageManager();
     }
@@ -1191,7 +1196,7 @@ function showSearchResult(queryData) {
   // 更新搜尋資訊
   searchTerm.textContent = queryData.text;
   searchLanguage.textContent = languageNames[queryData.language] || queryData.language;
-  languageBadge.textContent = queryData.language.toUpperCase();
+  languageBadge.textContent = (queryData.language || '').toUpperCase();
   searchInfo.style.display = 'block';
   
   // 顯示新分頁按鈕
@@ -1550,7 +1555,7 @@ function initializeViewControls() {
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'none';
       if (analyticsView) analyticsView.style.display = 'none';
-      if (transcriptView) transcriptView.style.display = 'none';
+      // Show transcript view
       if (transcriptView) transcriptView.style.display = 'block';
       
       await loadTranscriptView();
@@ -2598,6 +2603,34 @@ const returnButtonText = {
     'pt': 'Voltar ao Vídeo',
     'ru': 'Вернуться к Видео'
   },
+  youtube: {
+    'en': 'YouTube Video',
+    'zh': 'YouTube 影片',
+    'zh-TW': 'YouTube 影片', 
+    'zh-CN': 'YouTube 视频',
+    'ja': 'YouTube 動画',
+    'ko': 'YouTube 비디오',
+    'es': 'YouTube Video',
+    'fr': 'Vidéo YouTube',
+    'de': 'YouTube Video',
+    'it': 'Video YouTube',
+    'pt': 'Vídeo YouTube',
+    'ru': 'YouTube Видео'
+  },
+  netflix: {
+    'en': 'Netflix',
+    'zh': 'Netflix',
+    'zh-TW': 'Netflix', 
+    'zh-CN': 'Netflix',
+    'ja': 'Netflix',
+    'ko': 'Netflix',
+    'es': 'Netflix',
+    'fr': 'Netflix',
+    'de': 'Netflix',
+    'it': 'Netflix',
+    'pt': 'Netflix',
+    'ru': 'Netflix'
+  },
   article: {
     'en': 'Return to Article',
     'zh': '回到文章',
@@ -2637,6 +2670,10 @@ function getReturnButtonText(sourceType, language, hasTimestamp = false) {
     return returnButtonText.article[lang] || returnButtonText.article[fallbackLang];
   } else if (hasTimestamp) {
     return returnButtonText.segment[lang] || returnButtonText.segment[fallbackLang];
+  } else if (sourceType === 'netflix') {
+    return returnButtonText.netflix[lang] || returnButtonText.netflix[fallbackLang];
+  } else if (sourceType === 'youtube') {
+    return returnButtonText.youtube[lang] || returnButtonText.youtube[fallbackLang];
   } else {
     return returnButtonText.video[lang] || returnButtonText.video[fallbackLang];
   }
@@ -2647,8 +2684,10 @@ function getSourceType(query) {
   console.log('🔍 getSourceType called with:', {
     detectionMethod: query.detectionMethod,
     videoSourceUrl: query.videoSource?.url,
+    videoSourcePlatform: query.videoSource?.platform,
     videoSourceDomain: query.videoSource?.domain,
     videoSourceAuthor: query.videoSource?.author,
+    videoSourceChannel: query.videoSource?.channel,
     hasVideoSource: !!query.videoSource,
     fullQuery: query
   });
@@ -2667,9 +2706,36 @@ function getSourceType(query) {
     return 'article';
   }
   
-  // PRIORITY 2: Check if videoSource has article metadata indicators
+  // PRIORITY 2: Check if videoSource exists and check platform first
   if (query.videoSource) {
     const videoSource = query.videoSource;
+    
+    // Check for platform-specific video sources FIRST (highest priority)
+    console.log('🔍 Checking Netflix detection:', {
+      platform: videoSource.platform,
+      url: videoSource.url,
+      hasNetflixInUrl: videoSource.url && videoSource.url.includes('netflix.com')
+    });
+    
+    if (videoSource.platform === 'netflix' || videoSource.url && videoSource.url.includes('netflix.com')) {
+      console.log('🔍 -> ✅ FOUND NETFLIX VIDEO via platform/URL:', videoSource.platform || videoSource.url);
+      return 'netflix';
+    }
+    
+    if (videoSource.platform === 'youtube' || videoSource.url && 
+        (videoSource.url.includes('youtube.com') || videoSource.url.includes('youtu.be'))) {
+      console.log('🔍 -> ✅ FOUND YOUTUBE VIDEO via platform/URL:', videoSource.platform || videoSource.url);
+      return 'youtube';
+    }
+    
+    // Then check for article metadata indicators
+    console.log('🔍 Checking article detection:', {
+      author: videoSource.author,
+      channel: videoSource.channel,
+      hasAuthorButNoChannel: videoSource.author && !videoSource.channel,
+      publishDate: videoSource.publishDate,
+      domain: videoSource.domain
+    });
     
     // Check for article author (but not YouTube channel)
     if (videoSource.author && !videoSource.channel && videoSource.author !== '未知作者') {
@@ -2693,7 +2759,8 @@ function getSourceType(query) {
     if (videoSource.url && 
         !videoSource.url.includes('youtube.com') && 
         !videoSource.url.includes('youtu.be') &&
-        !videoSource.url.includes('youglish.com')) {
+        !videoSource.url.includes('youglish.com') &&
+        !videoSource.url.includes('netflix.com')) {
       console.log('🔍 -> ✅ FOUND ARTICLE via non-video URL:', videoSource.url);
       return 'article';
     }
@@ -2705,17 +2772,29 @@ function getSourceType(query) {
 
 // Helper function to get appropriate icon
 function getSourceIcon(sourceType) {
-  return sourceType === 'article' ? '📖' : '📹';
+  if (sourceType === 'article') return '📖';
+  if (sourceType === 'netflix') return '🎭';
+  if (sourceType === 'youtube') return '📺';
+  return '📹'; // Default for other video types
+}
+
+// Helper function to get platform-specific colors
+function getPlatformColors(sourceType) {
+  if (sourceType === 'article') return { border: '#28a745', button: '#28a745', hover: '#1e7e34' };
+  if (sourceType === 'netflix') return { border: '#e50914', button: '#e50914', hover: '#b8070e' };
+  if (sourceType === 'youtube') return { border: '#ff0000', button: '#ff0000', hover: '#e60000' };
+  return { border: '#ff0000', button: '#ff0000', hover: '#e60000' }; // Default
 }
 
 // Helper function to generate video source HTML
 function getVideoSourceHtml(query) {
   const sourceType = getSourceType(query);
   const sourceIcon = getSourceIcon(sourceType);
-  const hasTimestamp = formatVideoTimestamp(query.videoSource.videoTimestamp);
+  const hasTimestamp = sourceType === 'netflix' ? null : formatVideoTimestamp(query.videoSource.videoTimestamp);
   const returnText = getReturnButtonText(sourceType, query.language, !!hasTimestamp);
-  const borderColor = sourceType === 'article' ? '#28a745' : '#ff0000';
-  const buttonColor = sourceType === 'article' ? '#28a745' : '#ff0000';
+  const colors = getPlatformColors(sourceType);
+  const borderColor = colors.border;
+  const buttonColor = colors.button;
   
   return `
     <div class="history-video-source" style="margin-top: 8px; padding: 8px; background-color: #f8f9fa; border-radius: 6px; border-left: 3px solid ${borderColor};">
@@ -2737,9 +2816,10 @@ function getVideoSourceHtml(query) {
 function getReportReturnButton(report) {
   const sourceType = getSourceType(report);
   const sourceIcon = getSourceIcon(sourceType);
-  const hasTimestamp = formatVideoTimestamp(report.videoSource.videoTimestamp);
+  const hasTimestamp = sourceType === 'netflix' ? null : formatVideoTimestamp(report.videoSource.videoTimestamp);
   const returnText = getReturnButtonText(sourceType, report.language, !!hasTimestamp);
-  const buttonColor = sourceType === 'article' ? '#28a745' : '#ff0000';
+  const colors = getPlatformColors(sourceType);
+  const buttonColor = colors.button;
   
   // For articles, use url or originalUrl or articleUrl
   const returnUrl = report.videoSource.url || report.videoSource.originalUrl || report.videoSource.articleUrl || '#';
@@ -2753,11 +2833,12 @@ function getReportReturnButton(report) {
 function getReportVideoInfo(report) {
   const sourceType = getSourceType(report);
   const sourceIcon = getSourceIcon(sourceType);
-  const borderColor = sourceType === 'article' ? '#28a745' : '#ff0000';
-  const hasTimestamp = formatVideoTimestamp(report.videoSource.videoTimestamp);
+  const colors = getPlatformColors(sourceType);
+  const borderColor = colors.border;
+  const hasTimestamp = sourceType === 'netflix' ? null : formatVideoTimestamp(report.videoSource.videoTimestamp);
   const returnText = getReturnButtonText(sourceType, report.language, !!hasTimestamp);
-  const buttonColor = sourceType === 'article' ? '#28a745' : '#ff0000';
-  const hoverColor = sourceType === 'article' ? '#1e7e34' : '#e60000';
+  const buttonColor = colors.button;
+  const hoverColor = colors.hover;
   
   // For articles, use url or originalUrl or articleUrl
   const returnUrl = report.videoSource.url || report.videoSource.originalUrl || report.videoSource.articleUrl || '#';
@@ -3399,10 +3480,32 @@ async function generateAIAnalysis(forceRefresh = false) {
           videoSource = currentQueryData.videoSource;
           console.log('📰 Using article video source for auto-save:', videoSource);
         } else {
-          // Fallback to YouTube analysis for video sources
+          // Check for both YouTube and Netflix analysis for video sources
           try {
-            const result = await chrome.storage.local.get('youtubeAnalysis');
-            if (result.youtubeAnalysis) {
+            const result = await chrome.storage.local.get(['youtubeAnalysis', 'netflixAnalysis']);
+            
+            // First check Netflix analysis
+            if (result.netflixAnalysis) {
+              const netflixData = result.netflixAnalysis;
+              // Check if this is recent data (within last 2 minutes) and matches current text
+              if (Date.now() - netflixData.timestamp < 2 * 60 * 1000 && netflixData.text === text) {
+                const netflixUrl = netflixData.originalUrl || netflixData.url; // Prefer original Netflix URL
+                videoSource = {
+                  url: netflixUrl, // Use Netflix URL (with timestamp)
+                  originalUrl: netflixUrl,
+                  title: netflixData.title,
+                  channel: netflixData.title || 'Netflix',
+                  videoTimestamp: netflixData.videoTimestamp,
+                  timestamp: Date.now(),
+                  learnedAt: new Date().toISOString(),
+                  platform: 'netflix'
+                };
+                console.log('🎬 Found Netflix source data for auto-save:', videoSource);
+              }
+            }
+            
+            // If no Netflix data, fallback to YouTube analysis
+            if (!videoSource && result.youtubeAnalysis) {
               const ytData = result.youtubeAnalysis;
               // Check if this is recent data (within last 2 minutes) and matches current text
               if (Date.now() - ytData.timestamp < 2 * 60 * 1000 && ytData.text === text) {
@@ -3414,9 +3517,10 @@ async function generateAIAnalysis(forceRefresh = false) {
                   channel: ytData.title ? ytData.title.split(' - ')[0] : '未知頻道',
                   videoTimestamp: ytData.videoTimestamp, // Use correct field for video playback time
                   timestamp: Date.now(),
-                  learnedAt: new Date().toISOString()
+                  learnedAt: new Date().toISOString(),
+                  platform: 'youtube'
                 };
-                console.log('🎬 Found video source data for auto-save:', videoSource);
+                console.log('🎬 Found YouTube source data for auto-save:', videoSource);
                 console.log('🔗 YouTube URL vs YouGlish URL:', {
                   youtubeUrl: youtubeUrl,
                   youglishUrl: ytData.url,
@@ -3445,12 +3549,19 @@ async function generateAIAnalysis(forceRefresh = false) {
         } else {
           console.log('AI analysis report saved automatically (no audio)');
         }
+        
+        // Show user-visible feedback for auto-save success
+        showAutoSaveSuccess();
       } catch (error) {
         const result = await handleError(error, { operation: 'save_ai_report', context: 'auto_save' });
         log('Failed to save AI report:', result.success ? 'recovered' : error.message);
       }
     } else if (!autoSaveEnabled) {
       console.log('Auto-save is disabled, not saving AI report');
+    } else if (!storageManager) {
+      console.error('❌ StorageManager not initialized - AI report not saved');
+    } else if (typeof storageManager.saveAIReport !== 'function') {
+      console.error('❌ StorageManager.saveAIReport function not available - AI report not saved');
     }
     
   } catch (error) {
@@ -3913,6 +4024,153 @@ function showAIPlaceholderWithButton() {
       }
     }, 100);
   }
+}
+
+// A2 Test Usage Guidance Function
+async function generateA2TestUsage() {
+  if (!currentQueryData || !currentQueryData.text || !currentQueryData.language) {
+    console.log('❌ No analysis data available for A2 test usage');
+    return;
+  }
+
+  const a2TestUsageBtn = document.getElementById('a2TestUsageBtn');
+  if (a2TestUsageBtn) {
+    a2TestUsageBtn.disabled = true;
+    a2TestUsageBtn.textContent = '⏳ Generating A2 Guidance...';
+  }
+
+  try {
+    console.log('🎯 Generating A2 test usage guidance for:', currentQueryData.text);
+    
+    // Initialize AI service
+    if (typeof aiService === 'undefined' || !aiService) {
+      window.aiService = new AIService();
+    }
+    const initialized = await aiService.initialize();
+    if (!initialized) {
+      throw new Error('AI service not available');
+    }
+
+    // Create A2-specific prompt
+    const a2Prompt = buildA2TestUsagePrompt(currentQueryData.text, currentQueryData.language);
+    
+    // Get A2 guidance from AI
+    const a2Guidance = await aiService.getAnalysis(a2Prompt, 'medium');
+    
+    // Display the A2 guidance in a modal or expand the analysis section
+    showA2TestUsageResult(a2Guidance);
+    
+  } catch (error) {
+    console.error('❌ A2 test usage generation failed:', error);
+    showA2TestUsageError(error.message);
+  } finally {
+    if (a2TestUsageBtn) {
+      a2TestUsageBtn.disabled = false;
+      a2TestUsageBtn.textContent = '📝 A2 Test Usage';
+    }
+  }
+}
+
+function buildA2TestUsagePrompt(text, language) {
+  const languageNames = {
+    'english': 'English',
+    'dutch': 'Dutch',
+    'german': 'German',
+    'spanish': 'Spanish',
+    'french': 'French',
+    'italian': 'Italian',
+    'portuguese': 'Portuguese',
+    'chinese': 'Chinese',
+    'japanese': 'Japanese',
+    'korean': 'Korean'
+  };
+  
+  const languageName = languageNames[language] || language;
+  
+  return `請為以下${languageName}句子提供A2語言測驗使用指導：
+
+句子: "${text}"
+
+請提供以下內容：
+
+## 📝 A2寫作測驗使用指導
+1. **寫作情境**: 這個句子適合用在什麼A2寫作情境？（如：自我介紹、描述日常活動、簡單書信等）
+2. **句型結構**: 說明這個句子的結構，以及A2學習者如何運用這個結構
+3. **替換練習**: 提供3-4個類似結構的變化例句供A2學習者練習
+4. **常見錯誤**: A2學習者使用這個句型時容易犯的錯誤
+
+## 🗣️ A2口說測驗使用指導  
+1. **口說情境**: 這個句子適合用在什麼A2口說情境？（如：介紹自己、描述圖片、日常對話等）
+2. **發音重點**: 標出需要注意的發音重點和重音位置
+3. **對話練習**: 提供2-3個包含這個句子的簡單對話範例
+4. **表達技巧**: 說明如何自然地在A2口說中使用這個句子
+
+## 🎯 A2程度適用性評估
+1. **難度評級**: 評估這個句子對A2學習者的難度（簡單/適中/稍難）
+2. **關鍵詞彙**: 標出A2學習者需要掌握的核心詞彙
+3. **語法點**: 說明涉及的A2語法點
+4. **學習建議**: 給A2學習者的具體學習建議
+
+請用繁體中文回答，並用清楚的結構呈現。`;
+}
+
+function showA2TestUsageResult(guidance) {
+  // Create or get A2 guidance result container
+  let a2ResultContainer = document.getElementById('a2TestUsageResult');
+  if (!a2ResultContainer) {
+    // Create new container after the main analysis result
+    const analysisResult = document.getElementById('aiAnalysisResult');
+    if (analysisResult && analysisResult.parentNode) {
+      a2ResultContainer = document.createElement('div');
+      a2ResultContainer.id = 'a2TestUsageResult';
+      a2ResultContainer.className = 'a2-test-usage-result';
+      a2ResultContainer.style.cssText = `
+        margin-top: 20px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border-left: 4px solid #28a745;
+        display: none;
+      `;
+      analysisResult.parentNode.insertBefore(a2ResultContainer, analysisResult.nextSibling);
+    }
+  }
+  
+  if (a2ResultContainer) {
+    // Format and display the guidance
+    const formattedGuidance = formatAIAnalysis(guidance, 'a2-guidance');
+    a2ResultContainer.innerHTML = `
+      <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 15px;">
+        <h3 style="color: #28a745; margin: 0; font-size: 18px;">
+          🎯 A2 Test Usage Guidance
+        </h3>
+        <button id="closeA2Guidance" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #666;" title="Close A2 guidance">
+          ×
+        </button>
+      </div>
+      <div class="a2-guidance-content">
+        ${formattedGuidance}
+      </div>
+    `;
+    
+    a2ResultContainer.style.display = 'block';
+    
+    // Add close button functionality
+    const closeBtn = document.getElementById('closeA2Guidance');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        a2ResultContainer.style.display = 'none';
+      });
+    }
+    
+    // Scroll to the guidance
+    a2ResultContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function showA2TestUsageError(errorMessage) {
+  // Show error in a simple alert or notification
+  alert(`A2 測驗指導生成失敗: ${errorMessage}`);
 }
 
 // Quick Search Results Functions
@@ -4867,7 +5125,7 @@ async function loadSavedReports() {
               <div class="report-main-info">
                 <span class="report-text">${report.searchText}</span>
                 <div class="report-badges">
-                  <span class="report-language">${languageNames[report.language] || report.language.toUpperCase()}</span>
+                  <span class="report-language">${languageNames[report.language] || (report.language || '').toUpperCase()}</span>
                   ${report.favorite ? '<span class="favorite-badge">⭐ 最愛</span>' : ''}
                   ${report.audioData || report.audioInIndexedDB ? `<span class="audio-badge" data-report-id="${report.id}" style="cursor: pointer;" title="點擊播放語音">🔊 語音</span>` : ''}
                   ${report.hasErrors ? 
@@ -5544,6 +5802,13 @@ function updateAutoSaveButtonUI() {
         manualSaveBtn.textContent = '💾 Save This Report';
       }
     }
+    
+    // Show A2 test usage button when analysis exists
+    const a2TestUsageBtn = document.getElementById('a2TestUsageBtn');
+    if (a2TestUsageBtn) {
+      const hasAnalysis = currentAIAnalysis && currentQueryData.text && currentQueryData.language;
+      a2TestUsageBtn.style.display = hasAnalysis ? 'inline-block' : 'none';
+    }
   }
 }
 
@@ -5613,6 +5878,27 @@ function updateErrorDetectionButtonUI() {
   }
 }
 
+// Show auto-save success feedback
+function showAutoSaveSuccess() {
+  const autoSaveBtn = document.getElementById('autoSaveToggleBtn');
+  if (autoSaveBtn && autoSaveEnabled) {
+    const originalText = autoSaveBtn.textContent;
+    const originalBackground = autoSaveBtn.style.background;
+    
+    // Show success feedback
+    autoSaveBtn.textContent = '✅ Saved';
+    autoSaveBtn.style.background = '#4CAF50';
+    autoSaveBtn.style.color = 'white';
+    
+    // Revert after 2 seconds
+    setTimeout(() => {
+      autoSaveBtn.textContent = originalText;
+      autoSaveBtn.style.background = originalBackground;
+      autoSaveBtn.style.color = '';
+    }, 2000);
+  }
+}
+
 // Manual save function for when auto-save is disabled
 async function manualSaveReport() {
   if (!currentAIAnalysis || !currentQueryData.text || !currentQueryData.language) {
@@ -5645,10 +5931,32 @@ async function manualSaveReport() {
         videoSource = currentQueryData.videoSource;
         console.log('📰 Using article video source for manual save:', videoSource);
       } else {
-        // Fallback to YouTube analysis for video sources
+        // Check for both YouTube and Netflix analysis for video sources
         try {
-          const result = await chrome.storage.local.get('youtubeAnalysis');
-          if (result.youtubeAnalysis) {
+          const result = await chrome.storage.local.get(['youtubeAnalysis', 'netflixAnalysis']);
+          
+          // First check Netflix analysis
+          if (result.netflixAnalysis) {
+            const netflixData = result.netflixAnalysis;
+            // Check if this is recent data and matches current text
+            if (Date.now() - netflixData.timestamp < 2 * 60 * 1000 && netflixData.text === currentQueryData.text) {
+              const netflixUrl = netflixData.originalUrl || netflixData.url; // Prefer original Netflix URL
+              videoSource = {
+                url: netflixUrl, // Use Netflix URL (with timestamp)
+                originalUrl: netflixUrl,
+                title: netflixData.title,
+                channel: netflixData.title || 'Netflix',
+                videoTimestamp: netflixData.videoTimestamp,
+                timestamp: Date.now(),
+                learnedAt: new Date().toISOString(),
+                platform: 'netflix'
+              };
+              console.log('🎬 Found Netflix source data for manual save:', videoSource);
+            }
+          }
+          
+          // If no Netflix data, fallback to YouTube analysis
+          if (!videoSource && result.youtubeAnalysis) {
             const ytData = result.youtubeAnalysis;
             // Check if this is recent data and matches current text
             if (Date.now() - ytData.timestamp < 2 * 60 * 1000 && ytData.text === currentQueryData.text) {
@@ -5660,9 +5968,10 @@ async function manualSaveReport() {
                 channel: ytData.title ? ytData.title.split(' - ')[0] : '未知頻道',
                 videoTimestamp: ytData.videoTimestamp, // Use correct field for video playback time
                 timestamp: Date.now(),
-                learnedAt: new Date().toISOString()
+                learnedAt: new Date().toISOString(),
+                platform: 'youtube'
               };
-              console.log('🎬 Found video source data for manual save:', videoSource);
+              console.log('🎬 Found YouTube source data for manual save:', videoSource);
               console.log('🔗 Manual save - YouTube URL vs YouGlish URL:', {
                 youtubeUrl: youtubeUrl,
                 youglishUrl: ytData.url,
@@ -6272,7 +6581,7 @@ function displayFilteredSavedReports(reports) {
           <div class="report-main-info">
             <span class="report-text">${report.searchText}</span>
             <div class="report-badges">
-              <span class="report-language">${languageNames[report.language] || report.language.toUpperCase()}</span>
+              <span class="report-language">${languageNames[report.language] || (report.language || '').toUpperCase()}</span>
               ${report.favorite ? '<span class="favorite-badge">⭐ 最愛</span>' : ''}
               ${report.audioData || report.audioInIndexedDB ? `<span class="audio-badge" data-report-id="${report.id}" style="cursor: pointer;" title="點擊播放語音">🔊 語音</span>` : ''}
               ${report.hasErrors ? 
@@ -6458,6 +6767,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
   
+  // Emergency cleanup button
+  const emergencyCleanupBtn = document.getElementById('emergencyCleanupBtn');
+  if (emergencyCleanupBtn) {
+    emergencyCleanupBtn.addEventListener('click', () => {
+      console.log('🚨 Emergency cleanup button clicked');
+      emergencyCleanup();
+      alert('✅ Emergency cleanup completed! Audio cache cleared.');
+    });
+  }
+  
   // Initialize storage display
   updateStorageDisplay();
 
@@ -6489,6 +6808,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadErrorDetectionSetting();
     
     errorDetectionToggleBtn.addEventListener('click', () => toggleErrorDetection());
+  }
+  
+  // A2 Test Usage button
+  const a2TestUsageBtn = document.getElementById('a2TestUsageBtn');
+  if (a2TestUsageBtn) {
+    a2TestUsageBtn.addEventListener('click', () => generateA2TestUsage());
   }
   
   // Save audio toggle button
@@ -7780,7 +8105,7 @@ function displayFilteredReports(reports) {
           <div class="report-main-info">
             <span class="report-text">${report.searchText}</span>
             <div class="report-badges">
-              <span class="report-language">${languageNames[report.language] || report.language.toUpperCase()}</span>
+              <span class="report-language">${languageNames[report.language] || (report.language || '').toUpperCase()}</span>
               ${report.favorite ? '<span class="favorite-badge">⭐ 最愛</span>' : ''}
               ${report.audioData || report.audioInIndexedDB ? `<span class="audio-badge" data-report-id="${report.id}" style="cursor: pointer;" title="點擊播放語音">🔊 語音</span>` : ''}
             </div>
@@ -8702,6 +9027,9 @@ function performManualSearch() {
     }
   });
 }
+
+// Make performManualSearch globally accessible for transcript capture
+window.performManualSearch = performManualSearch;
 
 // ================================
 // ANALYTICS FUNCTIONALITY  
@@ -10004,19 +10332,23 @@ function performMemoryCleanup() {
   console.log('🧹 Performing aggressive memory cleanup...');
   
   try {
-    // Clear audio cache if it's getting too large
-    if (window.audioCache.size > 10) {
-      console.log(`🗑️ Clearing ${window.audioCache.size} cached audio items`);
+    // 🚨 EMERGENCY: Much more aggressive audio cache cleanup
+    if (window.audioCache.size > 3) { // Reduced from 10 to 3
+      console.log(`🚨 EMERGENCY: Audio cache too large - forcing cleanup of ${window.audioCache.size} items`);
       window.audioCache.forEach((audioData, key) => {
         try {
           if (audioData && audioData.blobUrl && audioData.blobUrl.startsWith('blob:')) {
             URL.revokeObjectURL(audioData.blobUrl);
+          }
+          if (audioData && audioData.audioUrl && audioData.audioUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(audioData.audioUrl);
           }
         } catch (e) {
           console.warn('Failed to revoke audio URL:', e);
         }
       });
       window.audioCache.clear();
+      console.log('✅ Emergency audio cache cleanup completed');
     }
     
     // Clear temporary DOM elements
@@ -10047,16 +10379,69 @@ function performMemoryCleanup() {
   }
 }
 
+// 🚨 EMERGENCY: Immediate cleanup function
+function emergencyCleanup() {
+  console.log('🚨 EMERGENCY: Running immediate cleanup to prevent crashes');
+  
+  try {
+    // Force clear all audio cache immediately
+    if (window.audioCache && window.audioCache.size > 0) {
+      console.log(`🚨 EMERGENCY: Clearing ALL ${window.audioCache.size} audio cache items`);
+      window.audioCache.forEach((audioData, key) => {
+        try {
+          if (audioData && audioData.blobUrl && audioData.blobUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(audioData.blobUrl);
+          }
+          if (audioData && audioData.audioUrl && audioData.audioUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(audioData.audioUrl);
+          }
+        } catch (e) {
+          // Ignore individual failures, just continue cleanup
+        }
+      });
+      window.audioCache.clear();
+      console.log('✅ EMERGENCY: All audio cache cleared');
+    }
+    
+    // Clear all audio elements
+    const audioElements = document.querySelectorAll('audio');
+    audioElements.forEach(audio => {
+      try {
+        audio.pause();
+        audio.src = '';
+        if (audio.parentNode) {
+          audio.parentNode.removeChild(audio);
+        }
+      } catch (e) {
+        // Ignore individual failures
+      }
+    });
+    
+    // Force garbage collection if available
+    if (window.gc && typeof window.gc === 'function') {
+      window.gc();
+      console.log('🗑️ EMERGENCY: Forced garbage collection');
+    }
+    
+    console.log('✅ EMERGENCY cleanup completed');
+  } catch (error) {
+    console.error('❌ EMERGENCY cleanup failed:', error);
+  }
+}
+
 // Initialize memory cleanup interval
 function initializeMemoryCleanup() {
+  // 🚨 EMERGENCY: Run immediate cleanup first
+  emergencyCleanup();
+  
   if (memoryCleanupInterval) {
     clearInterval(memoryCleanupInterval);
   }
   
-  // Clean up memory every 30 seconds
+  // 🚨 EMERGENCY: More frequent cleanup every 10 seconds
   memoryCleanupInterval = setInterval(() => {
     performMemoryCleanup();
-  }, 30000);
+  }, 10000); // Reduced from 30000 to 10000
   
   console.log('🧹 Memory cleanup interval initialized');
 }
@@ -10066,16 +10451,16 @@ function checkResourcePressure() {
   const now = Date.now();
   const timeSinceLastCleanup = now - extensionResourceMonitor.lastCleanup;
   
-  // Force cleanup every 30 seconds regardless
-  if (timeSinceLastCleanup > 30000) {
+  // 🚨 EMERGENCY: Force cleanup every 10 seconds regardless
+  if (timeSinceLastCleanup > 10000) { // Reduced from 30000 to 10000
     performMemoryCleanup();
     extensionResourceMonitor.lastCleanup = now;
   }
   
-  // Check memory pressure indicators
-  if (window.audioCache.size > 5) {
+  // 🚨 EMERGENCY: Much more aggressive memory pressure detection
+  if (window.audioCache.size > 2) { // Reduced from 5 to 2
     extensionResourceMonitor.memoryPressure = true;
-    console.warn('🚨 Extension memory pressure detected - forcing cleanup');
+    console.warn('🚨 EMERGENCY: Audio cache too large - forcing cleanup');
     performMemoryCleanup();
   } else {
     extensionResourceMonitor.memoryPressure = false;
@@ -11077,6 +11462,12 @@ async function generateOpenAIAudio(text, language, playImmediately = true) {
     
     window.audioCache.set(cacheKey, audioData);
     console.log('💾 Cached audio for:', text, 'size:', Math.round(audioBlob.size / 1024), 'KB');
+    
+    // 🚨 EMERGENCY: Immediate cleanup check after adding audio
+    if (window.audioCache.size > 2) {
+      console.log('🚨 EMERGENCY: Audio cache exceeded limit after adding - forcing cleanup');
+      performMemoryCleanup();
+    }
     
     // Update audio section if it's currently displayed for this query
     if (currentQueryData?.text === text && currentQueryData?.language === language) {
