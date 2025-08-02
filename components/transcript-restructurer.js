@@ -16,9 +16,12 @@ class TranscriptRestructurer {
 
   async initializeAsync() {
     try {
+      console.log('🔄 Starting TranscriptRestructurer initialization...');
+      
       // Detect platform first
       this.currentPlatform = await this.detectPlatform();
       console.log('🎬 Platform detected:', this.currentPlatform);
+      console.log('🔍 Will show Netflix Capture button:', this.currentPlatform === 'netflix');
       
       // Initialize platform-specific components
       if (this.currentPlatform === 'youtube') {
@@ -34,7 +37,9 @@ class TranscriptRestructurer {
       }
       
       // Initialize UI
+      console.log('🔧 Initializing UI with platform:', this.currentPlatform);
       this.init();
+      console.log('✅ TranscriptRestructurer initialization completed');
       
     } catch (error) {
       console.error('❌ Failed to initialize TranscriptRestructurer:', error);
@@ -79,11 +84,16 @@ class TranscriptRestructurer {
   }
 
   init() {
+    console.log('🔧 Initializing UI for platform:', this.currentPlatform);
+    
     const platformIcon = this.currentPlatform === 'netflix' ? '🎭' : '📺';
     const platformName = this.currentPlatform === 'netflix' ? 'Netflix' : 'YouTube';
     const collectTitle = this.currentPlatform === 'netflix' ? 
       'Start Netflix subtitle collection' : 
       'Start real-time caption collection';
+      
+    const willShowCaptureButton = this.currentPlatform === 'netflix';
+    console.log('🎯 Will generate Capture button HTML:', willShowCaptureButton);
 
     this.container.innerHTML = `
       <div class="transcript-restructurer">
@@ -116,6 +126,13 @@ class TranscriptRestructurer {
               </svg>
               Capture
             </button>` : ''}
+            <button class="debug-platform-btn" title="Debug platform detection">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="m9 12 2 2 4-4"/>
+              </svg>
+              Debug
+            </button>
           </div>
         </div>
         
@@ -285,6 +302,15 @@ class TranscriptRestructurer {
       </div>
     `;
     
+    // ✅ DEBUG: Check if Capture button was actually added to DOM
+    const captureButton = this.container.querySelector('.capture-subtitle-btn');
+    console.log('🔍 Capture button found in DOM after HTML generation:', !!captureButton);
+    if (captureButton) {
+      console.log('✅ Capture button element:', captureButton);
+    } else {
+      console.log('❌ Capture button NOT found in DOM');
+    }
+    
     this.attachEventListeners();
     this.addStyles();
   }
@@ -304,6 +330,12 @@ class TranscriptRestructurer {
     const refreshBtn = this.container.querySelector('.refresh-platform-btn');
     if (refreshBtn) {
       refreshBtn.addEventListener('click', () => this.refreshPlatform());
+    }
+    
+    // Debug platform button
+    const debugBtn = this.container.querySelector('.debug-platform-btn');
+    if (debugBtn) {
+      debugBtn.addEventListener('click', () => this.debugPlatformDetection());
     }
     
     // ✅ NEW: Add interactive card selection for subtitle modes
@@ -3599,6 +3631,50 @@ Sentence to fix: "${preCleanedText}"`;
     }
     
     return this.currentPlatform;
+  }
+
+  // ✅ DEBUG: Method to debug platform detection
+  async debugPlatformDetection() {
+    console.log('🔍 === DEBUG PLATFORM DETECTION ===');
+    
+    try {
+      // Check current tab
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      console.log('🔍 Active tabs found:', tabs.length);
+      
+      if (tabs[0]) {
+        const tab = tabs[0];
+        console.log('🔍 Current tab URL:', tab.url);
+        console.log('🔍 Current tab title:', tab.title);
+        console.log('🔍 URL includes netflix.com:', tab.url.includes('netflix.com'));
+        console.log('🔍 URL includes youtube.com:', tab.url.includes('youtube.com'));
+      } else {
+        console.log('❌ No active tab found');
+      }
+      
+      // Check current platform value
+      console.log('🔍 Current platform value:', this.currentPlatform);
+      
+      // Test platform detection
+      const detectedPlatform = await this.detectPlatform();
+      console.log('🔍 Fresh detection result:', detectedPlatform);
+      
+      // Check if Capture button exists
+      const captureBtn = this.container.querySelector('.capture-subtitle-btn');
+      console.log('🔍 Capture button in DOM:', !!captureBtn);
+      
+      // Check all buttons
+      const allButtons = this.container.querySelectorAll('button');
+      console.log('🔍 All buttons found:', allButtons.length);
+      allButtons.forEach((btn, i) => {
+        console.log(`🔍 Button ${i}:`, btn.className, btn.textContent.trim());
+      });
+      
+    } catch (error) {
+      console.error('❌ Debug platform detection error:', error);
+    }
+    
+    console.log('🔍 === END DEBUG ===');
   }
 }
 
