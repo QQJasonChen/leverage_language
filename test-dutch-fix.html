@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🇳🇱 Dutch Analysis Fix Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .test-container { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .before-after { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .before { background: #ffe6e6; padding: 15px; border-radius: 5px; }
+        .after { background: #e6ffe6; padding: 15px; border-radius: 5px; }
+        .example { background: #e3f2fd; padding: 15px; margin: 10px 0; border-left: 4px solid #2196f3; }
+        code { background: #f1f1f1; padding: 2px 6px; border-radius: 3px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .fixed { background: #d4edda; border: 1px solid #c3e6cb; }
+        .issue { background: #f8d7da; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+    <h1>🇳🇱 Dutch Analysis Fix</h1>
+    
+    <div class="test-container">
+        <h2>🔧 Problem Identified and Fixed</h2>
+        
+        <div class="status issue">
+            <h3>❌ The Issue</h3>
+            <p>Your sentence <code>"Ik wil TOm en Marija naar mijn huis uitnodigen"</code> was getting basic analysis because:</p>
+            <ul>
+                <li>It has 49 characters (under the 50-character limit)</li>
+                <li>System classified it as "simple text"</li>
+                <li>Simple text gets basic translation only</li>
+                <li>No Dutch structural analysis was applied</li>
+            </ul>
+        </div>
+        
+        <div class="status fixed">
+            <h3>✅ The Fix</h3>
+            <p>I've enhanced the AI service to:</p>
+            <ul>
+                <li><strong>Detect Dutch language automatically</strong></li>
+                <li><strong>Never classify Dutch as "simple"</strong> - Dutch always needs structural analysis</li>
+                <li><strong>Force Dutch sentences to use medium/detailed analysis</strong></li>
+                <li><strong>Added Dutch word detection</strong> for better language identification</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>🔍 Your Example Analysis</h2>
+        
+        <div class="example">
+            <strong>🇳🇱 "Ik wil TOm en Marija naar mijn huis uitnodigen"</strong>
+        </div>
+        
+        <div class="before-after">
+            <div class="before">
+                <h3>❌ Before (What you got)</h3>
+                <ul>
+                    <li>Basic translation only</li>
+                    <li>Simple word meanings</li>
+                    <li>No structural analysis</li>
+                    <li>No V2 word order explanation</li>
+                    <li>No separable verb analysis</li>
+                </ul>
+            </div>
+            
+            <div class="after">
+                <h3>✅ After (What you'll get now)</h3>
+                <ul>
+                    <li><strong>V2語序</strong>: "wil" in second position</li>
+                    <li><strong>分離動詞</strong>: "uitnodigen" analysis</li>
+                    <li><strong>詞彙位置</strong>: Object placement logic</li>
+                    <li><strong>語句類型</strong>: Main clause structure</li>
+                    <li><strong>介詞選擇</strong>: Why "naar" not "in"</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>🧪 Expected Dutch Analysis Output</h2>
+        
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">
+            <h3>🇳🇱 荷蘭語結構解析：</h3>
+            <ul>
+                <li><strong>V2語序</strong>：「Ik wil TOm en Marija naar mijn huis uitnodigen」中動詞"wil"在第二位，符合荷蘭語V2規則</li>
+                <li><strong>分離動詞</strong>：使用分離動詞"uitnodigen"，前綴"uit"分離到句尾</li>
+                <li><strong>詞彙位置</strong>：賓語"TOm en Marija"、方向"naar mijn huis"的排列符合荷蘭語語序</li>
+                <li><strong>語句類型</strong>：簡單主句結構，主語+動詞+賓語+方向+不定式</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>🎯 How to Test the Fix</h2>
+        
+        <div style="background: #fff3cd; padding: 15px; border-radius: 5px;">
+            <h3>Testing Steps:</h3>
+            <ol>
+                <li><strong>Set Analysis Complexity</strong> to "Medium" or "Detailed" in extension settings</li>
+                <li><strong>Analyze your Dutch sentence again</strong>: "Ik wil TOm en Marija naar mijn huis uitnodigen"</li>
+                <li><strong>Look for Dutch-specific sections</strong>:
+                    <ul>
+                        <li>🇳🇱 荷蘭語結構解析 (Dutch Structure Analysis)</li>
+                        <li>V2語序, 分離動詞, 詞彙位置 explanations</li>
+                        <li>Detailed structural breakdown</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>📋 Technical Changes Made</h2>
+        
+        <div style="background: #e9ecef; padding: 15px; border-radius: 5px;">
+            <h3>Files Modified:</h3>
+            <ul>
+                <li><code>lib/ai-service.js</code> - Enhanced language detection and analysis routing</li>
+            </ul>
+            
+            <h3>Key Changes:</h3>
+            <ul>
+                <li><strong>isSimpleText()</strong> - Dutch sentences never classified as simple</li>
+                <li><strong>detectLanguageFromText()</strong> - Automatic Dutch word detection</li>
+                <li><strong>buildProfessionalPrompt()</strong> - Comprehensive Dutch structural analysis</li>
+                <li><strong>Language routing</strong> - Dutch automatically gets proper analysis level</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>🔮 What You Should See Now</h2>
+        
+        <div class="example">
+            Instead of basic word-by-word translation, you'll get detailed analysis explaining:
+            <ul>
+                <li><strong>Why "wil" is in second position</strong> (V2 rule)</li>
+                <li><strong>Why "uitnodigen" is split</strong> (separable verb)</li>
+                <li><strong>Why "naar" is used instead of other prepositions</strong></li>
+                <li><strong>How Dutch word order differs from English/Chinese</strong></li>
+                <li><strong>Grammar rules specific to Dutch structure</strong></li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        console.log('🇳🇱 Dutch Fix Test Page Loaded');
+        console.log('Dutch sentences will now get proper structural analysis');
+        console.log('Test with: "Ik wil TOm en Marija naar mijn huis uitnodigen"');
+    </script>
+</body>
+</html>

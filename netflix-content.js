@@ -948,4 +948,515 @@
 
   console.log('✅ Netflix content script initialized');
 
+  // ========== DIRECT VIDEO CAPTURE OVERLAY ==========
+  
+  let floatingOverlay = null;
+  let lastDisplayedSubtitle = '';
+  let subtitleCheckInterval = null;
+  let overlayVisible = false;
+  
+  // Create floating capture overlay
+  function createFloatingCaptureOverlay() {
+    if (floatingOverlay) return;
+    
+    floatingOverlay = document.createElement('div');
+    floatingOverlay.id = 'netflix-learning-overlay';
+    floatingOverlay.innerHTML = `
+      <div class="overlay-content">
+        <div class="subtitle-display">
+          <div class="subtitle-text" id="overlay-subtitle-text">Waiting for subtitles...</div>
+        </div>
+        <div class="capture-controls">
+          <button class="capture-btn" id="overlay-capture-btn" title="Capture this subtitle (Cmd+Opt+Ctrl+C)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M8 21h8"/>
+              <path d="M12 17v4"/>
+              <path d="M5.5 17h13a2 2 0 0 0 1.8-2.9L14.6 3.1a2 2 0 0 0-3.2 0L5.7 14.1A2 2 0 0 0 7.5 17z"/>
+            </svg>
+            Capture
+          </button>
+          <button class="toggle-overlay-btn" id="overlay-toggle-btn" title="Hide overlay (Cmd+Opt+Ctrl+H)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18"/>
+              <path d="M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    `;
+    
+    // Add styles
+    floatingOverlay.style.cssText = `
+      position: fixed;
+      bottom: 120px;
+      right: 20px;
+      width: 350px;
+      max-width: 90vw;
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+      border-radius: 12px;
+      padding: 16px;
+      font-family: Netflix Sans, Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.4;
+      z-index: 99999;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.3s ease;
+      opacity: 0;
+      transform: translateY(20px);
+    `;
+    
+    // Add internal styles
+    const style = document.createElement('style');
+    style.textContent = `
+      #netflix-learning-overlay .overlay-content {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      
+      #netflix-learning-overlay .subtitle-display {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 12px;
+        min-height: 60px;
+        display: flex;
+        align-items: center;
+      }
+      
+      #netflix-learning-overlay .subtitle-text {
+        font-size: 16px;
+        line-height: 1.5;
+        text-align: center;
+        width: 100%;
+        font-weight: 500;
+      }
+      
+      #netflix-learning-overlay .subtitle-text.empty {
+        opacity: 0.6;
+        font-style: italic;
+      }
+      
+      #netflix-learning-overlay .capture-controls {
+        display: flex;
+        gap: 8px;
+        justify-content: space-between;
+      }
+      
+      #netflix-learning-overlay .capture-btn {
+        flex: 1;
+        background: #e50914;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 10px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+      }
+      
+      #netflix-learning-overlay .capture-btn:hover {
+        background: #f40612;
+        transform: translateY(-1px);
+      }
+      
+      #netflix-learning-overlay .capture-btn:active {
+        transform: translateY(0);
+      }
+      
+      #netflix-learning-overlay .capture-btn:disabled {
+        background: rgba(255, 255, 255, 0.2);
+        cursor: not-allowed;
+        transform: none;
+      }
+      
+      #netflix-learning-overlay .toggle-overlay-btn {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      
+      #netflix-learning-overlay .toggle-overlay-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+      
+      #netflix-learning-overlay.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      
+      #netflix-learning-overlay.capturing {
+        border-color: #4CAF50;
+        background: rgba(76, 175, 80, 0.2);
+      }
+      
+      #netflix-learning-overlay.error {
+        border-color: #f44336;
+        background: rgba(244, 67, 54, 0.2);
+      }
+    `;
+    
+    document.head.appendChild(style);
+    document.body.appendChild(floatingOverlay);
+    
+    // Add event listeners
+    setupOverlayEventListeners();
+    
+    console.log('🎭 Floating capture overlay created');
+  }
+  
+  // Setup overlay event listeners
+  function setupOverlayEventListeners() {
+    const captureBtn = document.getElementById('overlay-capture-btn');
+    const toggleBtn = document.getElementById('overlay-toggle-btn');
+    
+    if (captureBtn) {
+      captureBtn.addEventListener('click', handleOverlayCapture);
+    }
+    
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', hideOverlay);
+    }
+    
+    // Hotkey support
+    document.addEventListener('keydown', handleOverlayHotkeys);
+  }
+  
+  // Handle overlay hotkeys
+  function handleOverlayHotkeys(event) {
+    // Cmd+Opt+Ctrl+C: Capture subtitle (Mac-friendly)
+    if (event.metaKey && event.altKey && event.ctrlKey && event.code === 'KeyC') {
+      event.preventDefault();
+      handleOverlayCapture();
+    }
+    
+    // Cmd+Opt+Ctrl+H: Toggle overlay (Mac-friendly)
+    if (event.metaKey && event.altKey && event.ctrlKey && event.code === 'KeyH') {
+      event.preventDefault();
+      toggleOverlay();
+    }
+    
+    // Cmd+Opt+Ctrl+S: Show overlay (Mac-friendly)
+    if (event.metaKey && event.altKey && event.ctrlKey && event.code === 'KeyS') {
+      event.preventDefault();
+      showOverlay();
+    }
+  }
+  
+  // Handle overlay capture
+  async function handleOverlayCapture() {
+    console.log('🎯 === OVERLAY CAPTURE STARTED ===');
+    const captureBtn = document.getElementById('overlay-capture-btn');
+    const subtitleText = document.getElementById('overlay-subtitle-text');
+    
+    console.log('🔍 Capture button:', !!captureBtn);
+    console.log('🔍 Subtitle element:', !!subtitleText);
+    
+    if (!captureBtn || !subtitleText) {
+      console.error('❌ Missing UI elements');
+      return;
+    }
+    
+    const currentText = lastDisplayedSubtitle.trim();
+    console.log('📝 Current text to capture:', currentText);
+    console.log('📝 Length:', currentText.length);
+    
+    if (!currentText || currentText === 'Waiting for subtitles...' || currentText === 'No subtitles visible') {
+      console.error('❌ No valid subtitle text');
+      showCaptureError('No subtitle text to capture');
+      return;
+    }
+    
+    // Visual feedback - capturing state
+    captureBtn.disabled = true;
+    captureBtn.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="16 12 12 8 8 12"/>
+        <line x1="12" y1="16" x2="12" y2="8"/>
+      </svg>
+      Capturing...
+    `;
+    
+    floatingOverlay.classList.add('capturing');
+    
+    try {
+      console.log('🎯 Direct capture overlay requesting:', currentText);
+      
+      // Use the exact same method as the working sidepanel capture
+      // Send a message to our own content script's analyzeTextInSidepanel case
+      const currentVideoInfo = getVideoInfo();
+      if (!currentVideoInfo) {
+        throw new Error('Could not get Netflix video information');
+      }
+      
+      console.log('📱 Current video info:', currentVideoInfo);
+      console.log('📝 Sending Netflix text to sidepanel for analysis (direct capture)');
+      
+      // Use the exact same chrome.runtime.sendMessage approach as the working case
+      chrome.runtime.sendMessage({
+        action: 'analyzeTextInSidepanel',
+        text: currentText,
+        url: currentVideoInfo.url,
+        title: currentVideoInfo.title,
+        language: detectLanguage(),
+        source: 'netflix-direct-capture',
+        platform: 'netflix',
+        videoId: currentVideoInfo.videoId,
+        timestamp: currentVideoInfo.timestamp
+      }).then(() => {
+        console.log('✅ Direct capture successful - text sent to sidepanel');
+        showCaptureSuccess();
+      }).catch(error => {
+        console.error('❌ Failed to send to sidepanel:', error);
+        
+        // Try the internal message approach as fallback
+        console.log('🔄 Trying internal message approach...');
+        
+        // Create a mock request/response like the working analyzeTextInSidepanel case
+        const mockRequest = {
+          action: 'analyzeTextInSidepanel',
+          text: currentText
+        };
+        const mockSender = { tab: { id: null } };
+        const mockSendResponse = (response) => {
+          if (response && response.success) {
+            console.log('✅ Internal message successful');
+            showCaptureSuccess();
+          } else {
+            console.error('❌ Internal message failed:', response?.error);
+            showCaptureError(response?.error || 'Internal processing failed');
+          }
+        };
+        
+        // Simulate the exact logic from the working analyzeTextInSidepanel case
+        const videoInfo = getVideoInfo();
+        if (videoInfo) {
+          console.log('📝 Sending Netflix text to sidepanel for analysis (internal)');
+          
+          chrome.runtime.sendMessage({
+            action: 'analyzeTextInSidepanel',
+            text: currentText,
+            url: videoInfo.url,
+            title: videoInfo.title,
+            language: detectLanguage(),
+            source: 'netflix-direct-capture-internal',
+            platform: 'netflix',
+            videoId: videoInfo.videoId,
+            timestamp: videoInfo.timestamp
+          }).then(() => {
+            mockSendResponse({ success: true });
+          }).catch(internalError => {
+            console.error('❌ Internal method also failed:', internalError);
+            mockSendResponse({ success: false, error: internalError.message });
+          });
+        } else {
+          mockSendResponse({ 
+            success: false, 
+            error: 'Could not extract Netflix video information' 
+          });
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ Direct capture completely failed:', error);
+      showCaptureError('Capture failed - check console for details');
+    }
+  }
+  
+  // Show capture success
+  function showCaptureSuccess() {
+    const captureBtn = document.getElementById('overlay-capture-btn');
+    const overlay = floatingOverlay;
+    
+    if (captureBtn) {
+      captureBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 11l3 3L22 4"/>
+          <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+        </svg>
+        Captured!
+      `;
+      captureBtn.style.background = '#4CAF50';
+    }
+    
+    overlay.classList.remove('capturing', 'error');
+    overlay.style.borderColor = '#4CAF50';
+    
+    // Reset after delay
+    setTimeout(() => {
+      resetCaptureButton();
+      overlay.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+    }, 2000);
+  }
+  
+  // Show capture error
+  function showCaptureError(message) {
+    const captureBtn = document.getElementById('overlay-capture-btn');
+    const overlay = floatingOverlay;
+    
+    if (captureBtn) {
+      captureBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="15" y1="9" x2="9" y2="15"/>
+          <line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
+        ${message.length > 20 ? 'Error' : message}
+      `;
+      captureBtn.style.background = '#f44336';
+    }
+    
+    overlay.classList.remove('capturing');
+    overlay.classList.add('error');
+    
+    // Reset after delay
+    setTimeout(() => {
+      resetCaptureButton();
+      overlay.classList.remove('error');
+    }, 3000);
+  }
+  
+  // Reset capture button
+  function resetCaptureButton() {
+    const captureBtn = document.getElementById('overlay-capture-btn');
+    if (captureBtn) {
+      captureBtn.disabled = false;
+      captureBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M8 21h8"/>
+          <path d="M12 17v4"/>
+          <path d="M5.5 17h13a2 2 0 0 0 1.8-2.9L14.6 3.1a2 2 0 0 0-3.2 0L5.7 14.1A2 2 0 0 0 7.5 17z"/>
+        </svg>
+        Capture
+      `;
+      captureBtn.style.background = '#e50914';
+    }
+  }
+  
+  // Show overlay
+  function showOverlay() {
+    if (!floatingOverlay) {
+      createFloatingCaptureOverlay();
+    }
+    
+    overlayVisible = true;
+    floatingOverlay.classList.add('visible');
+    startSubtitleMonitoring();
+    
+    console.log('👁️ Netflix overlay shown');
+  }
+  
+  // Hide overlay
+  function hideOverlay() {
+    if (floatingOverlay) {
+      overlayVisible = false;
+      floatingOverlay.classList.remove('visible');
+      stopSubtitleMonitoring();
+      
+      console.log('🙈 Netflix overlay hidden');
+    }
+  }
+  
+  // Toggle overlay
+  function toggleOverlay() {
+    if (overlayVisible) {
+      hideOverlay();
+    } else {
+      showOverlay();
+    }
+  }
+  
+  // Start monitoring subtitles for overlay
+  function startSubtitleMonitoring() {
+    if (subtitleCheckInterval) return;
+    
+    subtitleCheckInterval = setInterval(() => {
+      if (!overlayVisible) return;
+      
+      const currentSubtitle = captureCurrentNetflixSubtitle();
+      const subtitleElement = document.getElementById('overlay-subtitle-text');
+      const captureBtn = document.getElementById('overlay-capture-btn');
+      
+      if (subtitleElement) {
+        if (currentSubtitle && currentSubtitle !== lastDisplayedSubtitle) {
+          lastDisplayedSubtitle = currentSubtitle;
+          subtitleElement.textContent = currentSubtitle;
+          subtitleElement.classList.remove('empty');
+          
+          if (captureBtn) {
+            captureBtn.disabled = false;
+          }
+        } else if (!currentSubtitle && lastDisplayedSubtitle !== 'No subtitles visible') {
+          lastDisplayedSubtitle = 'No subtitles visible';
+          subtitleElement.textContent = 'No subtitles visible';
+          subtitleElement.classList.add('empty');
+          
+          if (captureBtn) {
+            captureBtn.disabled = true;
+          }
+        }
+      }
+    }, 500); // Check every 500ms
+    
+    console.log('👂 Started subtitle monitoring for overlay');
+  }
+  
+  // Stop monitoring subtitles
+  function stopSubtitleMonitoring() {
+    if (subtitleCheckInterval) {
+      clearInterval(subtitleCheckInterval);
+      subtitleCheckInterval = null;
+      console.log('🛑 Stopped subtitle monitoring');
+    }
+  }
+  
+  // Auto-show overlay when on Netflix watch page
+  function autoShowOverlayOnNetflix() {
+    if (window.location.href.includes('/watch/')) {
+      setTimeout(() => {
+        showOverlay();
+      }, 3000); // Wait for Netflix to fully load
+    }
+  }
+  
+  // Initialize direct capture functionality
+  setTimeout(() => {
+    if (window.location.href.includes('netflix.com')) {
+      console.log('🎭 Initializing Netflix direct capture overlay');
+      autoShowOverlayOnNetflix();
+      
+      // Add debug function to window for testing
+      window.debugNetflixCapture = function() {
+        console.log('🔧 === DEBUG NETFLIX CAPTURE ===');
+        console.log('Current subtitle:', lastDisplayedSubtitle);
+        console.log('Video info:', getVideoInfo());
+        console.log('Language:', detectLanguage());
+        console.log('Overlay visible:', overlayVisible);
+        console.log('Chrome runtime available:', !!chrome?.runtime);
+        
+        // Test direct capture with current subtitle
+        if (lastDisplayedSubtitle && lastDisplayedSubtitle !== 'Waiting for subtitles...' && lastDisplayedSubtitle !== 'No subtitles visible') {
+          console.log('🧪 Testing capture with:', lastDisplayedSubtitle);
+          handleOverlayCapture();
+        } else {
+          console.log('❌ No valid subtitle to test with');
+        }
+      };
+      
+      console.log('🔧 Debug function added: window.debugNetflixCapture()');
+    }
+  }, 2000);
+
 })();

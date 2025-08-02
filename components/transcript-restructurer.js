@@ -90,7 +90,7 @@ class TranscriptRestructurer {
     const platformName = this.currentPlatform === 'netflix' ? 'Netflix' : 'YouTube';
     const collectTitle = this.currentPlatform === 'netflix' ? 
       'Start Netflix subtitle collection' : 
-      'Start real-time caption collection';
+      'Start caption collection (click stop when ready)';
       
     const platformNote = this.currentPlatform === 'netflix' ? 
       '📝 Netflix: Capture subtitles for vocabulary learning (no timestamp replay)' : 
@@ -2200,11 +2200,12 @@ Sentence to fix: "${preCleanedText}"`;
       console.log(`✨ Cleaned segments: ${result.segments.length} → ${cleanedSegments.length}`);
       
       this.currentTranscript = cleanedSegments;
-      statusEl.textContent = `✅ 1-minute collection complete! Captured ${cleanedSegments.length} segments`;
+      statusEl.textContent = `✅ Collection complete! Captured ${cleanedSegments.length} segments`;
       statusEl.className = 'transcript-status success';
       
-      // ✅ HIDE BUTTON PERMANENTLY after successful collection
-      collectBtn.style.display = 'none';
+      // ✅ RESET BUTTON for potential reuse
+      this.resetCollectionButton(collectBtn);
+      collectBtn.style.display = 'block';
       
       // ✅ CREATE POPUP WINDOW to show transcript
       this.showTranscriptPopup(cleanedSegments);
@@ -2270,33 +2271,10 @@ Sentence to fix: "${preCleanedText}"`;
 
   // ✅ NEW: YouTube-specific collection start
   async startYouTubeCollection(collectBtn, statusEl, tab) {
-    statusEl.textContent = 'Starting 1-minute caption collection...';
+    statusEl.textContent = 'Starting caption collection...';
     statusEl.className = 'transcript-status loading';
     
-    // ✅ ULTRA-STABLE: Fixed 60-second recording with no complex options
-    const MAX_RECORDING_TIME = 60000; // Exactly 1 minute
-    
-    console.log('🛡️ Starting ultra-stable 60-second collection...');
-    
-    // ✅ NEW: Hide collect button during recording to prevent interference
-    collectBtn.style.display = 'none';
-    
-    // ✅ NEW: Set up 1-minute auto-stop timer
-    const autoStopTimer = setTimeout(async () => {
-      console.log('⏰ Auto-stopping collection after 1 minute');
-      try {
-        const stopResult = await chrome.tabs.sendMessage(tab.id, { action: 'stopCaptionCollection' });
-        this.handleCollectionComplete(stopResult, statusEl, collectBtn);
-      } catch (error) {
-        console.error('❌ Auto-stop failed:', error);
-        statusEl.textContent = '❌ Auto-stop failed. Please refresh the page.';
-        statusEl.className = 'transcript-status error';
-        collectBtn.style.display = 'block';
-      }
-    }, MAX_RECORDING_TIME);
-    
-    // Store timer reference for potential cleanup
-    this.currentAutoStopTimer = autoStopTimer;
+    console.log('🛡️ Starting manual-control caption collection...');
     
     let result;
     try {
@@ -2314,7 +2292,7 @@ Sentence to fix: "${preCleanedText}"`;
     }
     
     if (result.success) {
-      statusEl.textContent = '🛡️ Ultra-stable 60-second recording started. Microphone recording in progress...';
+      statusEl.textContent = '🎙️ Caption collection started. Click Stop when you have enough content.';
       statusEl.className = 'transcript-status success';
       
       // Update button to show stop state
@@ -2323,8 +2301,9 @@ Sentence to fix: "${preCleanedText}"`;
           <circle cx="12" cy="12" r="10"/>
           <rect x="9" y="9" width="6" height="6"/>
         </svg>
-        Stop
+        Stop Collection
       `;
+      collectBtn.style.display = 'block'; // Ensure button stays visible
       
     } else {
       statusEl.textContent = '❌ Failed to start collection. Try refreshing the page.';

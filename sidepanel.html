@@ -3702,6 +3702,24 @@
             background: #188038;
             border-color: #188038;
         }
+        
+        /* Transcript View Styles */
+        .transcript-view {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            background: #ffffff;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #transcriptRestructurerContainer {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
     </style>
     
     <!-- Subtle UI Improvements (Working version) -->
@@ -3897,6 +3915,9 @@
                             </button>
                             <button id="manualSaveBtn" class="ai-button primary" style="display: none;" data-i18n="save_this_report" title="Save this analysis to your saved reports">
                                 💾 Save This Report
+                            </button>
+                            <button id="a2TestUsageBtn" class="ai-button secondary" style="display: none;" data-i18n="a2_test_usage" title="Get A2 test usage guidance for writing and speaking">
+                                📝 A2 Test Usage
                             </button>
                         </div>
                     </div>
@@ -4311,6 +4332,7 @@
                             <input type="checkbox" id="favoritesOnlyFilter" />
                             <span data-i18n="favorites_only">⭐ Favorites Only</span>
                         </label>
+                        <button id="emergencyCleanupBtn" class="cleanup-btn" title="🚨 立即清理音頻快取以防止瀏覽器卡頓" style="background: #f44336; font-weight: bold;">🚨 Emergency Cleanup</button>
                         <button id="cleanupDuplicatesBtn" class="cleanup-btn">🗂️ Clean Duplicates</button>
                         <button id="createAllFlashcardsBtn" class="flashcard-bulk-btn">🃏 Create All Flashcards</button>
                         <button id="syncToNotionBtn" class="notion-sync-btn">📄 Sync to Notion</button>
