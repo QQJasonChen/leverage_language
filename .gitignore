@@ -59,6 +59,7 @@ Thumbs.db
 *.pem
 dist/
 build/
+release/
 
 # Backup files
 *.backup
