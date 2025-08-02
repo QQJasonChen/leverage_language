@@ -11,6 +11,8 @@ class TranscriptViewer {
     this.editMode = false;
     this.editingSegmentId = null;
     this.platform = platform || this.detectPlatform();
+    this.multiCaptureMode = false;
+    this.selectedForCapture = new Set(); // Track selected sentences for multi-capture
     
     console.log('📖 TranscriptViewer initialized for platform:', this.platform);
     
@@ -46,6 +48,14 @@ class TranscriptViewer {
               </svg>
               <span>Select & Export</span>
             </button>
+            <button class="multi-capture-btn" title="Select multiple sentences for AI analysis (max 5)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M9 11l3 3L22 4"/>
+                <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+              <span>Multi-Capture</span>
+            </button>
           </div>
         </div>
         
@@ -73,6 +83,21 @@ class TranscriptViewer {
             <div class="export-actions">
               <button class="export-selected-btn" disabled>Export Selected</button>
               <button class="cancel-bulk-export-btn">Cancel</button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- ✅ NEW: Multi-capture controls -->
+        <div class="multi-capture-controls" style="display: none;">
+          <div class="capture-header">
+            <div class="select-controls">
+              <button class="select-all-capture-btn">Select All</button>
+              <button class="select-none-capture-btn">Select None</button>
+              <span class="capture-selected-count">0 selected (max 5)</span>
+            </div>
+            <div class="capture-actions">
+              <button class="capture-selected-btn" disabled>✨ Capture Selected for AI</button>
+              <button class="cancel-multi-capture-btn">Cancel</button>
             </div>
           </div>
         </div>
@@ -143,7 +168,10 @@ class TranscriptViewer {
       }
     }
     
-    // Final fallback - avoid using sidepanel document title
+    // Final fallback - platform-specific titles
+    if (this.platform === 'netflix') {
+      return 'Netflix Content';
+    }
     return 'YouTube Video';
   }
 
@@ -171,7 +199,10 @@ class TranscriptViewer {
       }
     }
     
-    // Final fallback - use consistent unknown channel
+    // Final fallback - platform-specific channels
+    if (this.platform === 'netflix') {
+      return 'Netflix';
+    }
     return '未知頻道';
   }
 
@@ -453,6 +484,7 @@ class TranscriptViewer {
     const highlightBtn = this.container.querySelector('.highlight-btn');
     const exportBtn = this.container.querySelector('.export-highlights-btn');
     const bulkExportBtn = this.container.querySelector('.bulk-export-btn');
+    const multiCaptureBtn = this.container.querySelector('.multi-capture-btn');
     const editBtn = this.container.querySelector('.edit-mode-btn');
     
     // Edit mode toggle
@@ -522,6 +554,33 @@ class TranscriptViewer {
         return;
       }
       
+      // Handle multi-capture checkbox clicks
+      if (e.target.classList.contains('capture-checkbox')) {
+        const index = parseInt(e.target.dataset.index);
+        if (e.target.checked) {
+          if (this.selectedForCapture.size >= 5) {
+            e.target.checked = false;
+            this.showToast('❌ Maximum 5 sentences allowed for multi-capture');
+            return;
+          }
+          this.selectedForCapture.add(index);
+        } else {
+          this.selectedForCapture.delete(index);
+        }
+        this.updateCaptureCountDisplay();
+        return;
+      }
+      
+      // Handle capture sentence button clicks
+      if (e.target.classList.contains('capture-sentence-btn')) {
+        const text = e.target.dataset.text;
+        const timestamp = e.target.dataset.timestamp;
+        const link = e.target.dataset.link;
+        const start = e.target.dataset.start;
+        this.captureSentenceForAnalysis(text, timestamp, link, start);
+        return;
+      }
+
       // Handle save sentence button clicks
       if (e.target.classList.contains('save-sentence-btn')) {
         const text = e.target.dataset.text;
@@ -650,6 +709,20 @@ class TranscriptViewer {
     if (selectNoneBtn) selectNoneBtn.addEventListener('click', () => this.selectNoneSegments());
     if (exportSelectedBtn) exportSelectedBtn.addEventListener('click', () => this.exportSelectedSegments());
     if (cancelBulkBtn) cancelBulkBtn.addEventListener('click', () => this.toggleBulkExportMode());
+    
+    // ✅ NEW: Multi-capture mode
+    if (multiCaptureBtn) multiCaptureBtn.addEventListener('click', () => this.toggleMultiCaptureMode());
+    
+    // ✅ NEW: Multi-capture controls
+    const selectAllCaptureBtn = this.container.querySelector('.select-all-capture-btn');
+    const selectNoneCaptureBtn = this.container.querySelector('.select-none-capture-btn');
+    const captureSelectedBtn = this.container.querySelector('.capture-selected-btn');
+    const cancelMultiCaptureBtn = this.container.querySelector('.cancel-multi-capture-btn');
+    
+    if (selectAllCaptureBtn) selectAllCaptureBtn.addEventListener('click', () => this.selectAllForCapture());
+    if (selectNoneCaptureBtn) selectNoneCaptureBtn.addEventListener('click', () => this.selectNoneForCapture());
+    if (captureSelectedBtn) captureSelectedBtn.addEventListener('click', () => this.captureSelectedSentences());
+    if (cancelMultiCaptureBtn) cancelMultiCaptureBtn.addEventListener('click', () => this.toggleMultiCaptureMode());
     
     // Remove tooltip on click outside
     document.addEventListener('click', (e) => {
@@ -888,7 +961,14 @@ class TranscriptViewer {
                   ${this.editMode ? '<div class="edit-indicator">✏️ Click to edit</div>' : ''}
                 </td>
                 <td class="actions-cell">
-                  <button class="save-sentence-btn" title="Save to learning history" data-text="${this.escapeHtml(segment.cleanText)}" data-timestamp="${segment.timestampDisplay}" data-link="${segment.youtubeLink}">
+                  ${this.multiCaptureMode ? `
+                    <input type="checkbox" class="capture-checkbox" data-index="${arrayIndex}" ${this.selectedForCapture.has(arrayIndex) ? 'checked' : ''}>
+                  ` : `
+                    <button class="capture-sentence-btn" title="Capture for AI analysis" data-text="${this.escapeHtml(segment.cleanText)}" data-timestamp="${segment.timestampDisplay}" data-link="${this.platform === 'netflix' ? (segment.netflixUrl || segment.youtubeLink) : segment.youtubeLink}" data-start="${segment.timestampInSeconds}">
+                      ✨
+                    </button>
+                  `}
+                  <button class="save-sentence-btn" title="Save to learning history" data-text="${this.escapeHtml(segment.cleanText)}" data-timestamp="${segment.timestampDisplay}" data-link="${this.platform === 'netflix' ? (segment.netflixUrl || segment.youtubeLink) : segment.youtubeLink}">
                     💾
                   </button>
                   <button class="${this.platform === 'netflix' ? 'netflix-link-btn' : 'youtube-link-btn'}" data-video-url="${segment.youtubeLink && segment.youtubeLink !== '#' ? segment.youtubeLink : (this.platform === 'netflix' ? segment.netflixUrl || segment.youtubeLink : this.createYouTubeLink(segment.start))}" title="${this.platform === 'netflix' ? 'Go back to Netflix video' : `Jump to YouTube at ${segment.timestampDisplay}`}">
@@ -1261,7 +1341,7 @@ class TranscriptViewer {
 
   async saveSentenceToHistory(text, timestamp, youtubeLink, timestampInSeconds) {
     try {
-      console.log('💾 Saving sentence to learning history:', { text, timestamp, youtubeLink, timestampInSeconds });
+      console.log('💾 Saving sentence to learning history:', { text, timestamp, youtubeLink, timestampInSeconds, platform: this.platform });
       
       // Get video metadata directly from YouTube tab if possible
       let videoTitle = this.getVideoTitle(timestampInSeconds);
@@ -1285,7 +1365,7 @@ class TranscriptViewer {
         searchText: text,
         language: 'english', // Default to English, can be detected later
         analysisData: {
-          type: 'youtube_sentence',
+          type: this.platform === 'netflix' ? 'netflix_sentence' : 'youtube_sentence',
           timestamp: timestamp,
           timestampInSeconds: timestampInSeconds,
           youtubeLink: youtubeLink,
@@ -1294,17 +1374,21 @@ class TranscriptViewer {
           pronunciation: '', // Will be filled by AI if requested
           definition: '', // Will be filled by AI if requested
           example: text,
-          source: 'youtube-transcript-viewer',
-          hasReplayFunction: true,
+          source: this.platform === 'netflix' ? 'netflix-transcript-viewer' : 'youtube-transcript-viewer',
+          hasReplayFunction: this.platform === 'youtube', // Netflix can't replay to timestamp
           replayUrl: youtubeLink, // For easy access in learning history
           // Enhanced replay functionality
-          replayFunction: {
+          replayFunction: this.platform === 'youtube' ? {
             canReplay: true,
             type: 'youtube-timestamp',
             videoId: this.videoId,
             timeInSeconds: timestampInSeconds,
             displayTime: timestamp,
             directUrl: youtubeLink
+          } : {
+            canReplay: false,
+            type: 'netflix-content',
+            reason: 'Netflix does not support timestamp replay'
           }
         },
         videoSource: {
@@ -1312,13 +1396,16 @@ class TranscriptViewer {
           originalUrl: youtubeLink,
           title: videoTitle,
           channel: channelName,
-          videoTimestamp: timestampInSeconds,
+          videoTimestamp: this.platform === 'youtube' ? timestampInSeconds : null, // Netflix timestamps don't work
           timestamp: Date.now(),
-          learnedAt: new Date().toISOString()
+          learnedAt: new Date().toISOString(),
+          platform: this.platform
         },
         timestamp: timestamp,
         timestampInSeconds: timestampInSeconds
       };
+      
+      console.log('🔍 DEBUG - Save videoSource:', learningData.videoSource);
       
       // Save using the existing storage manager (if available)
       if (window.storageManager) {
@@ -1370,6 +1457,154 @@ class TranscriptViewer {
     }
   }
 
+  async captureSentenceForAnalysis(text, timestamp, youtubeLink, timestampInSeconds) {
+    try {
+      console.log('✨ Capturing sentence for AI analysis:', { text, timestamp, youtubeLink });
+      
+      // Get video metadata
+      let videoTitle = this.getVideoTitle(timestampInSeconds);
+      let channelName = this.getChannelName(timestampInSeconds);
+      
+      try {
+        const directTitle = await this.getVideoTitleDirect();
+        const directChannel = await this.getChannelNameDirect();
+        if (directTitle) videoTitle = directTitle;
+        if (directChannel) channelName = directChannel;
+      } catch (error) {
+        console.log('📺 Using fallback video metadata for capture');
+      }
+
+      // Prepare video source data
+      const videoSource = {
+        url: youtubeLink,
+        originalUrl: youtubeLink,
+        title: this.platform === 'netflix' ? `Netflix: ${videoTitle}` : videoTitle,
+        channel: this.platform === 'netflix' ? 'Netflix' : channelName,
+        videoTimestamp: timestampInSeconds,
+        timestamp: Date.now(),
+        learnedAt: new Date().toISOString(),
+        platform: this.platform
+      };
+
+      // Set current query data for analysis
+      if (typeof window !== 'undefined') {
+        window.currentQueryData = {
+          text: text,
+          language: 'auto', // Let the system detect the language automatically
+          url: youtubeLink,
+          title: this.platform === 'netflix' ? `Netflix: ${videoTitle}` : videoTitle,
+          source: 'transcript-capture',
+          videoSource: videoSource,
+          detectionMethod: 'transcript-capture'
+        };
+        
+        console.log('🎯 Set currentQueryData for analysis:', window.currentQueryData);
+      }
+
+      // Store in platform-specific analysis storage
+      if (this.platform === 'netflix') {
+        const netflixAnalysis = {
+          text: text,
+          originalUrl: youtubeLink, // This is actually the Netflix URL
+          url: youtubeLink, 
+          title: `Netflix: ${videoTitle}`,
+          videoTimestamp: timestampInSeconds,
+          timestamp: Date.now(),
+          platform: 'netflix'
+        };
+        await chrome.storage.local.set({ netflixAnalysis });
+        console.log('🎭 Stored Netflix analysis data');
+      } else {
+        const youtubeAnalysis = {
+          text: text,
+          youtubeUrl: youtubeLink,
+          originalUrl: youtubeLink,
+          title: videoTitle,
+          videoTimestamp: timestampInSeconds,
+          timestamp: Date.now(),
+          platform: 'youtube'
+        };
+        await chrome.storage.local.set({ youtubeAnalysis });
+        console.log('🎬 Stored YouTube analysis data');
+      }
+
+      // Show immediate feedback
+      this.showToast(`✨ Captured: "${text.substring(0, 30)}..." - switching to analysis!`);
+      
+      // Animate the capture button
+      const captureBtn = document.querySelector(`[data-text="${text}"].capture-sentence-btn`);
+      if (captureBtn) {
+        captureBtn.textContent = '⚡';
+        captureBtn.style.background = '#FF9800';
+        setTimeout(() => {
+          captureBtn.textContent = '✨';
+          captureBtn.style.background = '';
+        }, 2000);
+      }
+
+      // Switch to analysis view after a short delay
+      setTimeout(() => {
+        this.switchToAnalysisView(text);
+      }, 500);
+      
+    } catch (error) {
+      console.error('❌ Failed to capture sentence:', error);
+      this.showToast('❌ Failed to capture sentence. Please try again.');
+    }
+  }
+
+  switchToAnalysisView(text) {
+    try {
+      // Find and click the correct analysis tab button
+      const analysisBtn = document.querySelector('#showAnalysisBtn');
+      
+      if (analysisBtn) {
+        console.log('🔄 Switching to analysis view...');
+        analysisBtn.click();
+        
+        // Set the search text in the correct input after switching
+        setTimeout(() => {
+          const searchInput = document.querySelector('#manualSearchInput');
+          
+          if (searchInput) {
+            searchInput.value = text;
+            console.log('📝 Set search input text:', text);
+            
+            // Trigger the manual search function 
+            setTimeout(() => {
+              if (typeof window.performManualSearch === 'function') {
+                window.performManualSearch();
+                console.log('🔍 Triggered manual search');
+              } else {
+                // Fallback: trigger keypress event to simulate Enter
+                const event = new KeyboardEvent('keypress', {
+                  key: 'Enter',
+                  code: 'Enter',
+                  keyCode: 13,
+                  which: 13,
+                  bubbles: true
+                });
+                searchInput.dispatchEvent(event);
+                console.log('⌨️ Triggered Enter keypress on search input');
+              }
+            }, 300);
+          } else {
+            console.log('❌ Could not find search input #manualSearchInput');
+            this.showToast('✨ Text captured! Please manually search in Analysis tab.');
+          }
+        }, 300);
+        
+      } else {
+        console.log('❌ Could not find analysis tab button #showAnalysisBtn');
+        this.showToast('✨ Text captured! Please go to Analysis tab to see results.');
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to switch to analysis view:', error);
+      this.showToast('✨ Text captured! Please manually switch to Analysis tab.');
+    }
+  }
+
   showToast(message) {
     const toast = document.createElement('div');
     toast.className = 'transcript-toast';
@@ -1396,6 +1631,125 @@ class TranscriptViewer {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  // ✅ NEW: Multi-capture functionality
+  toggleMultiCaptureMode() {
+    this.multiCaptureMode = !this.multiCaptureMode;
+    const controls = this.container.querySelector('.multi-capture-controls');
+    const button = this.container.querySelector('.multi-capture-btn');
+    
+    if (this.multiCaptureMode) {
+      controls.style.display = 'block';
+      button.style.background = '#FF9800';
+      button.querySelector('span').textContent = 'Cancel Multi-Capture';
+      this.selectedForCapture.clear();
+      this.updateCaptureCountDisplay();
+      this.renderTranscript(); // Re-render to show checkboxes
+    } else {
+      controls.style.display = 'none';
+      button.style.background = '';
+      button.querySelector('span').textContent = 'Multi-Capture';
+      this.selectedForCapture.clear();
+      this.renderTranscript(); // Re-render to hide checkboxes
+    }
+  }
+  
+  selectAllForCapture() {
+    // Limit to max 5 sentences
+    const segments = this.transcriptData.slice(0, 5);
+    this.selectedForCapture.clear();
+    
+    segments.forEach((segment, index) => {
+      this.selectedForCapture.add(index);
+    });
+    
+    this.updateCaptureCountDisplay();
+    this.updateCaptureCheckboxes();
+  }
+  
+  selectNoneForCapture() {
+    this.selectedForCapture.clear();
+    this.updateCaptureCountDisplay();
+    this.updateCaptureCheckboxes();
+  }
+  
+  updateCaptureCountDisplay() {
+    const countSpan = this.container.querySelector('.capture-selected-count');
+    const captureBtn = this.container.querySelector('.capture-selected-btn');
+    
+    if (countSpan) {
+      countSpan.textContent = `${this.selectedForCapture.size} selected (max 5)`;
+    }
+    
+    if (captureBtn) {
+      captureBtn.disabled = this.selectedForCapture.size === 0;
+    }
+  }
+  
+  updateCaptureCheckboxes() {
+    const checkboxes = this.container.querySelectorAll('.capture-checkbox');
+    checkboxes.forEach((checkbox, index) => {
+      checkbox.checked = this.selectedForCapture.has(index);
+    });
+  }
+  
+  async captureSelectedSentences() {
+    if (this.selectedForCapture.size === 0) {
+      this.showToast('❌ No sentences selected for capture');
+      return;
+    }
+    
+    if (this.selectedForCapture.size > 5) {
+      this.showToast('❌ Maximum 5 sentences allowed for multi-capture');
+      return;
+    }
+    
+    try {
+      console.log('✨ Starting multi-sentence capture for', this.selectedForCapture.size, 'sentences');
+      
+      // Collect selected sentences
+      const selectedSentences = [];
+      Array.from(this.selectedForCapture).forEach(index => {
+        if (this.transcriptData[index]) {
+          selectedSentences.push({
+            text: this.transcriptData[index].cleanText || this.transcriptData[index].text,
+            timestamp: this.transcriptData[index].timestampDisplay,
+            timestampInSeconds: this.transcriptData[index].start
+          });
+        }
+      });
+      
+      // Combine sentences with newlines for better AI analysis
+      const combinedText = selectedSentences.map(s => s.text).join('\n');
+      const firstTimestamp = selectedSentences[0].timestamp;
+      const firstTimestampSeconds = selectedSentences[0].timestampInSeconds;
+      
+      console.log('📝 Combined text for analysis:', combinedText);
+      
+      // Create YouTube link for first timestamp
+      const youtubeLink = this.platform === 'youtube' ? 
+        this.createYouTubeLink(firstTimestampSeconds) : 
+        window.location.href;
+      
+      // Use the existing captureSentenceForAnalysis but with combined text
+      await this.captureSentenceForAnalysis(
+        combinedText, 
+        firstTimestamp, 
+        youtubeLink, 
+        firstTimestampSeconds
+      );
+      
+      // Show success feedback
+      this.showToast(`✨ Captured ${selectedSentences.length} sentences for AI analysis!`);
+      
+      // Exit multi-capture mode
+      this.toggleMultiCaptureMode();
+      
+    } catch (error) {
+      console.error('❌ Failed to capture selected sentences:', error);
+      this.showToast('❌ Failed to capture sentences. Please try again.');
+    }
   }
 
   addStyles() {
@@ -1694,6 +2048,27 @@ class TranscriptViewer {
       
       .save-sentence-btn:hover {
         background: #45a049;
+        transform: scale(1.1);
+      }
+      
+      .capture-sentence-btn {
+        background: #FF9800;
+        border: none;
+        padding: 6px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 28px;
+        height: 28px;
+        margin-right: 4px;
+      }
+      
+      .capture-sentence-btn:hover {
+        background: #F57C00;
         transform: scale(1.1);
       }
       
@@ -2091,6 +2466,91 @@ class TranscriptViewer {
         opacity: 0.6;
         cursor: not-allowed;
         transform: none;
+      }
+      
+      /* ✅ NEW: Multi-capture styles */
+      .multi-capture-controls {
+        background: #fff3e0;
+        border: 2px solid #FF9800;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 16px;
+      }
+      
+      .capture-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+      }
+      
+      .capture-selected-count {
+        font-weight: 600;
+        color: #FF9800;
+        font-size: 12px;
+      }
+      
+      .capture-checkbox {
+        transform: scale(1.2);
+        margin-right: 8px;
+        cursor: pointer;
+      }
+      
+      .multi-capture-btn {
+        background: #FF9800;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 16px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+        font-size: 12px;
+      }
+      
+      .multi-capture-btn:hover {
+        background: #F57C00;
+        transform: scale(1.02);
+      }
+      
+      .capture-selected-btn {
+        background: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 16px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+        font-size: 12px;
+      }
+      
+      .capture-selected-btn:hover:not(:disabled) {
+        background: #45a049;
+        transform: scale(1.02);
+      }
+      
+      .capture-selected-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+      
+      .select-all-capture-btn, .select-none-capture-btn, .cancel-multi-capture-btn {
+        background: #e3f2fd;
+        border: 1px solid #FF9800;
+        color: #F57C00;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 11px;
+        transition: all 0.2s;
+      }
+      
+      .select-all-capture-btn:hover, .select-none-capture-btn:hover, .cancel-multi-capture-btn:hover {
+        background: #FF9800;
+        color: white;
       }
     `;
     document.head.appendChild(style);
