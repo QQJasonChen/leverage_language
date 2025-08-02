@@ -2,7 +2,7 @@
 // Allows users to read transcripts, highlight text, and jump to video timestamps
 
 class TranscriptViewer {
-  constructor(container, transcriptData) {
+  constructor(container, transcriptData, platform = null) {
     this.container = container;
     this.transcriptData = transcriptData || [];
     this.highlights = [];
@@ -10,6 +10,9 @@ class TranscriptViewer {
     this.selectedText = null;
     this.editMode = false;
     this.editingSegmentId = null;
+    this.platform = platform || this.detectPlatform();
+    
+    console.log('📖 TranscriptViewer initialized for platform:', this.platform);
     
     this.init();
     this.loadSavedHighlights();
@@ -91,6 +94,29 @@ class TranscriptViewer {
     this.attachEventListeners();
     this.addStyles();
     this.renderTranscript();
+  }
+
+  detectPlatform() {
+    try {
+      // Try to detect platform from current URL if available
+      const url = window.location?.href || '';
+      if (url.includes('netflix.com')) {
+        return 'netflix';
+      } else if (url.includes('youtube.com')) {
+        return 'youtube';
+      }
+      
+      // Fallback: check if we're in a sidepanel context
+      if (typeof chrome !== 'undefined' && chrome.tabs) {
+        // This is likely a sidepanel/extension context
+        return 'unknown';
+      }
+      
+      return 'youtube'; // Default fallback
+    } catch (error) {
+      console.log('⚠️ Platform detection error in TranscriptViewer:', error);
+      return 'youtube';
+    }
   }
 
   getVideoTitle(timestampInSeconds) {
@@ -467,6 +493,21 @@ class TranscriptViewer {
         e.preventDefault();
         e.stopPropagation();
         
+        // ✅ DISABLE timestamp navigation for Netflix
+        if (this.platform === 'netflix') {
+          console.log('🎭 Timestamp navigation disabled for Netflix platform');
+          // Show a brief visual feedback that it's disabled
+          const button = e.target;
+          const originalText = button.textContent;
+          button.textContent = '❌ N/A';
+          button.style.opacity = '0.5';
+          setTimeout(() => {
+            button.textContent = originalText;
+            button.style.opacity = '1';
+          }, 1000);
+          return;
+        }
+        
         const row = e.target.closest('.transcript-row');
         const startTime = parseFloat(row.dataset.start);
         
@@ -805,7 +846,7 @@ class TranscriptViewer {
                   data-youtube-link="${segment.youtubeLink}"
                   data-group="${segment.groupIndex}">
                 <td class="timestamp-cell">
-                  <button class="timestamp-btn" title="Replay in extension">
+                  <button class="timestamp-btn ${this.platform === 'netflix' ? 'netflix-disabled' : ''}" title="${this.platform === 'netflix' ? 'Timestamp replay not available on Netflix' : 'Replay in extension'}">
                     ${segment.timestampDisplay}
                   </button>
                 </td>
@@ -1575,6 +1616,21 @@ class TranscriptViewer {
         background: #2196f3;
         color: white;
         transform: scale(1.05);
+      }
+      
+      .timestamp-btn.netflix-disabled {
+        background: #f5f5f5;
+        border: 1px solid #ccc;
+        color: #999;
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+      
+      .timestamp-btn.netflix-disabled:hover {
+        background: #f5f5f5;
+        color: #999;
+        transform: none;
+        cursor: not-allowed;
       }
       
       .clean-text {

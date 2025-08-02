@@ -114,13 +114,14 @@ class TranscriptRestructurer {
             </button>
           </div>
           <div class="header-buttons">
+            ${this.currentPlatform !== 'netflix' ? `
             <button class="start-collection-btn" title="${collectTitle}">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <circle cx="12" cy="12" r="10"/>
                 <polygon points="10,8 16,12 10,16"/>
               </svg>
               Collect
-            </button>
+            </button>` : ''}
             ${this.currentPlatform === 'netflix' ? `
             <button class="capture-subtitle-btn" title="Capture currently visible subtitle">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -326,7 +327,10 @@ class TranscriptRestructurer {
   attachEventListeners() {
     const collectBtn = this.container.querySelector('.start-collection-btn');
     
-    collectBtn.addEventListener('click', () => this.toggleCollection());
+    // Only bind collect button for non-Netflix platforms
+    if (collectBtn && this.currentPlatform !== 'netflix') {
+      collectBtn.addEventListener('click', () => this.toggleCollection());
+    }
     
     // Netflix-specific capture button
     const captureBtn = this.container.querySelector('.capture-subtitle-btn');
@@ -1573,8 +1577,8 @@ class TranscriptRestructurer {
     // Initialize or update TranscriptViewer
     if (typeof TranscriptViewer !== 'undefined') {
       if (!this.transcriptViewer) {
-        console.log('📖 Creating new TranscriptViewer with', segments.length, 'segments');
-        this.transcriptViewer = new TranscriptViewer(readerContainer, segments);
+        console.log('📖 Creating new TranscriptViewer with', segments.length, 'segments for platform:', this.currentPlatform);
+        this.transcriptViewer = new TranscriptViewer(readerContainer, segments, this.currentPlatform);
         console.log('✅ TranscriptViewer created successfully');
       } else {
         console.log('📖 Updating existing TranscriptViewer with', segments.length, 'segments');
@@ -1609,7 +1613,7 @@ class TranscriptRestructurer {
           (this.restructuredSentences || []);
         
         console.log('📖 Initializing TranscriptViewer with', dataToUse.length, 'items');
-        this.transcriptViewer = new TranscriptViewer(readerContainer, dataToUse);
+        this.transcriptViewer = new TranscriptViewer(readerContainer, dataToUse, this.currentPlatform);
         console.log('✅ TranscriptViewer initialized successfully');
       } else {
         console.error('❌ TranscriptViewer not loaded - check if transcript-viewer.js is included');
