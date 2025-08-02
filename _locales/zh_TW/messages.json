@@ -1,10 +1,10 @@
 {
   "extensionName": {
-    "message": "YouGlish 快速搜尋",
+    "message": "YouGlish 快速搜尋 (Alpha 測試版)",
     "description": "Extension name"
   },
   "extensionDescription": {
-    "message": "綜合語言學習擴充功能：發音、字典、語境例句、翻譯、社群問答一站式服務",
+    "message": "ALPHA 測試版 - 綜合語言學習擴充功能：發音、字典、語境例句、翻譯、社群問答一站式服務。部分功能尚未完全優化。",
     "description": "Extension description"
   },
   "searchOnYouglish": {
