@@ -4063,6 +4063,36 @@
                     </div>
                 </div>
 
+                <!-- Netflix Learning Queue -->
+                <div class="learning-section" style="background: linear-gradient(135deg, #141414 0%, #2a2a2a 100%); border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 1px solid #e50914;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4 style="margin: 0; color: #e50914;">🎭 Netflix 學習內容</h4>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="clearNetflixQueueBtn" style="background: #e50914; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="清除 Netflix 學習歷史">🗑️ 清除</button>
+                            <button id="refreshNetflixQueueBtn" style="background: #d32f2f; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="重新整理 Netflix 列表">🔄 刷新</button>
+                        </div>
+                    </div>
+                    <div id="netflixLearningQueue" style="max-height: 280px; overflow-y: auto; border: 1px solid #444; border-radius: 4px; padding: 8px; background: #1a1a1a;">
+                        <div style="text-align: center; color: #999; padding: 30px 20px;">
+                            <div style="font-size: 48px; margin-bottom: 16px;">🎭</div>
+                            <div style="font-size: 14px; margin-bottom: 8px; color: #ccc;">尚無 Netflix 學習內容</div>
+                            <div style="font-size: 12px; color: #888; margin-bottom: 16px;">在 Netflix 上學習字幕內容</div>
+                            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px;">
+                                <a href="https://www.netflix.com/browse/genre/11559" target="_blank" 
+                                   style="display: flex; align-items: center; text-decoration: none; color: #e50914; font-size: 12px; padding: 8px; border-radius: 4px; background: #2a2a2a; border: 1px solid #444; transition: all 0.2s;">
+                                    <span style="margin-right: 8px;">🎓</span>
+                                    <span>推薦教育類內容</span>
+                                </a>
+                                <a href="https://www.netflix.com/browse/genre/783" target="_blank" 
+                                   style="display: flex; align-items: center; text-decoration: none; color: #e50914; font-size: 12px; padding: 8px; border-radius: 4px; background: #2a2a2a; border: 1px solid #444; transition: all 0.2s;">
+                                    <span style="margin-right: 8px;">📖</span>
+                                    <span>紀錄片推薦</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- AI Analysis Section -->
                 <div id="videoAiAnalysisSection" style="background: white; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: none;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">

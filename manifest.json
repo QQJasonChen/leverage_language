@@ -22,6 +22,7 @@
   "host_permissions": [
     "https://youglish.com/*",
     "https://*.youtube.com/*",
+    "https://*.netflix.com/*",
     "https://generativelanguage.googleapis.com/*",
     "https://api.openai.com/*",
     "https://translate.googleapis.com/*",
@@ -54,13 +55,24 @@
     },
     {
       "matches": ["https://*.youtube.com/*"],
-      "js": ["youtube-transcript-hybrid.js"],
+      "js": ["youtube-transcript-stable.js"],
+      "run_at": "document_end"
+    },
+    {
+      "matches": ["https://*.netflix.com/*"],
+      "js": ["netflix-content.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://*.netflix.com/*"],
+      "js": ["netflix-subtitle-extractor.js"],
       "run_at": "document_end"
     },
     {
       "matches": ["<all_urls>"],
       "exclude_matches": [
         "https://*.youtube.com/*",
+        "https://*.netflix.com/*",
         "https://youglish.com/*"
       ],
       "js": ["article-collector.js"],
@@ -97,6 +109,10 @@
     {
       "resources": ["youtube-page-script.js"],
       "matches": ["https://*.youtube.com/*"]
+    },
+    {
+      "resources": ["netflix-page-script.js"],
+      "matches": ["https://*.netflix.com/*"]
     }
   ]
 }

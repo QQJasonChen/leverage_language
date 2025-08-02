@@ -1,37 +1,109 @@
 // Transcript Restructurer Component
-// Handles UI and interaction for restructuring YouTube subtitles
+// Handles UI and interaction for restructuring YouTube and Netflix subtitles
 
 class TranscriptRestructurer {
   constructor(container, aiService) {
     this.container = container;
     this.aiService = aiService;
-    
-    // Check if YouTubeTranscriptFetcher is available
-    if (typeof YouTubeTranscriptFetcher === 'undefined') {
-      console.error('YouTubeTranscriptFetcher not found. Make sure youtube-transcript.js is loaded first.');
-      throw new Error('YouTubeTranscriptFetcher dependency not found');
-    }
-    
-    this.transcriptFetcher = new YouTubeTranscriptFetcher();
+    this.currentPlatform = 'youtube'; // Default
+    this.transcriptFetcher = null;
     this.currentTranscript = null;
     this.restructuredSentences = null;
     
-    this.init();
+    // Initialize asynchronously
+    this.initializeAsync();
+  }
+
+  async initializeAsync() {
+    try {
+      // Detect platform first
+      this.currentPlatform = await this.detectPlatform();
+      console.log('🎬 Platform detected:', this.currentPlatform);
+      
+      // Initialize platform-specific components
+      if (this.currentPlatform === 'youtube') {
+        // Check if YouTubeTranscriptFetcher is available
+        if (typeof YouTubeTranscriptFetcher === 'undefined') {
+          console.error('YouTubeTranscriptFetcher not found. Make sure youtube-transcript.js is loaded first.');
+          throw new Error('YouTubeTranscriptFetcher dependency not found');
+        }
+        this.transcriptFetcher = new YouTubeTranscriptFetcher();
+      } else if (this.currentPlatform === 'netflix') {
+        console.log('🎭 Netflix platform - using subtitle extractor');
+        this.transcriptFetcher = null; // Netflix uses different extraction method
+      }
+      
+      // Initialize UI
+      this.init();
+      
+    } catch (error) {
+      console.error('❌ Failed to initialize TranscriptRestructurer:', error);
+      // Fallback to YouTube mode
+      this.currentPlatform = 'youtube';
+      if (typeof YouTubeTranscriptFetcher !== 'undefined') {
+        this.transcriptFetcher = new YouTubeTranscriptFetcher();
+      }
+      this.init();
+    }
+  }
+
+  // Detect current platform based on active tab
+  async detectPlatform() {
+    try {
+      // First try to get platform from active tab
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs[0]) {
+        const url = tabs[0].url;
+        if (url.includes('youtube.com')) {
+          return 'youtube';
+        } else if (url.includes('netflix.com')) {
+          return 'netflix';
+        }
+      }
+      
+      // Fallback to checking available objects
+      if (typeof YouTubeTranscriptFetcher !== 'undefined') {
+        return 'youtube';
+      }
+      
+      return 'youtube'; // Default fallback
+    } catch (error) {
+      console.log('⚠️ Platform detection error:', error);
+      return 'youtube'; // Default fallback
+    }
   }
 
   init() {
+    const platformIcon = this.currentPlatform === 'netflix' ? '🎭' : '📺';
+    const platformName = this.currentPlatform === 'netflix' ? 'Netflix' : 'YouTube';
+    const collectTitle = this.currentPlatform === 'netflix' ? 
+      'Start Netflix subtitle collection' : 
+      'Start real-time caption collection';
+
     this.container.innerHTML = `
       <div class="transcript-restructurer">
         <div class="transcript-header">
-          <h3>Transcript Restructurer</h3>
+          <h3>${platformIcon} ${platformName} Transcript Restructurer</h3>
+          <div class="platform-indicator">
+            <span class="platform-badge platform-${this.currentPlatform}">${platformName}</span>
+          </div>
           <div class="header-buttons">
-            <button class="start-collection-btn" title="Start real-time caption collection">
+            <button class="start-collection-btn" title="${collectTitle}">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <circle cx="12" cy="12" r="10"/>
                 <polygon points="10,8 16,12 10,16"/>
               </svg>
               Collect
             </button>
+            ${this.currentPlatform === 'netflix' ? `
+            <button class="capture-subtitle-btn" title="Capture currently visible subtitle">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M8 21h8"/>
+                <path d="M12 17v4"/>
+                <path d="M5.5 17h13a2 2 0 0 0 1.8-2.9L14.6 3.1a2 2 0 0 0-3.2 0L5.7 14.1A2 2 0 0 0 7.5 17z"/>
+              </svg>
+              Capture
+            </button>` : ''}
           </div>
         </div>
         
@@ -209,6 +281,12 @@ class TranscriptRestructurer {
     const collectBtn = this.container.querySelector('.start-collection-btn');
     
     collectBtn.addEventListener('click', () => this.toggleCollection());
+    
+    // Netflix-specific capture button
+    const captureBtn = this.container.querySelector('.capture-subtitle-btn');
+    if (captureBtn && this.currentPlatform === 'netflix') {
+      captureBtn.addEventListener('click', () => this.captureCurrentSubtitle());
+    }
     
     // ✅ NEW: Add interactive card selection for subtitle modes
     this.setupSubtitleModeCards();
@@ -1942,8 +2020,17 @@ Sentence to fix: "${preCleanedText}"`;
       const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
       const tab = tabs[0];
       
-      if (!tab.url.includes('youtube.com/watch')) {
+      // Platform-specific validation
+      if (this.currentPlatform === 'youtube' && !tab.url.includes('youtube.com/watch')) {
         statusEl.textContent = '❌ Please open a YouTube video first';
+        statusEl.className = 'transcript-status error';
+        return;
+      } else if (this.currentPlatform === 'netflix' && !tab.url.includes('netflix.com/watch')) {
+        statusEl.textContent = '❌ Please open a Netflix video first';
+        statusEl.className = 'transcript-status error';
+        return;
+      } else if (this.currentPlatform === 'unknown') {
+        statusEl.textContent = '❌ Please open a YouTube or Netflix video first';
         statusEl.className = 'transcript-status error';
         return;
       }
@@ -1954,7 +2041,8 @@ Sentence to fix: "${preCleanedText}"`;
         response = await chrome.tabs.sendMessage(tab.id, { action: 'ping' });
       } catch (connectionError) {
         if (connectionError.message.includes('Could not establish connection')) {
-          statusEl.textContent = '❌ Please refresh the YouTube page and try again';
+          const platformName = this.currentPlatform === 'netflix' ? 'Netflix' : 'YouTube';
+          statusEl.textContent = `❌ Please refresh the ${platformName} page and try again`;
           statusEl.className = 'transcript-status error';
           console.log('🔄 Content script not ready, user needs to refresh page');
           return;
@@ -1963,13 +2051,14 @@ Sentence to fix: "${preCleanedText}"`;
       }
       
       if (response.isCollecting) {
-        // Stop collection
-        statusEl.textContent = 'Stopping real-time collection...';
+        // Stop collection - platform-specific
+        const stopAction = this.currentPlatform === 'netflix' ? 'stopNetflixSubtitleCollection' : 'stopCaptionCollection';
+        statusEl.textContent = `Stopping ${this.currentPlatform === 'netflix' ? 'Netflix subtitle' : 'real-time'} collection...`;
         statusEl.className = 'transcript-status loading';
         
         let result;
         try {
-          result = await chrome.tabs.sendMessage(tab.id, { action: 'stopCaptionCollection' });
+          result = await chrome.tabs.sendMessage(tab.id, { action: stopAction });
         } catch (connectionError) {
           if (connectionError.message.includes('Could not establish connection')) {
             statusEl.textContent = '❌ Connection lost. Please refresh the page.';
@@ -1980,154 +2069,19 @@ Sentence to fix: "${preCleanedText}"`;
           throw connectionError;
         }
         
-        if (result.success && result.segments.length > 0) {
-          console.log('🧹 Starting deduplication of collected segments...');
-          
-          // ✅ FIX: Apply cleaning to collected segments first
-          const cleanedSegments = this.cleanCollectedSegments(result.segments);
-          console.log(`✨ Cleaned segments: ${result.segments.length} → ${cleanedSegments.length}`);
-          
-          this.currentTranscript = cleanedSegments;
-          statusEl.textContent = `✅ Collection stopped. Captured ${cleanedSegments.length} clean segments in ${result.duration.toFixed(1)}s`;
-          statusEl.className = 'transcript-status success';
-          
-          // ✅ FIX: Update the transcript viewer immediately with cleaned data
-          console.log('🔍 Transcript viewer check:', {
-            hasTranscriptViewer: !!this.transcriptViewer,
-            hasUpdateMethod: this.transcriptViewer && typeof this.transcriptViewer.updateTranscriptData === 'function',
-            segmentsToUpdate: cleanedSegments.length,
-            sampleSegment: cleanedSegments[0]
-          });
-          
-          if (this.transcriptViewer && typeof this.transcriptViewer.updateTranscriptData === 'function') {
-            console.log('🔄 Updating transcript viewer with cleaned collection data');
-            this.transcriptViewer.updateTranscriptData(cleanedSegments);
-          } else {
-            console.log('⚠️ Transcript viewer not available, creating new one...');
-            // ✅ FIX: Create transcript viewer if it doesn't exist
-            this.displayTranscriptInReader(cleanedSegments);
-          }
-          
-          // Update button back to play state
-          collectBtn.innerHTML = `
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <circle cx="12" cy="12" r="10"/>
-              <polygon points="10,8 16,12 10,16"/>
-            </svg>
-            Collect
-          `;
-          
-          // ✅ NEW: Show AI Polish button after successful collection
-          this.showAIPolishButton(cleanedSegments);
-          
-          // Restructure and display (for classic view)
-          await this.restructureTranscript();
-          this.displayTranscript();
-          
+        // Use the appropriate completion handler
+        if (this.currentPlatform === 'netflix') {
+          this.handleNetflixCollectionComplete(result, statusEl, collectBtn);
         } else {
-          statusEl.textContent = '❌ No captions collected. Try playing the video with captions enabled.';
-          statusEl.className = 'transcript-status error';
-          
-          // Reset button state even on error
-          collectBtn.innerHTML = `
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <circle cx="12" cy="12" r="10"/>
-              <polygon points="10,8 16,12 10,16"/>
-            </svg>
-            Collect
-          `;
+          this.handleCollectionComplete(result, statusEl, collectBtn);
         }
         
       } else {
-        // Start collection
-        statusEl.textContent = 'Starting real-time caption collection...';
-        statusEl.className = 'transcript-status loading';
-        
-        // ✅ NEW: Get chunk duration setting from UI
-        const chunkDurationInput = this.container.querySelector('#chunk-duration');
-        const chunkDuration = chunkDurationInput ? parseInt(chunkDurationInput.value) || 45 : 45;
-        
-        // ✅ NEW: Get user's subtitle mode choice
-        const subtitleModeRadio = this.container.querySelector('input[name="subtitle-mode"]:checked');
-        const subtitleMode = subtitleModeRadio ? subtitleModeRadio.value : 'auto-detect';
-        
-        // ✅ NEW: Get Whisper-specific timing parameters
-        const whisperChunkDurationInput = this.container.querySelector('#whisper-chunk-duration');
-        const whisperChunkDuration = whisperChunkDurationInput ? parseInt(whisperChunkDurationInput.value) || 15 : 15;
-        
-        const whisperChunkGapInput = this.container.querySelector('#whisper-chunk-gap');
-        const whisperChunkGap = whisperChunkGapInput ? parseFloat(whisperChunkGapInput.value) || 1 : 1;
-        
-        const sentenceGroupingSelect = this.container.querySelector('#sentence-grouping');
-        const sentenceGrouping = sentenceGroupingSelect ? sentenceGroupingSelect.value : 'medium';
-        
-        const languageOverrideSelect = this.container.querySelector('#whisper-language-override');
-        const languageOverride = languageOverrideSelect ? languageOverrideSelect.value : 'auto';
-        
-        console.log('⚙️ Whisper timing settings:', {
-          whisperChunkDuration,
-          whisperChunkGap,
-          sentenceGrouping,
-          languageOverride
-        });
-        
-        console.log('🎯 User selected subtitle mode:', subtitleMode);
-        
-        let result;
-        try {
-          result = await chrome.tabs.sendMessage(tab.id, { 
-            action: 'startCaptionCollection',
-            chunkDuration: chunkDuration,
-            subtitleMode: subtitleMode,  // Pass user choice to content script
-            // ✅ NEW: Pass Whisper timing parameters
-            whisperSettings: {
-              chunkDuration: whisperChunkDuration,
-              chunkGap: whisperChunkGap,
-              sentenceGrouping: sentenceGrouping,
-              languageOverride: languageOverride
-            }
-          });
-        } catch (connectionError) {
-          if (connectionError.message.includes('Could not establish connection')) {
-            statusEl.textContent = '❌ Cannot connect to YouTube page. Please refresh and try again.';
-            statusEl.className = 'transcript-status error';
-            return;
-          }
-          throw connectionError;
-        }
-        
-        if (result.success) {
-          // ✅ NEW: Show subtitle mode based on user choice
-          let modeText = '';
-          switch (subtitleMode) {
-            case 'with-subtitles':
-              modeText = '📝 Creator subtitles mode - using original fast method';
-              break;
-            case 'without-subtitles':
-              modeText = `🎙️ Whisper mode: ${whisperChunkDuration}s intervals, ${sentenceGrouping} grouping - will request audio permission`;
-              break;
-            case 'auto-detect':
-              modeText = '🤖 Auto-detect mode - will determine best method';
-              break;
-            default:
-              modeText = '🔴 Collection started';
-          }
-          
-          statusEl.textContent = `🔴 ${modeText}. Play the video to capture captions.`;
-          statusEl.className = 'transcript-status success';
-          
-          // Update button to show stop state
-          collectBtn.innerHTML = `
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <circle cx="12" cy="12" r="10"/>
-              <rect x="9" y="9" width="6" height="6"/>
-            </svg>
-            Stop
-          `;
-          
+        // Start collection - platform-specific
+        if (this.currentPlatform === 'netflix') {
+          await this.startNetflixCollection(collectBtn, statusEl, tab);
         } else {
-          statusEl.textContent = '❌ Failed to start collection. Try refreshing the page.';
-          statusEl.className = 'transcript-status error';
+          await this.startYouTubeCollection(collectBtn, statusEl, tab);
         }
       }
       
@@ -2135,7 +2089,8 @@ Sentence to fix: "${preCleanedText}"`;
       console.error('❌ Toggle collection error:', error);
       
       if (error.message.includes('Could not establish connection')) {
-        statusEl.textContent = '❌ Page connection lost. Please refresh YouTube and try again.';
+        const platformName = this.currentPlatform === 'netflix' ? 'Netflix' : 'YouTube';
+        statusEl.textContent = `❌ Page connection lost. Please refresh ${platformName} and try again.`;
       } else {
         statusEl.textContent = `❌ Error: ${error.message}`;
       }
@@ -2143,6 +2098,12 @@ Sentence to fix: "${preCleanedText}"`;
       
       // Reset button state on any error
       this.resetCollectionButton(collectBtn);
+      // Show button and clear timer on error
+      collectBtn.style.display = 'block';
+      if (this.currentAutoStopTimer) {
+        clearTimeout(this.currentAutoStopTimer);
+        this.currentAutoStopTimer = null;
+      }
     }
   }
   
@@ -2156,6 +2117,320 @@ Sentence to fix: "${preCleanedText}"`;
         </svg>
         Collect
       `;
+    }
+  }
+  
+  // ✅ NEW: Handle collection completion with popup and button hiding
+  handleCollectionComplete(result, statusEl, collectBtn) {
+    // Clear auto-stop timer if it exists
+    if (this.currentAutoStopTimer) {
+      clearTimeout(this.currentAutoStopTimer);
+      this.currentAutoStopTimer = null;
+    }
+    
+    if (result.success && result.segments.length > 0) {
+      console.log('🧹 Starting deduplication of collected segments...');
+      
+      // Apply cleaning to collected segments
+      const cleanedSegments = this.cleanCollectedSegments(result.segments);
+      console.log(`✨ Cleaned segments: ${result.segments.length} → ${cleanedSegments.length}`);
+      
+      this.currentTranscript = cleanedSegments;
+      statusEl.textContent = `✅ 1-minute collection complete! Captured ${cleanedSegments.length} segments`;
+      statusEl.className = 'transcript-status success';
+      
+      // ✅ HIDE BUTTON PERMANENTLY after successful collection
+      collectBtn.style.display = 'none';
+      
+      // ✅ CREATE POPUP WINDOW to show transcript
+      this.showTranscriptPopup(cleanedSegments);
+      
+      // Update transcript viewer
+      if (this.transcriptViewer && typeof this.transcriptViewer.updateTranscriptData === 'function') {
+        this.transcriptViewer.updateTranscriptData(cleanedSegments);
+      } else {
+        this.displayTranscriptInReader(cleanedSegments);
+      }
+      
+      // Show AI Polish button
+      this.showAIPolishButton(cleanedSegments);
+      
+      // Restructure for classic view
+      this.restructureTranscript();
+      this.displayTranscript();
+      
+    } else {
+      statusEl.textContent = '❌ No captions collected. Try playing the video with captions enabled.';
+      statusEl.className = 'transcript-status error';
+      // Show button again on failure
+      collectBtn.style.display = 'block';
+      this.resetCollectionButton(collectBtn);
+    }
+  }
+  
+  // ✅ NEW: Show transcript in popup window
+  showTranscriptPopup(segments) {
+    const transcriptText = segments.map(segment => segment.text).join(' ');
+    const platformIcon = this.currentPlatform === 'netflix' ? '🎭' : '📺';
+    const platformName = this.currentPlatform === 'netflix' ? 'Netflix' : 'YouTube';
+    
+    // Create popup content
+    const popupContent = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
+        <h2 style="color: #1976d2; margin-bottom: 15px;">${platformIcon} ${platformName} Transcript Collected</h2>
+        <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; line-height: 1.6; max-height: 400px; overflow-y: auto;">
+          ${transcriptText}
+        </div>
+        <div style="margin-top: 15px; text-align: center;">
+          <button onclick="window.close()" style="background: #1976d2; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">Close</button>
+        </div>
+      </div>
+    `;
+    
+    // Open popup window
+    const popup = window.open('', 'TranscriptPopup', 'width=700,height=500,scrollbars=yes,resizable=yes');
+    if (popup) {
+      popup.document.write(`
+        <html>
+        <head><title>${platformName} Transcript Collection</title></head>
+        <body>${popupContent}</body>
+        </html>
+      `);
+      popup.document.close();
+      popup.focus();
+    } else {
+      // Fallback if popup blocked
+      alert(`${platformName} transcript collected!\n\n${transcriptText.substring(0, 500)}${transcriptText.length > 500 ? '...' : ''}`);
+    }
+  }
+
+  // ✅ NEW: YouTube-specific collection start
+  async startYouTubeCollection(collectBtn, statusEl, tab) {
+    statusEl.textContent = 'Starting 1-minute caption collection...';
+    statusEl.className = 'transcript-status loading';
+    
+    // ✅ ULTRA-STABLE: Fixed 60-second recording with no complex options
+    const MAX_RECORDING_TIME = 60000; // Exactly 1 minute
+    
+    console.log('🛡️ Starting ultra-stable 60-second collection...');
+    
+    // ✅ NEW: Hide collect button during recording to prevent interference
+    collectBtn.style.display = 'none';
+    
+    // ✅ NEW: Set up 1-minute auto-stop timer
+    const autoStopTimer = setTimeout(async () => {
+      console.log('⏰ Auto-stopping collection after 1 minute');
+      try {
+        const stopResult = await chrome.tabs.sendMessage(tab.id, { action: 'stopCaptionCollection' });
+        this.handleCollectionComplete(stopResult, statusEl, collectBtn);
+      } catch (error) {
+        console.error('❌ Auto-stop failed:', error);
+        statusEl.textContent = '❌ Auto-stop failed. Please refresh the page.';
+        statusEl.className = 'transcript-status error';
+        collectBtn.style.display = 'block';
+      }
+    }, MAX_RECORDING_TIME);
+    
+    // Store timer reference for potential cleanup
+    this.currentAutoStopTimer = autoStopTimer;
+    
+    let result;
+    try {
+      result = await chrome.tabs.sendMessage(tab.id, { 
+        action: 'startCaptionCollection'
+        // ✅ ULTRA-STABLE: No complex parameters - fixed 60s recording
+      });
+    } catch (connectionError) {
+      if (connectionError.message.includes('Could not establish connection')) {
+        statusEl.textContent = '❌ Cannot connect to YouTube page. Please refresh and try again.';
+        statusEl.className = 'transcript-status error';
+        return;
+      }
+      throw connectionError;
+    }
+    
+    if (result.success) {
+      statusEl.textContent = '🛡️ Ultra-stable 60-second recording started. Microphone recording in progress...';
+      statusEl.className = 'transcript-status success';
+      
+      // Update button to show stop state
+      collectBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="12" cy="12" r="10"/>
+          <rect x="9" y="9" width="6" height="6"/>
+        </svg>
+        Stop
+      `;
+      
+    } else {
+      statusEl.textContent = '❌ Failed to start collection. Try refreshing the page.';
+      statusEl.className = 'transcript-status error';
+      // Show button again on failure
+      collectBtn.style.display = 'block';
+      // Clear timer on failure
+      if (this.currentAutoStopTimer) {
+        clearTimeout(this.currentAutoStopTimer);
+        this.currentAutoStopTimer = null;
+      }
+    }
+  }
+
+  // ✅ NEW: Netflix-specific collection start
+  async startNetflixCollection(collectBtn, statusEl, tab) {
+    statusEl.textContent = '🎭 Starting Netflix subtitle collection...';
+    statusEl.className = 'transcript-status loading';
+    
+    console.log('🎭 Starting Netflix subtitle collection...');
+    
+    // Hide collect button during collection
+    collectBtn.style.display = 'none';
+    
+    let result;
+    try {
+      result = await chrome.tabs.sendMessage(tab.id, { 
+        action: 'startNetflixSubtitleCollection'
+      });
+    } catch (connectionError) {
+      if (connectionError.message.includes('Could not establish connection')) {
+        statusEl.textContent = '❌ Cannot connect to Netflix page. Please refresh and try again.';
+        statusEl.className = 'transcript-status error';
+        collectBtn.style.display = 'block';
+        return;
+      }
+      throw connectionError;
+    }
+    
+    if (result.success) {
+      statusEl.textContent = '🎭 Netflix subtitle collection started. Play video to capture subtitles...';
+      statusEl.className = 'transcript-status success';
+      
+      // Update button to show stop state
+      collectBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="12" cy="12" r="10"/>
+          <rect x="9" y="9" width="6" height="6"/>
+        </svg>
+        Stop
+      `;
+      collectBtn.style.display = 'block';
+      
+    } else {
+      statusEl.textContent = '❌ Failed to start Netflix collection. Try refreshing the page.';
+      statusEl.className = 'transcript-status error';
+      collectBtn.style.display = 'block';
+    }
+  }
+
+  // Netflix manual subtitle capture
+  async captureCurrentSubtitle() {
+    const statusEl = this.container.querySelector('.transcript-status');
+    const captureBtn = this.container.querySelector('.capture-subtitle-btn');
+    
+    try {
+      statusEl.textContent = '🎭 Capturing current subtitle...';
+      statusEl.className = 'transcript-status loading';
+      
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const tab = tabs[0];
+      
+      if (!tab.url.includes('netflix.com')) {
+        statusEl.textContent = '❌ Please open Netflix first';
+        statusEl.className = 'transcript-status error';
+        return;
+      }
+      
+      const result = await chrome.tabs.sendMessage(tab.id, { 
+        action: 'captureCurrentSubtitle'
+      });
+      
+      if (result.success && result.text) {
+        console.log('🎭 Captured Netflix subtitle:', result.text);
+        
+        statusEl.textContent = `✅ Captured: "${result.text}"`;
+        statusEl.className = 'transcript-status success';
+        
+        // Send to sidepanel for analysis
+        chrome.runtime.sendMessage({
+          action: 'updateSidePanel',
+          text: result.text,
+          url: result.videoInfo?.url || tab.url,
+          title: result.videoInfo?.title || 'Netflix',
+          language: 'english',
+          source: 'netflix-learning'
+        });
+        
+        // Create a single segment for display
+        const segment = {
+          text: result.text,
+          start: result.timestamp || 0,
+          timestamp: this.formatTimestamp(result.timestamp || 0),
+          source: 'manual-capture'
+        };
+        
+        // Show the captured text in the transcript viewer
+        this.displayTranscriptInReader([segment]);
+        
+        // Add some visual feedback
+        captureBtn.style.backgroundColor = '#4CAF50';
+        captureBtn.style.color = 'white';
+        setTimeout(() => {
+          captureBtn.style.backgroundColor = '';
+          captureBtn.style.color = '';
+        }, 2000);
+        
+      } else {
+        statusEl.textContent = '❌ No subtitle found. Make sure subtitles are enabled and visible.';
+        statusEl.className = 'transcript-status error';
+      }
+      
+    } catch (error) {
+      console.error('❌ Error capturing subtitle:', error);
+      statusEl.textContent = '❌ Failed to capture subtitle. Try refreshing the page.';
+      statusEl.className = 'transcript-status error';
+    }
+  }
+
+  // Helper to format timestamp
+  formatTimestamp(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  // ✅ NEW: Netflix collection completion handler
+  handleNetflixCollectionComplete(result, statusEl, collectBtn) {
+    if (result.success && result.segments && result.segments.length > 0) {
+      console.log('🎭 Netflix subtitle collection completed');
+      
+      this.currentTranscript = result.segments;
+      statusEl.textContent = `✅ Netflix collection complete! Captured ${result.segments.length} subtitle segments`;
+      statusEl.className = 'transcript-status success';
+      
+      // Hide button after successful collection
+      collectBtn.style.display = 'none';
+      
+      // Show transcript popup
+      this.showTranscriptPopup(result.segments);
+      
+      // Update transcript viewer
+      if (this.transcriptViewer && typeof this.transcriptViewer.updateTranscriptData === 'function') {
+        this.transcriptViewer.updateTranscriptData(result.segments);
+      } else {
+        this.displayTranscriptInReader(result.segments);
+      }
+      
+      // Show AI Polish button
+      this.showAIPolishButton(result.segments);
+      
+      // Restructure for classic view
+      this.restructureTranscript();
+      this.displayTranscript();
+      
+    } else {
+      statusEl.textContent = '❌ No Netflix subtitles collected. Make sure subtitles are enabled and visible.';
+      statusEl.className = 'transcript-status error';
+      collectBtn.style.display = 'block';
+      this.resetCollectionButton(collectBtn);
     }
   }
 
@@ -2451,6 +2726,40 @@ Sentence to fix: "${preCleanedText}"`;
         font-size: 18px;
       }
       
+      .platform-indicator {
+        margin-left: auto;
+        margin-right: 10px;
+        display: flex;
+        align-items: center;
+      }
+      
+      .platform-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+      }
+      
+      .platform-badge.platform-youtube {
+        background: linear-gradient(135deg, #ff0000, #cc0000);
+        color: white;
+      }
+      
+      .platform-badge.platform-netflix {
+        background: linear-gradient(135deg, #e50914, #b20610);
+        color: white;
+      }
+      
+      .platform-badge.platform-unknown {
+        background: linear-gradient(135deg, #666, #444);
+        color: white;
+      }
+      
       .header-buttons {
         display: flex;
         gap: 10px;
@@ -2540,6 +2849,29 @@ Sentence to fix: "${preCleanedText}"`;
       
       .start-collection-btn:hover {
         background: #e64a19;
+      }
+      
+      .capture-subtitle-btn {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 12px;
+        background: #e50914;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.3s;
+      }
+      
+      .capture-subtitle-btn:hover {
+        background: #d40812;
+        transform: translateY(-1px);
+      }
+      
+      .capture-subtitle-btn:active {
+        transform: translateY(0);
       }
       
       .transcript-options {

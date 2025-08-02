@@ -112,6 +112,41 @@ async function checkForYouTubeAnalysis() {
   }
 }
 
+// Check for Netflix analysis data when sidepanel opens
+async function checkForNetflixAnalysis() {
+  try {
+    const result = await chrome.storage.local.get('netflixAnalysis');
+    if (result.netflixAnalysis) {
+      const data = result.netflixAnalysis;
+      // Check if data is recent (within last 5 minutes)
+      if (Date.now() - data.timestamp < 5 * 60 * 1000) {
+        console.log('🎭 Found recent Netflix analysis data:', data.text);
+        
+        // Switch to video tab
+        const videoBtn = document.getElementById('showVideoBtn');
+        if (videoBtn) {
+          videoBtn.click();
+        }
+        
+        // Process the Netflix data
+        setTimeout(() => {
+          recordLearningSearch(data.text, data.language, data.originalUrl, data.title);
+          updateLearningDashboard();
+          handleNetflixTextAnalysis(data.text, data.originalUrl, data.title, data.videoId, data.movieId);
+        }, 500);
+        
+        // Load in analysis tab
+        loadYouGlish(data.url, data.text, data.language);
+        
+        // Clear the data after processing
+        chrome.storage.local.remove('netflixAnalysis');
+      }
+    }
+  } catch (error) {
+    console.error('Error checking Netflix analysis:', error);
+  }
+}
+
 // Check for article analysis data when sidepanel opens
 async function checkForArticleAnalysis() {
   try {
@@ -537,6 +572,15 @@ function recordLearningSearch(text, language, url, title) {
     const wordCount = text.split(/\s+/).length;
     const isSentence = wordCount > 3; // Consider 4+ words as a sentence
     addVideoToQueue(url, videoTitle, channelName, isSentence);
+  }
+  
+  // Add Netflix content to learning queue
+  if (url && url.includes('netflix.com')) {
+    const videoTitle = title || 'Netflix Content';
+    const channelName = 'Netflix';
+    const wordCount = text.split(/\s+/).length;
+    const isSentence = wordCount > 3; // Consider 4+ words as a sentence
+    addNetflixToQueue(url, videoTitle, channelName, isSentence);
   }
   
   // Save to storage
@@ -6908,6 +6952,32 @@ function setupVideoTabFeatures() {
     });
   }
 
+  // Netflix Learning Queue Management
+  const clearNetflixQueueBtn = document.getElementById('clearNetflixQueueBtn');
+  const refreshNetflixQueueBtn = document.getElementById('refreshNetflixQueueBtn');
+
+  // Clear Netflix learning queue
+  if (clearNetflixQueueBtn) {
+    clearNetflixQueueBtn.addEventListener('click', async () => {
+      if (confirm('確定要清除所有 Netflix 學習記錄嗎？')) {
+        try {
+          await chrome.storage.local.remove(['netflixLearningQueue']);
+          refreshNetflixQueue();
+          console.log('✅ Netflix learning queue cleared');
+        } catch (error) {
+          console.error('❌ Failed to clear Netflix queue:', error);
+        }
+      }
+    });
+  }
+
+  // Refresh Netflix queue
+  if (refreshNetflixQueueBtn) {
+    refreshNetflixQueueBtn.addEventListener('click', () => {
+      refreshNetflixQueue();
+    });
+  }
+
   // View all achievements
   const viewAllAchievementsBtn = document.getElementById('viewAllAchievementsBtn');
   if (viewAllAchievementsBtn) {
@@ -6937,6 +7007,7 @@ function setupVideoTabFeatures() {
   // Initialize video tab data
   updateVideoTabStats();
   refreshVideoQueue();
+  refreshNetflixQueue();
   
   // Set up event delegation for manual analysis buttons
   setupManualAnalysisButtons();
@@ -7085,13 +7156,133 @@ async function addVideoToQueue(videoUrl, videoTitle, channel, isSentence = false
   }
 }
 
+// Add Netflix content to learning queue
+async function addNetflixToQueue(netflixUrl, contentTitle, channel, isSentence = false) {
+  try {
+    const result = await chrome.storage.local.get(['netflixLearningQueue']);
+    const queue = result.netflixLearningQueue || [];
+    
+    // Check if Netflix content already exists
+    const existingIndex = queue.findIndex(v => v.url === netflixUrl);
+    
+    if (existingIndex >= 0) {
+      // Update existing entry with enhanced tracking
+      queue[existingIndex].timestamp = Date.now();
+      if (isSentence) {
+        queue[existingIndex].sentencesLearned = (queue[existingIndex].sentencesLearned || 0) + 1;
+      } else {
+        queue[existingIndex].wordsLearned = (queue[existingIndex].wordsLearned || 0) + 1;
+      }
+      queue[existingIndex].sessionsCount = (queue[existingIndex].sessionsCount || 1) + 1;
+      queue[existingIndex].lastActivity = new Date().toISOString();
+    } else {
+      // Add new Netflix content with enhanced data tracking
+      queue.unshift({
+        url: netflixUrl,
+        title: contentTitle || 'Netflix Content',
+        channel: channel || 'Netflix',
+        platform: 'netflix',
+        timestamp: Date.now(),
+        firstLearned: new Date().toISOString(),
+        lastActivity: new Date().toISOString(),
+        wordsLearned: isSentence ? 0 : 1,
+        sentencesLearned: isSentence ? 1 : 0,
+        sessionsCount: 1,
+        totalTimeSpent: 0,
+        contentType: extractNetflixContentType(netflixUrl),
+        movieId: extractNetflixMovieId(netflixUrl)
+      });
+    }
+    
+    // Keep only latest 10 Netflix contents
+    if (queue.length > 10) {
+      queue.splice(10);
+    }
+    
+    await chrome.storage.local.set({ netflixLearningQueue: queue });
+    refreshNetflixQueue();
+  } catch (error) {
+    console.error('❌ Failed to add Netflix content to queue:', error);
+  }
+}
+
+// Helper functions for Netflix content
+function extractNetflixContentType(url) {
+  if (url.includes('/title/')) return 'series';
+  if (url.includes('/watch/')) return 'movie';
+  return 'content';
+}
+
+function extractNetflixMovieId(url) {
+  const match = url.match(/(?:watch|title)\/(\d+)/);
+  return match ? match[1] : null;
+}
+
+// Refresh Netflix queue display (similar to refreshVideoQueue)
+async function refreshNetflixQueue() {
+  try {
+    const result = await chrome.storage.local.get(['netflixLearningQueue']);
+    const queue = result.netflixLearningQueue || [];
+    
+    const netflixQueueContainer = document.getElementById('netflixLearningQueue');
+    if (!netflixQueueContainer) return;
+    
+    if (queue.length === 0) {
+      netflixQueueContainer.innerHTML = '<p style="color: #666; font-style: italic;">🎭 No Netflix content in learning queue yet</p>';
+      return;
+    }
+    
+    const queueHTML = queue.map(item => `
+      <div class="netflix-queue-item" style="
+        background: linear-gradient(135deg, #141414 0%, #2a2a2a 100%);
+        border: 1px solid #e50914;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 8px;
+        color: white;
+      ">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+          <div style="font-weight: bold; color: #e50914;">🎭 ${item.title}</div>
+          <div style="font-size: 12px; color: #999;">${item.contentType}</div>
+        </div>
+        <div style="font-size: 12px; color: #ccc; margin-bottom: 6px;">
+          📺 ${item.channel} • 🕐 ${new Date(item.timestamp).toLocaleDateString()}
+        </div>
+        <div style="display: flex; gap: 12px; font-size: 11px; color: #aaa;">
+          <span>💬 Words: ${item.wordsLearned || 0}</span>
+          <span>📝 Sentences: ${item.sentencesLearned || 0}</span>
+          <span>🔄 Sessions: ${item.sessionsCount || 1}</span>
+        </div>
+        <div style="margin-top: 8px;">
+          <a href="${item.url}" target="_blank" style="
+            color: #e50914;
+            text-decoration: none;
+            font-size: 11px;
+            padding: 4px 8px;
+            border: 1px solid #e50914;
+            border-radius: 4px;
+            display: inline-block;
+          ">
+            🎬 Rewatch
+          </a>
+        </div>
+      </div>
+    `).join('');
+    
+    netflixQueueContainer.innerHTML = queueHTML;
+  } catch (error) {
+    console.error('❌ Failed to refresh Netflix queue:', error);
+  }
+}
+
 // Update video tab statistics
 async function updateVideoTabStats() {
   try {
-    // Get learning stats and video queue
-    const result = await chrome.storage.local.get(['learningStats', 'videoLearningQueue']);
+    // Get learning stats, video queue, and Netflix queue
+    const result = await chrome.storage.local.get(['learningStats', 'videoLearningQueue', 'netflixLearningQueue']);
     const stats = result.learningStats || { totalSearches: 0, vocabularyCount: 0, todaySearches: 0 };
     const videoQueue = result.videoLearningQueue || [];
+    const netflixQueue = result.netflixLearningQueue || [];
     
     // Update main counters
     const todayCount = document.getElementById('todayLearningCount');
@@ -7100,12 +7291,16 @@ async function updateVideoTabStats() {
     if (todayCount) todayCount.textContent = stats.todaySearches || 0;
     if (weekCount) weekCount.textContent = Math.min(7, Math.floor((stats.totalSearches || 0) / 5)); // Rough calculation
     
-    // Update mini dashboard stats
+    // Update mini dashboard stats (combine YouTube and Netflix content)
     const totalVideoCountEl = document.getElementById('totalVideoCount');
     const accuracyRateEl = document.getElementById('accuracyRate');
     const learningStreakEl = document.getElementById('learningStreak');
     
-    if (totalVideoCountEl) totalVideoCountEl.textContent = videoQueue.length;
+    if (totalVideoCountEl) {
+      const totalContent = videoQueue.length + netflixQueue.length;
+      totalVideoCountEl.textContent = totalContent;
+      totalVideoCountEl.title = `YouTube: ${videoQueue.length}, Netflix: ${netflixQueue.length}`;
+    }
     
     // Calculate accuracy rate from saved reports
     if (accuracyRateEl) {
@@ -12013,6 +12208,174 @@ function handleYouTubeTextAnalysis(text, url, title, forceReAnalysis = false) {
       console.error('❌ Analysis error:', error);
       if (analysisStatus) {
         analysisStatus.textContent = '❌ Analysis failed. Please try again.';
+      }
+    }
+  }, 300);
+}
+
+// Handle Netflix text analysis in sidepanel
+function handleNetflixTextAnalysis(text, url, title, videoId, movieId, forceReAnalysis = false) {
+  console.log('🎭 Handling Netflix text analysis:', text, {
+    url, title, videoId, movieId
+  });
+  
+  const currentAnalysisSection = document.getElementById('currentAnalysisSection');
+  const waitingSection = document.getElementById('waitingForText');
+  const analysisTextDiv = document.getElementById('currentAnalysisText');
+  const analysisStatus = document.getElementById('analysisStatus');
+  const aiResultsDiv = document.getElementById('aiAnalysisResults');
+  
+  if (!currentAnalysisSection || !waitingSection) {
+    console.log('❌ Video learning UI not initialized');
+    return;
+  }
+  
+  // Show analysis section, hide waiting section
+  currentAnalysisSection.style.display = 'block';
+  waitingSection.style.display = 'none';
+  
+  // Update text and status
+  if (analysisTextDiv) {
+    analysisTextDiv.textContent = text;
+  }
+  
+  if (analysisStatus) {
+    analysisStatus.textContent = '🎭 Analyzing Netflix content with AI...';
+  }
+  
+  // Store current text for handlers
+  if (window.setCurrentAnalysisText) {
+    window.setCurrentAnalysisText(text);
+  }
+  
+  // Trigger existing analysis system
+  const queryData = {
+    text: text,
+    url: url || '',
+    title: title || '',
+    videoId: videoId,
+    movieId: movieId,
+    language: 'english',
+    source: 'netflix-learning',
+    platform: 'netflix',
+    autoAnalysis: true,
+    timestamp: new Date().toISOString()
+  };
+  
+  // Trigger comprehensive AI analysis with proper setup
+  setTimeout(async () => {
+    try {
+      console.log('🤖 Starting Netflix analysis for:', text);
+      
+      // Always load the basic YouGlish data first
+      loadYouGlish(url, text, 'english');
+      
+      // Set up query data
+      currentQueryData = {
+        text: text,
+        url: url || '',
+        title: title || '',
+        videoId: videoId,
+        movieId: movieId,
+        language: 'english',
+        source: 'netflix-learning',
+        platform: 'netflix',
+        autoAnalysis: true,
+        timestamp: new Date().toISOString()
+      };
+      
+      // Check if auto-analysis is enabled (unless forced)
+      const autoAnalysisEnabled = forceReAnalysis || localStorage.getItem('youglish-auto-analysis') !== 'false';
+      
+      if (!autoAnalysisEnabled) {
+        console.log('⏸️ Auto AI Analysis is disabled, showing manual trigger option');
+        
+        if (analysisStatus) {
+          analysisStatus.innerHTML = `
+            🎭 Netflix AI Analysis available 
+            <button class="manual-analysis-btn" data-text="${text.replace(/'/g, "\\\\'")}" data-url="${url}" data-title="${title}"
+                    style="margin-left: 8px; padding: 4px 8px; background: #e50914; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;">
+              ▶️ Analyze Now
+            </button>
+          `;
+        }
+        
+        if (aiResultsDiv) {
+          showManualAnalysisPrompt(text);
+        }
+        
+        return; // Skip automatic AI analysis
+      }
+      
+      // Update status to show AI processing
+      if (analysisStatus) {
+        analysisStatus.textContent = '🎭 Netflix AI is analyzing... Please wait...';
+      }
+      
+      // Check multiple ways to access AI service and trigger analysis
+      let aiAnalysisCompleted = false;
+      
+      // Method 1: Direct AI service access
+      if (typeof window.aiService !== 'undefined' && window.aiService) {
+        console.log('🤖 Direct AI Service found, starting Netflix analysis...');
+        
+        try {
+          const analysis = await window.aiService.analyzeText(text, {
+            language: 'english',
+            complexity: 'enhanced',
+            source: 'netflix-learning',
+            platform: 'netflix'
+          });
+          
+          if (analysis && analysis.content) {
+            console.log('✅ Netflix AI analysis completed via direct service');
+            displayAIAnalysisResults(analysis, text);
+            aiAnalysisCompleted = true;
+            
+            if (analysisStatus) {
+              analysisStatus.textContent = '✅ Netflix AI analysis completed!';
+            }
+          }
+        } catch (error) {
+          console.error('❌ Direct Netflix AI service failed:', error);
+        }
+      }
+      
+      // Method 2: Fallback to basic analysis if direct method failed
+      if (!aiAnalysisCompleted) {
+        console.log('🔄 Using fallback Netflix analysis method...');
+        
+        if (analysisStatus) {
+          analysisStatus.textContent = '🎭 Netflix analysis using fallback method...';
+        }
+        
+        // Trigger a basic analysis for Netflix content
+        setTimeout(() => {
+          if (analysisStatus) {
+            analysisStatus.textContent = '✅ Netflix basic analysis completed!';
+          }
+          
+          // Show a basic Netflix analysis result
+          if (aiResultsDiv) {
+            aiResultsDiv.innerHTML = `
+              <div class="netflix-analysis-result" style="background: #2a2a2a; color: white; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                <h3 style="color: #e50914; margin-top: 0;">🎭 Netflix Content Analysis</h3>
+                <p><strong>Selected Text:</strong> "${text}"</p>
+                <p><strong>Source:</strong> ${title || 'Netflix Content'}</p>
+                <div style="margin-top: 10px; padding: 10px; background: rgba(229, 9, 20, 0.1); border-radius: 4px;">
+                  <p style="margin: 0;"><strong>Note:</strong> Full AI analysis requires configuration. This text has been added to your learning history and you can use YouGlish search above to find pronunciation examples.</p>
+                </div>
+              </div>
+            `;
+          }
+        }, 1000);
+      }
+      
+    } catch (error) {
+      console.error('❌ Netflix text analysis error:', error);
+      
+      if (analysisStatus) {
+        analysisStatus.textContent = '❌ Netflix analysis failed';
       }
     }
   }, 300);

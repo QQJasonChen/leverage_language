@@ -130,19 +130,91 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } 
   
   if (request.action === 'analyzeTextInSidepanel') {
-    console.log('📖 Processing YouTube learning text analysis for:', request.text);
+    console.log('📖 Processing learning text analysis for:', request.text, 'Platform:', request.platform);
     
-    // Handle async function properly
-    handleYouTubeTextAnalysis(request, sender.tab.id)
-      .then(() => {
-        sendResponse({ success: true, message: 'Text sent to sidepanel for analysis' });
-      })
-      .catch((error) => {
-        console.error('📖 Error processing YouTube text analysis:', error);
-        sendResponse({ success: false, error: error.message });
-      });
+    // Handle platform-specific analysis
+    if (request.platform === 'netflix') {
+      handleNetflixTextAnalysis(request, sender.tab.id)
+        .then(() => {
+          sendResponse({ success: true, message: 'Netflix text sent to sidepanel for analysis' });
+        })
+        .catch((error) => {
+          console.error('🎭 Error processing Netflix text analysis:', error);
+          sendResponse({ success: false, error: error.message });
+        });
+    } else {
+      // Default to YouTube analysis
+      handleYouTubeTextAnalysis(request, sender.tab.id)
+        .then(() => {
+          sendResponse({ success: true, message: 'Text sent to sidepanel for analysis' });
+        })
+        .catch((error) => {
+          console.error('📖 Error processing YouTube text analysis:', error);
+          sendResponse({ success: false, error: error.message });
+        });
+    }
     
     return true; // Keep the message channel open for async response
+  }
+
+  // Netflix-specific actions
+  if (request.action === 'netflixVideoChanged') {
+    console.log('🎭 Netflix video changed:', request.videoInfo);
+    console.log('📊 Netflix comprehensive info:', request.comprehensiveInfo);
+    
+    // Store the comprehensive video information for learning features
+    if (request.comprehensiveInfo) {
+      chrome.storage.local.set({
+        netflixCurrentVideo: request.comprehensiveInfo
+      }).catch(error => console.log('Failed to store Netflix video info:', error));
+    }
+    
+    sendResponse({ success: true });
+    return false;
+  }
+
+  if (request.action === 'netflixVideoInitialized') {
+    console.log('🎬 Netflix video initialized:', request.videoInfo);
+    console.log('📊 Netflix initial comprehensive info:', request.comprehensiveInfo);
+    
+    // Store initial video information
+    if (request.comprehensiveInfo) {
+      chrome.storage.local.set({
+        netflixCurrentVideo: request.comprehensiveInfo,
+        netflixLastSeen: Date.now()
+      }).catch(error => console.log('Failed to store Netflix initial info:', error));
+    }
+    
+    sendResponse({ success: true });
+    return false;
+  }
+
+  if (request.action === 'netflixSubtitlesAvailable') {
+    console.log('🎭 Netflix subtitles available:', request.tracks?.length, 'tracks');
+    // Could add logic here to handle available subtitle tracks
+    sendResponse({ success: true });
+    return false;
+  }
+
+  if (request.action === 'netflixSubtitlesParsed') {
+    console.log('🎭 Netflix subtitles parsed:', request.segments?.length, 'segments');
+    // Could add logic here to process parsed subtitles
+    sendResponse({ success: true });
+    return false;
+  }
+
+  if (request.action === 'netflixLiveSubtitle') {
+    console.log('🎭 Netflix live subtitle:', request.segment?.text);
+    // Could add logic here to handle live subtitle capture
+    sendResponse({ success: true });
+    return false;
+  }
+
+  if (request.action === 'transcriptEmergencyStop') {
+    console.log('🚨 Transcript emergency stop:', request.reason);
+    // Could add logic here to handle emergency stops
+    sendResponse({ success: true });
+    return false;
   }
   
   // Settings actions
@@ -752,6 +824,45 @@ function extractChannelFromTitle(title) {
   }
 }
 
+// 從 Netflix 標題中提取節目名稱的輔助函數
+function extractShowFromNetflixTitle(title) {
+  if (!title) return null;
+  
+  try {
+    // Netflix 標題格式通常是: "Show Name: Episode Title - Netflix" 或 "Movie Title - Netflix"
+    let cleanTitle = title.replace(' - Netflix', '').trim();
+    
+    // 處理劇集格式 "Show Name: Episode Title"
+    if (cleanTitle.includes(': ')) {
+      const parts = cleanTitle.split(': ');
+      if (parts.length >= 2) {
+        return parts[0].trim(); // 返回節目名稱
+      }
+    }
+    
+    // 處理季數格式 "Show Name | Season X"
+    if (cleanTitle.includes(' | Season ')) {
+      const parts = cleanTitle.split(' | Season ');
+      if (parts.length >= 2) {
+        return parts[0].trim();
+      }
+    }
+    
+    // 處理其他格式分隔符
+    if (cleanTitle.includes(' | ')) {
+      const parts = cleanTitle.split(' | ');
+      return parts[0].trim();
+    }
+    
+    // 如果沒有特殊格式，返回清理後的完整標題
+    return cleanTitle;
+    
+  } catch (error) {
+    console.error('Error extracting show from Netflix title:', error);
+    return null;
+  }
+}
+
 // 處理文章文本分析
 async function handleArticleTextAnalysis(data, tabId) {
   try {
@@ -979,5 +1090,104 @@ async function handleYouTubeTextAnalysis(request, tabId) {
     
   } catch (error) {
     console.error('❌ Error handling YouTube text analysis:', error);
+  }
+}
+
+// 處理 Netflix 學習文本分析
+async function handleNetflixTextAnalysis(request, tabId) {
+  try {
+    console.log('🎭 Processing Netflix learning text:', request.text);
+    
+    const cleanText = request.text.trim();
+    if (!cleanText) return;
+    
+    // 獲取語言設定
+    const result = await chrome.storage.sync.get(['defaultLanguage', 'preferredLanguage']);
+    const defaultLang = result.defaultLanguage || 'auto';
+    const preferredLang = result.preferredLanguage || 'none';
+    
+    // 偵測語言
+    const detectionResult = detectLanguage(cleanText, preferredLang);
+    const language = typeof detectionResult === 'string' ? detectionResult : 
+                    (detectionResult.language !== 'uncertain' ? detectionResult.language : 'english');
+    
+    // 生成語言學習 URLs
+    const urls = generateLanguageUrls(cleanText, language);
+    
+    // 保存到歷史記錄（包含 Netflix 來源資訊）
+    try {
+      console.log('💾 Saving Netflix learning to history:', cleanText, language);
+      
+      // 創建 Netflix 來源資訊
+      console.log('🔍 Raw request data from Netflix:', {
+        url: request.url,
+        originalUrl: request.originalUrl, 
+        title: request.title,
+        timestamp: request.timestamp,
+        videoId: request.videoId,
+        platform: request.platform
+      });
+      
+      const videoSource = {
+        url: request.url || null,
+        originalUrl: request.originalUrl || request.url || null,
+        title: request.title || '未知 Netflix 內容',
+        platform: 'netflix',
+        videoId: request.videoId || null,
+        movieId: request.movieId || null,
+        channel: extractShowFromNetflixTitle(request.title) || 'Netflix',
+        videoTimestamp: request.timestamp || null, // Netflix playback time in seconds
+        timestamp: Date.now(), // When this was learned
+        learnedAt: new Date().toISOString()
+      };
+      
+      console.log('🎭 Netflix source info:', videoSource);
+      
+      const savedRecord = await historyManager.addRecord(cleanText, language, 'netflix-learning', [], videoSource);
+      console.log('✅ Netflix learning saved to history with video source');
+    } catch (error) {
+      console.error('❌ Failed to save Netflix learning to history:', error);
+    }
+    
+    // 儲存到 local storage 供 sidepanel 使用
+    await chrome.storage.local.set({
+      netflixAnalysis: {
+        url: urls.primaryUrl, // YouGlish URL for search
+        text: cleanText,
+        language: language,
+        source: request.source || 'netflix-learning',
+        title: request.title || 'Netflix Learning',
+        originalUrl: request.url, // Netflix URL with timestamp
+        netflixUrl: request.url, // Explicit Netflix URL field  
+        videoId: request.videoId,
+        movieId: request.movieId,
+        platform: 'netflix',
+        allUrls: urls.allUrls,
+        timestamp: Date.now(),
+        videoTimestamp: request.timestamp || null // Include video playback timestamp
+      }
+    });
+    
+    console.log('🔗 Netflix URL mapping debug:', {
+      youglishUrl: urls.primaryUrl,
+      netflixUrl: request.url,
+      originalUrl: request.originalUrl,
+      timestamp: request.timestamp,
+      videoId: request.videoId
+    });
+    
+    // 開啟 sidepanel (如果尚未開啟)
+    try {
+      await chrome.sidePanel.open({ tabId });
+      console.log('📱 Sidepanel opened for Netflix learning');
+    } catch (error) {
+      console.log('📱 Sidepanel might already be open:', error.message);
+    }
+
+    // Data saved to chrome.storage for sidepanel to pick up
+    console.log('💾 Netflix learning data saved to storage for sidepanel to automatically load');
+    
+  } catch (error) {
+    console.error('❌ Error handling Netflix text analysis:', error);
   }
 }

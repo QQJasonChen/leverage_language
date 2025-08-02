@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Netflix Sidepanel Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-case { margin: 10px 0; padding: 10px; border: 1px solid #ddd; }
+        .pass { background-color: #d4edda; }
+        .fail { background-color: #f8d7da; }
+        button { margin: 5px; padding: 8px 16px; }
+    </style>
+</head>
+<body>
+    <h1>🎭 Netflix Sidepanel Test</h1>
+    
+    <div class="test-case">
+        <h3>Test 1: Manifest Configuration</h3>
+        <p>Check if sidepanel permissions and configuration are correct</p>
+        <button onclick="testManifest()">Test Manifest</button>
+        <div id="manifest-result"></div>
+    </div>
+    
+    <div class="test-case">
+        <h3>Test 2: Extension Action Click</h3>
+        <p>Simulate extension icon click to open sidepanel</p>
+        <button onclick="testActionClick()">Test Action Click</button>
+        <div id="action-result"></div>
+    </div>
+    
+    <div class="test-case">
+        <h3>Test 3: Netflix Platform Detection</h3>
+        <p>Test if extension correctly detects Netflix platform</p>
+        <button onclick="testPlatformDetection()">Test Platform Detection</button>
+        <div id="platform-result"></div>
+    </div>
+    
+    <div class="test-case">
+        <h3>Test 4: Manual Subtitle Capture</h3>
+        <p>Test the manual "Capture" button functionality</p>
+        <button onclick="testSubtitleCapture()">Test Capture</button>
+        <div id="capture-result"></div>
+    </div>
+
+    <script>
+        async function testManifest() {
+            const resultDiv = document.getElementById('manifest-result');
+            try {
+                // Check if sidePanel API is available
+                if (chrome && chrome.sidePanel) {
+                    resultDiv.innerHTML = '<span class="pass">✅ Sidepanel API available</span>';
+                } else {
+                    resultDiv.innerHTML = '<span class="fail">❌ Sidepanel API not available</span>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="fail">❌ Error: ${error.message}</span>`;
+            }
+        }
+
+        async function testActionClick() {
+            const resultDiv = document.getElementById('action-result');
+            try {
+                // Get current tab
+                const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+                const currentTab = tabs[0];
+                
+                if (currentTab && currentTab.url.includes('netflix.com')) {
+                    // Try to open sidepanel
+                    await chrome.sidePanel.open({ tabId: currentTab.id });
+                    resultDiv.innerHTML = '<span class="pass">✅ Sidepanel opened successfully</span>';
+                } else {
+                    resultDiv.innerHTML = '<span class="fail">❌ Not on Netflix page</span>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="fail">❌ Error: ${error.message}</span>`;
+            }
+        }
+
+        async function testPlatformDetection() {
+            const resultDiv = document.getElementById('platform-result');
+            try {
+                const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+                const currentTab = tabs[0];
+                
+                if (currentTab && currentTab.url.includes('netflix.com')) {
+                    // Send ping to Netflix content script
+                    const response = await chrome.tabs.sendMessage(currentTab.id, { action: 'ping' });
+                    
+                    if (response && response.platform === 'netflix') {
+                        resultDiv.innerHTML = `<span class="pass">✅ Netflix platform detected: ${JSON.stringify(response)}</span>`;
+                    } else {
+                        resultDiv.innerHTML = `<span class="fail">❌ Unexpected response: ${JSON.stringify(response)}</span>`;
+                    }
+                } else {
+                    resultDiv.innerHTML = '<span class="fail">❌ Not on Netflix page</span>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="fail">❌ Error: ${error.message}</span>`;
+            }
+        }
+
+        async function testSubtitleCapture() {
+            const resultDiv = document.getElementById('capture-result');
+            try {
+                const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+                const currentTab = tabs[0];
+                
+                if (currentTab && currentTab.url.includes('netflix.com')) {
+                    // Send capture command to Netflix content script
+                    const response = await chrome.tabs.sendMessage(currentTab.id, { 
+                        action: 'captureCurrentSubtitle' 
+                    });
+                    
+                    if (response && response.success) {
+                        resultDiv.innerHTML = `<span class="pass">✅ Subtitle captured: "${response.subtitle}"</span>`;
+                    } else {
+                        resultDiv.innerHTML = `<span class="fail">❌ Capture failed: ${response?.error || 'No response'}</span>`;
+                    }
+                } else {
+                    resultDiv.innerHTML = '<span class="fail">❌ Not on Netflix page</span>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="fail">❌ Error: ${error.message}</span>`;
+            }
+        }
+    </script>
+</body>
+</html>
