@@ -803,6 +803,17 @@
           }
           break;
 
+        case 'getCurrentVideoTime':
+          console.log('🎭 Getting current Netflix video time');
+          const currentTime = getCurrentTimestamp();
+          sendResponse({ 
+            success: true, 
+            currentTime: currentTime,
+            timestamp: currentTime,
+            url: window.location.href
+          });
+          break;
+
         default:
           console.log('❓ Unknown action for Netflix:', request.action);
           sendResponse({ error: 'Unknown action' });

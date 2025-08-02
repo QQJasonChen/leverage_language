@@ -92,6 +92,10 @@ class TranscriptRestructurer {
       'Start Netflix subtitle collection' : 
       'Start real-time caption collection';
       
+    const platformNote = this.currentPlatform === 'netflix' ? 
+      '📝 Netflix: Capture subtitles for vocabulary learning (no timestamp replay)' : 
+      '🎬 YouTube: Full transcript with timestamp navigation';
+      
     const willShowCaptureButton = this.currentPlatform === 'netflix';
     console.log('🎯 Will generate Capture button HTML:', willShowCaptureButton);
 
@@ -134,6 +138,10 @@ class TranscriptRestructurer {
               Debug
             </button>
           </div>
+        </div>
+        
+        <div class="platform-note" style="background: ${this.currentPlatform === 'netflix' ? '#2a2a2a' : '#1a1a2e'}; color: ${this.currentPlatform === 'netflix' ? '#e50914' : '#4fc3f7'}; padding: 8px 12px; border-radius: 6px; font-size: 12px; margin: 10px 0; border-left: 3px solid ${this.currentPlatform === 'netflix' ? '#e50914' : '#4fc3f7'};">
+          ${platformNote}
         </div>
         
         <div class="transcript-options">
@@ -3633,7 +3641,7 @@ Sentence to fix: "${preCleanedText}"`;
     return this.currentPlatform;
   }
 
-  // ✅ DEBUG: Method to debug platform detection
+  // ✅ DEBUG: Method to debug platform detection and test Netflix timestamp functionality
   async debugPlatformDetection() {
     console.log('🔍 === DEBUG PLATFORM DETECTION ===');
     
@@ -3648,6 +3656,36 @@ Sentence to fix: "${preCleanedText}"`;
         console.log('🔍 Current tab title:', tab.title);
         console.log('🔍 URL includes netflix.com:', tab.url.includes('netflix.com'));
         console.log('🔍 URL includes youtube.com:', tab.url.includes('youtube.com'));
+        
+        // ✅ NEW: Test Netflix timestamp functionality
+        if (tab.url.includes('netflix.com')) {
+          console.log('🎭 === TESTING NETFLIX TIMESTAMP FUNCTIONALITY ===');
+          
+          // Test if current URL has timestamp
+          const hasTimestamp = tab.url.includes('#t=') || tab.url.includes('&t=');
+          console.log('🔍 Current URL has timestamp:', hasTimestamp);
+          
+          // Extract base URL and test timestamp format
+          const baseUrl = tab.url.split('#')[0].split('&t=')[0];
+          const testTimestamp = '30s';
+          const testUrl = `${baseUrl}#t=${testTimestamp}`;
+          console.log('🔍 Base URL:', baseUrl);
+          console.log('🔍 Test timestamp URL:', testUrl);
+          
+          // Test if we can get current video time from Netflix
+          try {
+            const result = await chrome.tabs.sendMessage(tab.id, { action: 'getCurrentVideoTime' });
+            console.log('🔍 Current Netflix video time:', result);
+          } catch (error) {
+            console.log('🔍 Cannot get Netflix video time:', error.message);
+          }
+          
+          console.log('🎭 === Netflix URL Analysis ===');
+          console.log('🔍 Netflix timestamp URLs are likely NOT functional for seeking');
+          console.log('🔍 Netflix differs from YouTube - cannot replay specific moments reliably');
+          console.log('🔍 Netflix learning should focus on: content capture, vocabulary, AI analysis');
+          console.log('🔍 NOT on: timestamp navigation, replay functionality');
+        }
       } else {
         console.log('❌ No active tab found');
       }
