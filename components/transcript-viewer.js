@@ -532,63 +532,96 @@ class TranscriptViewer {
         return;
       }
 
-      // ✅ FIX: Handle YouTube link button clicks
-      if (e.target.classList.contains('youtube-link-btn')) {
+      // ✅ Handle video link button clicks (YouTube or Netflix)
+      if (e.target.classList.contains('youtube-link-btn') || e.target.classList.contains('netflix-link-btn')) {
         e.preventDefault();
         e.stopPropagation();
         
-        const youtubeUrl = e.target.dataset.youtubeUrl;
-        console.log('🎬 YouTube button clicked, URL:', youtubeUrl);
-        console.log('🎬 Button element:', e.target);
-        console.log('🎬 All datasets:', e.target.dataset);
+        const videoUrl = e.target.dataset.videoUrl || e.target.dataset.youtubeUrl; // Support both old and new data attributes
+        const isNetflix = e.target.classList.contains('netflix-link-btn');
         
-        if (youtubeUrl && youtubeUrl !== '#' && youtubeUrl.startsWith('https://')) {
-          console.log('✅ Opening YouTube at:', youtubeUrl);
+        console.log(`${isNetflix ? '🎭 Netflix' : '🎬 YouTube'} button clicked, URL:`, videoUrl);
+        console.log('Button element:', e.target);
+        console.log('All datasets:', e.target.dataset);
+        
+        if (videoUrl && videoUrl !== '#' && videoUrl.startsWith('https://')) {
+          console.log(`✅ Opening ${isNetflix ? 'Netflix' : 'YouTube'} at:`, videoUrl);
           
-          // ✅ FIX: Enhanced YouTube link opening - like saved tab functionality
           try {
-            // First try to find existing YouTube tab with same video
-            chrome.tabs.query({ url: `*youtube.com/watch?v=${this.getVideoIdFromUrl(youtubeUrl)}*` }, (existingTabs) => {
-              if (existingTabs && existingTabs.length > 0) {
-                // Found existing tab - update it and activate
-                const existingTab = existingTabs[0];
-                console.log('📺 Found existing YouTube tab, updating URL and activating');
-                
-                chrome.tabs.update(existingTab.id, { 
-                  url: youtubeUrl, 
-                  active: true 
-                }, (updatedTab) => {
-                  if (chrome.runtime.lastError) {
-                    console.error('❌ Tab update failed:', chrome.runtime.lastError);
-                    // Fallback to new tab
-                    chrome.tabs.create({ url: youtubeUrl, active: true });
-                  } else {
-                    console.log('✅ Updated existing YouTube tab with timestamp');
-                    this.showToast(`🎬 Jumped to YouTube at timestamp`);
-                  }
-                });
-              } else {
-                // No existing tab - create new one
-                chrome.tabs.create({ url: youtubeUrl, active: true }, (tab) => {
-                  if (chrome.runtime.lastError) {
-                    console.error('❌ Chrome tabs.create failed:', chrome.runtime.lastError);
-                    // Fallback to window.open
-                    window.open(youtubeUrl, '_blank');
-                  } else {
-                    console.log('✅ Created new YouTube tab:', tab.id);
-                    this.showToast(`🎬 Opened YouTube at timestamp`);
-                  }
-                });
-              }
-            });
+            if (isNetflix) {
+              // Netflix: Just open/switch to the video URL
+              chrome.tabs.query({ url: `*netflix.com/watch/*` }, (existingTabs) => {
+                if (existingTabs && existingTabs.length > 0) {
+                  // Found existing Netflix tab - activate it
+                  const existingTab = existingTabs[0];
+                  console.log('🎭 Found existing Netflix tab, activating');
+                  
+                  chrome.tabs.update(existingTab.id, { 
+                    active: true 
+                  }, (updatedTab) => {
+                    if (chrome.runtime.lastError) {
+                      console.error('❌ Tab activation failed:', chrome.runtime.lastError);
+                      chrome.tabs.create({ url: videoUrl, active: true });
+                    } else {
+                      console.log('✅ Activated existing Netflix tab');
+                      this.showToast(`🎭 Switched to Netflix video`);
+                    }
+                  });
+                } else {
+                  // No existing Netflix tab - create new one
+                  chrome.tabs.create({ url: videoUrl, active: true }, (tab) => {
+                    if (chrome.runtime.lastError) {
+                      console.error('❌ Chrome tabs.create failed:', chrome.runtime.lastError);
+                      window.open(videoUrl, '_blank');
+                    } else {
+                      console.log('✅ Created new Netflix tab:', tab.id);
+                      this.showToast(`🎭 Opened Netflix video`);
+                    }
+                  });
+                }
+              });
+            } else {
+              // YouTube: Enhanced opening with timestamp support
+              chrome.tabs.query({ url: `*youtube.com/watch?v=${this.getVideoIdFromUrl(videoUrl)}*` }, (existingTabs) => {
+                if (existingTabs && existingTabs.length > 0) {
+                  // Found existing tab - update it and activate
+                  const existingTab = existingTabs[0];
+                  console.log('📺 Found existing YouTube tab, updating URL and activating');
+                  
+                  chrome.tabs.update(existingTab.id, { 
+                    url: videoUrl, 
+                    active: true 
+                  }, (updatedTab) => {
+                    if (chrome.runtime.lastError) {
+                      console.error('❌ Tab update failed:', chrome.runtime.lastError);
+                      chrome.tabs.create({ url: videoUrl, active: true });
+                    } else {
+                      console.log('✅ Updated existing YouTube tab with timestamp');
+                      this.showToast(`🎬 Jumped to YouTube at timestamp`);
+                    }
+                  });
+                } else {
+                  // No existing tab - create new one
+                  chrome.tabs.create({ url: videoUrl, active: true }, (tab) => {
+                    if (chrome.runtime.lastError) {
+                      console.error('❌ Chrome tabs.create failed:', chrome.runtime.lastError);
+                      window.open(videoUrl, '_blank');
+                    } else {
+                      console.log('✅ Created new YouTube tab:', tab.id);
+                      this.showToast(`🎬 Opened YouTube at timestamp`);
+                    }
+                  });
+                }
+              });
+            }
           } catch (error) {
-            console.error('❌ Failed to open YouTube tab:', error);
+            console.error(`❌ Failed to open ${isNetflix ? 'Netflix' : 'YouTube'} tab:`, error);
             // Fallback to window.open
-            window.open(youtubeUrl, '_blank');
+            window.open(videoUrl, '_blank');
           }
         } else {
-          console.error('❌ Invalid YouTube URL:', youtubeUrl);
-          this.showToast('❌ Invalid YouTube URL');
+          console.error(`❌ Invalid ${isNetflix ? 'Netflix' : 'YouTube'} URL:`, videoUrl);
+          this.showToast(`❌ Invalid ${isNetflix ? 'Netflix' : 'YouTube'} URL`);
         }
         return;
       }
@@ -858,8 +891,8 @@ class TranscriptViewer {
                   <button class="save-sentence-btn" title="Save to learning history" data-text="${this.escapeHtml(segment.cleanText)}" data-timestamp="${segment.timestampDisplay}" data-link="${segment.youtubeLink}">
                     💾
                   </button>
-                  <button class="youtube-link-btn" data-youtube-url="${segment.youtubeLink && segment.youtubeLink !== '#' ? segment.youtubeLink : this.createYouTubeLink(segment.start)}" title="Jump to YouTube at ${segment.timestampDisplay}">
-                    ⏰
+                  <button class="${this.platform === 'netflix' ? 'netflix-link-btn' : 'youtube-link-btn'}" data-video-url="${segment.youtubeLink && segment.youtubeLink !== '#' ? segment.youtubeLink : (this.platform === 'netflix' ? segment.netflixUrl || segment.youtubeLink : this.createYouTubeLink(segment.start))}" title="${this.platform === 'netflix' ? 'Go back to Netflix video' : `Jump to YouTube at ${segment.timestampDisplay}`}">
+                    ${this.platform === 'netflix' ? '🎭' : '⏰'}
                   </button>
                 </td>
               </tr>
@@ -1755,6 +1788,25 @@ class TranscriptViewer {
       
       .youtube-link-btn:hover {
         background: #ff6666;
+        transform: scale(1.1);
+      }
+      
+      .netflix-link-btn {
+        background: #e50914;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 6px 8px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.2s;
+        font-weight: 600;
+        width: 28px;
+        height: 28px;
+      }
+      
+      .netflix-link-btn:hover {
+        background: #b20610;
         transform: scale(1.1);
       }
       

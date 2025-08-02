@@ -145,6 +145,7 @@ class TranscriptRestructurer {
           ${platformNote}
         </div>
         
+        ${this.currentPlatform !== 'netflix' ? `
         <div class="transcript-options">
           <div class="options-layout">
             <!-- ✅ LEFT SIDE: AI Settings -->
@@ -293,6 +294,7 @@ class TranscriptRestructurer {
             </div>
           </div>
         </div>
+        ` : ''}
         
         <div class="transcript-status"></div>
         
@@ -2411,22 +2413,36 @@ Sentence to fix: "${preCleanedText}"`;
         statusEl.textContent = `✅ Captured: "${result.text}"`;
         statusEl.className = 'transcript-status success';
         
-        // Send to sidepanel for analysis
+        // Send to sidepanel for Netflix-specific analysis
         chrome.runtime.sendMessage({
-          action: 'updateSidePanel',
+          action: 'analyzeTextInSidepanel',
           text: result.text,
           url: result.videoInfo?.url || tab.url,
-          title: result.videoInfo?.title || 'Netflix',
-          language: 'english',
+          originalUrl: result.videoInfo?.url || tab.url,
+          title: result.videoInfo?.title || 'Netflix Content',
+          videoId: result.videoInfo?.videoId,
+          movieId: result.videoInfo?.movieId,
+          timestamp: result.timestamp || 0,
+          platform: 'netflix',
           source: 'netflix-learning'
         });
         
-        // Create a single segment for display
+        // Create a single segment for display with Netflix-specific information
         const segment = {
           text: result.text,
+          cleanText: result.text,
           start: result.timestamp || 0,
           timestamp: this.formatTimestamp(result.timestamp || 0),
-          source: 'manual-capture'
+          timestampDisplay: this.formatTimestamp(result.timestamp || 0),
+          timestampInSeconds: result.timestamp || 0,
+          source: 'manual-capture',
+          platform: 'netflix',
+          netflixUrl: result.videoInfo?.url || tab.url,
+          youtubeLink: result.videoInfo?.url || tab.url, // Use Netflix URL instead of YouGlish
+          videoId: result.videoInfo?.videoId,
+          movieId: result.videoInfo?.movieId,
+          segmentIndex: 0,
+          groupIndex: 0
         };
         
         // Show the captured text in the transcript viewer
