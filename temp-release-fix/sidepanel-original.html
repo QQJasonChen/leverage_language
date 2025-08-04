@@ -1,0 +1,4507 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-i18n-title="extensionName">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="extensionName">YouGlish Quick Search</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background-color: #f5f5f5;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        /* Advanced Animations and Keyframes */
+        @keyframes enhancedHover {
+            0% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-1px) scale(1.02); }
+            100% { transform: translateY(-2px) scale(1.02); }
+        }
+        
+        @keyframes smoothBounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-4px); }
+            60% { transform: translateY(-2px); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: -200px 0; }
+            100% { background-position: 200px 0; }
+        }
+        
+        @keyframes fadeInUp {
+            from { 
+                opacity: 0; 
+                transform: translateY(20px); 
+            }
+            to { 
+                opacity: 1; 
+                transform: translateY(0); 
+            }
+        }
+        
+        @keyframes successPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.08); border-color: rgba(76, 175, 80, 1); }
+            100% { transform: scale(1); }
+        }
+        
+        /* Enhanced Learning Dashboard Hover Effects */
+        .quick-stats-card:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 12px 28px rgba(102, 126, 234, 0.4);
+            background: linear-gradient(135deg, #7b68ee 0%, #8a2be2 100%) !important;
+        }
+        
+        .learning-section {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .learning-section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .quick-action-btn {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .quick-action-btn:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 4px 15px rgba(26, 115, 232, 0.3);
+            background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%) !important;
+        }
+        
+        .insight-item {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .insight-item:hover {
+            transform: translateX(4px) scale(1.01);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header {
+            background: #1a73e8;
+            color: white;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        
+        .search-info {
+            background: white;
+            padding: 16px;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 14px;
+        }
+        
+        .search-term {
+            font-weight: 600;
+            color: #1a73e8;
+            margin-bottom: 4px;
+        }
+        
+        .search-language {
+            color: #666;
+            font-size: 12px;
+        }
+        
+        .iframe-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .iframe-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #666;
+        }
+        
+        .error {
+            padding: 20px;
+            text-align: center;
+            color: #d32f2f;
+            background: #ffebee;
+            margin: 20px;
+            border-radius: 4px;
+        }
+        
+        .welcome {
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            background: white;
+            margin: 20px;
+            border-radius: 4px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .welcome h2 {
+            color: #1a73e8;
+            margin-bottom: 16px;
+        }
+        
+        .welcome p {
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+        
+        .language-badge {
+            display: inline-block;
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            margin-left: 8px;
+        }
+        
+        .settings-button {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .settings-button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .auth-button {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 8px;
+        }
+        
+        .auth-button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .auth-button.signed-in {
+            background: rgba(76, 175, 80, 0.3);
+        }
+
+        .header-buttons {
+            display: flex;
+            align-items: center;
+        }
+
+        .user-info {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 11px;
+            margin-right: 8px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .user-avatar {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .new-tab-button {
+            background: #34a853;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+            margin-left: 8px;
+        }
+        
+        .new-tab-button:hover {
+            background: #2d8f47;
+        }
+        
+        .search-result {
+            background: white;
+            margin: 0;
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .result-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .result-header h3 {
+            color: #1a73e8;
+            margin: 0 0 8px 0;
+            font-size: 18px;
+        }
+        
+        .result-header p {
+            color: #666;
+            margin: 0;
+            font-size: 14px;
+        }
+        
+        .result-actions {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .action-button {
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        
+        .action-button.primary {
+            background: #1a73e8;
+            color: white;
+        }
+        
+        .action-button.primary:hover {
+            background: #1557b0;
+        }
+        
+        .action-button.secondary {
+            background: #f8f9fa;
+            color: #5f6368;
+            border: 1px solid #dadce0;
+        }
+        
+        .action-button.secondary:hover {
+            background: #e8eaed;
+        }
+        
+        .result-info {
+            border-top: 1px solid #e0e0e0;
+            padding-top: 16px;
+        }
+        
+        .info-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .info-label {
+            font-weight: 500;
+            color: #5f6368;
+            min-width: 80px;
+        }
+        
+        .info-value {
+            color: #202124;
+            font-weight: 500;
+        }
+        
+        .info-link {
+            color: #1a73e8;
+            text-decoration: none;
+        }
+        
+        .info-link:hover {
+            text-decoration: underline;
+        }
+        
+        .view-controls {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        
+        .view-button {
+            padding: 6px 12px;
+            border: 1px solid #dadce0;
+            background: #f8f9fa;
+            color: #5f6368;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .view-button:hover {
+            background: linear-gradient(135deg, #e8eaed 0%, #f1f3f4 100%);
+            transform: translateY(-1px) scale(1.02);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-color: #1a73e8;
+        }
+        
+        .view-button.active {
+            background: #1a73e8;
+            color: white;
+            border-color: #1a73e8;
+        }
+        
+        .video-view {
+            margin-top: 16px;
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 16px;
+        }
+        
+        .iframe-notice {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 8px 12px;
+            margin-bottom: 12px;
+            font-size: 12px;
+            color: #856404;
+        }
+        
+        .iframe-notice p {
+            margin: 0;
+        }
+        
+        .youglish-iframe {
+            width: 100%;
+            height: 500px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            background: white;
+            min-height: 400px;
+        }
+        
+        .analysis-view {
+            margin-top: 16px;
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 16px;
+        }
+
+        .websites-view {
+            margin-top: 16px;
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 16px;
+        }
+
+        .websites-header {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .websites-header h3 {
+            color: #1a73e8;
+            margin: 0 0 8px 0;
+            font-size: 18px;
+        }
+
+        .websites-header p {
+            color: #666;
+            margin: 0;
+            font-size: 14px;
+        }
+
+        /* 發音網站選項樣式 */
+        .pronunciation-sites {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 16px;
+        }
+
+        .sites-header {
+            flex-shrink: 0;
+            margin-bottom: 16px;
+        }
+
+        .pronunciation-sites h4 {
+            color: #1a73e8;
+            margin: 0 0 8px 0;
+            font-size: 16px;
+        }
+
+        .pronunciation-sites p {
+            color: #666;
+            margin: 0 0 16px 0;
+            font-size: 13px;
+        }
+
+        .pronunciation-options {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 16px;
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .category-header {
+            background: #f8f9fa;
+            padding: 12px 16px;
+            border-left: 4px solid #1a73e8;
+            margin: 16px 0 8px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .category-header h4 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1a73e8;
+        }
+
+        .category-count {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .pronunciation-option {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            background: white;
+            transition: all 0.2s;
+            margin: 2px 0;
+        }
+
+        .pronunciation-option:hover {
+            border-color: #1a73e8;
+            background: #f8f9ff;
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 4px 16px rgba(26, 115, 232, 0.2);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .pronunciation-option:active {
+            transform: translateY(0) scale(0.98);
+            box-shadow: 0 2px 8px rgba(26, 115, 232, 0.3);
+        }
+        
+        .open-new-tab-btn:hover {
+            color: #1a73e8 !important;
+            transform: scale(1.1);
+            transition: all 0.2s;
+        }
+
+        .pronunciation-option.primary {
+            border-color: #1a73e8;
+            background: #f8f9ff;
+        }
+
+        .option-info {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+
+        .option-icon {
+            font-size: 18px;
+            margin-right: 12px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .option-details h5 {
+            margin: 0 0 4px 0;
+            font-size: 14px;
+            color: #202124;
+            font-weight: 600;
+        }
+
+        .option-details p {
+            margin: 0;
+            font-size: 12px;
+            color: #5f6368;
+            line-height: 1.3;
+        }
+
+        .option-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .option-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-align: center;
+            min-width: 40px;
+        }
+
+        .option-badge.primary {
+            background: #1a73e8;
+            color: white;
+        }
+
+        .option-badge.secondary {
+            background: #34a853;
+            color: white;
+        }
+
+        .option-badge.tertiary {
+            background: #fbbc04;
+            color: #333;
+        }
+
+        .option-badge.recommended {
+            background: #4caf50;
+            color: white;
+        }
+
+        .option-button {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        .option-button:hover {
+            background: #1557b0;
+        }
+
+        .site-descriptions {
+            border-top: 1px solid #e0e0e0;
+            padding-top: 16px;
+            flex-shrink: 0;
+        }
+
+        .site-info h6 {
+            margin: 0 0 8px 0;
+            color: #1a73e8;
+            font-size: 12px;
+        }
+
+        .site-info ul {
+            margin: 0;
+            padding-left: 16px;
+            font-size: 11px;
+            color: #5f6368;
+            line-height: 1.4;
+        }
+
+        .site-info li {
+            margin-bottom: 4px;
+        }
+
+        .iframe-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .iframe-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .alternative-content {
+            margin-top: 16px;
+        }
+        
+        .alt-header {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        
+        .alt-header h4 {
+            color: #1a73e8;
+            margin: 0 0 8px 0;
+            font-size: 16px;
+        }
+        
+        .alt-header p {
+            color: #666;
+            margin: 0;
+            font-size: 13px;
+        }
+        
+        .alt-actions {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .alt-button {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        
+        .alt-button.primary {
+            background: #1a73e8;
+            color: white;
+        }
+        
+        .alt-button.primary:hover {
+            background: #1557b0;
+        }
+        
+        .alt-button.secondary {
+            background: #f8f9fa;
+            color: #5f6368;
+            border: 1px solid #dadce0;
+        }
+        
+        .alt-button.secondary:hover {
+            background: #e8eaed;
+        }
+        
+        .alt-info {
+            border-top: 1px solid #e0e0e0;
+            padding-top: 16px;
+        }
+        
+        .preview-card {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .preview-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .preview-icon {
+            font-size: 20px;
+            margin-right: 10px;
+        }
+        
+        .preview-details h5 {
+            margin: 0 0 4px 0;
+            color: #202124;
+            font-size: 14px;
+        }
+        
+        .preview-details p {
+            margin: 0;
+            color: #5f6368;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .preview-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 11px;
+            color: #666;
+        }
+        
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .meta-icon {
+            font-size: 12px;
+        }
+        
+        .tips-section {
+            background: #e8f0fe;
+            border: 1px solid #d2e3fc;
+            border-radius: 4px;
+            padding: 12px;
+        }
+        
+        .tips-section h6 {
+            margin: 0 0 8px 0;
+            color: #1a73e8;
+            font-size: 12px;
+        }
+        
+        .tips-section ul {
+            margin: 0;
+            padding-left: 16px;
+            font-size: 11px;
+            color: #5f6368;
+            line-height: 1.4;
+        }
+        
+        .tips-section li {
+            margin-bottom: 4px;
+        }
+        
+        .pronunciation-sites {
+            padding: 16px;
+        }
+        
+        .pronunciation-sites h4 {
+            color: #1a73e8;
+            margin: 0 0 8px 0;
+            font-size: 16px;
+        }
+        
+        .pronunciation-sites p {
+            color: #666;
+            margin: 0 0 16px 0;
+            font-size: 13px;
+        }
+        
+        .pronunciation-sites {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        .sites-header {
+            flex-shrink: 0;
+            margin-bottom: 16px;
+        }
+        
+        .pronunciation-options {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+        
+        .pronunciation-option {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            background: white;
+            transition: all 0.2s;
+        }
+        
+        .pronunciation-option:hover {
+            border-color: #1a73e8;
+            background: #f8f9ff;
+        }
+        
+        .pronunciation-option.primary {
+            border-color: #1a73e8;
+            background: #f8f9ff;
+        }
+        
+        .option-info {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+        
+        .option-icon {
+            font-size: 20px;
+            margin-right: 10px;
+        }
+        
+        .option-details h5 {
+            margin: 0 0 2px 0;
+            font-size: 14px;
+            color: #202124;
+        }
+        
+        .option-details p {
+            margin: 0;
+            font-size: 11px;
+            color: #5f6368;
+        }
+        
+        .option-badge {
+            background: #1a73e8;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 500;
+            margin-right: 8px;
+        }
+        
+        .option-badge.secondary {
+            background: #34a853;
+        }
+        
+        .option-badge.tertiary {
+            background: #fbbc04;
+            color: #333;
+        }
+        
+        .option-badge.recommended {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .category-header {
+            background: #f8f9fa;
+            padding: 12px 16px;
+            border-left: 4px solid #1a73e8;
+            margin: 16px 0 8px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .category-header h4 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1a73e8;
+        }
+        
+        .category-count {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .main-container {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* 手動搜尋區域 */
+        .manual-search-section {
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 16px;
+            flex-shrink: 0;
+        }
+        
+        .search-input-container {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .search-input-container input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .search-input-container select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+        }
+        
+        .search-input-container button {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .search-input-container button:hover {
+            background: #1557b0;
+        }
+        
+        /* 歷史記錄視圖 */
+        .history-view {
+            padding: 16px;
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .history-controls {
+            margin-bottom: 16px;
+            flex-shrink: 0;
+        }
+        
+        .history-search {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .history-search input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .history-search select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+        }
+        
+        .clear-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .clear-btn:hover {
+            background: #c82333;
+        }
+        
+        .history-stats {
+            background: #e8f5e8;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        
+        .history-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .history-item:hover {
+            border-color: #1a73e8;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .history-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .history-text {
+            font-weight: 600;
+            color: #1a73e8;
+            font-size: 16px;
+        }
+        
+        .history-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .history-action-btn {
+            background: #f0f0f0;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .history-action-btn:hover {
+            background: #e0e0e0;
+        }
+        
+        .history-action-btn.delete {
+            background: #ffebee;
+            color: #c62828;
+        }
+        
+        .history-action-btn.delete:hover {
+            background: #ffcdd2;
+        }
+        
+        .history-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #666;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .history-language {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+        
+        .history-count {
+            background: #f3e5f5;
+            color: #7b1fa2;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+        }
+        
+        .history-method {
+            background: #e8f5e8;
+            color: #388e3c;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+        }
+        
+        .history-websites {
+            background: #fff3e0;
+            color: #f57c00;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .history-date {
+            font-size: 11px;
+            color: #999;
+        }
+        
+        .history-list {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+        
+        .history-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .history-empty p {
+            margin: 8px 0;
+        }
+        
+        /* Saved Reports Styles */
+        .saved-reports-view {
+            padding: 20px;
+        }
+
+        .saved-reports-controls {
+            margin-bottom: 20px;
+        }
+
+        .saved-reports-search {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+
+        .saved-reports-search input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .saved-reports-search select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+        }
+        
+        .date-range-inputs {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .date-range-inputs input[type="date"] {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+        }
+        
+        .date-range-inputs input[type="date"]:focus {
+            outline: none;
+            border-color: #1976d2;
+            box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+        }
+
+        .export-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+        }
+
+        .cleanup-btn {
+            background: #FF9800;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+        .cleanup-btn:hover {
+            background: #F57C00;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .flashcard-bulk-btn {
+            background: #9C27B0;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+        .flashcard-bulk-btn:hover {
+            background: #7B1FA2;
+        }
+
+        .flashcard-bulk-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .notion-sync-btn {
+            background: #000;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+        .notion-sync-btn:hover {
+            background: #333;
+        }
+
+        .notion-sync-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .export-btn:hover {
+            background: #45a049;
+        }
+        
+        /* Export Dropdown Styling */
+        .export-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .export-dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: white;
+            min-width: 180px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            border-radius: 6px;
+            z-index: 1;
+            border: 1px solid #ddd;
+            right: 0;
+            top: 100%;
+            margin-top: 2px;
+        }
+        
+        .export-dropdown-content a {
+            color: #333;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            font-size: 14px;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background-color 0.2s;
+        }
+        
+        .export-dropdown-content a:last-child {
+            border-bottom: none;
+            border-radius: 0 0 6px 6px;
+        }
+        
+        .export-dropdown-content a:first-child {
+            border-radius: 6px 6px 0 0;
+        }
+        
+        .export-dropdown-content a:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .export-dropdown.show .export-dropdown-content {
+            display: block;
+        }
+
+        .saved-reports-filters {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .saved-reports-filters label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .saved-reports-stats {
+            background: #e8f5e8;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+
+        .saved-report-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .saved-report-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-color: #1a73e8;
+        }
+
+        .saved-report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .saved-report-text {
+            font-weight: 600;
+            color: #1a73e8;
+            font-size: 14px;
+        }
+
+        .saved-report-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .saved-report-btn {
+            background: #f0f0f0;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .saved-report-btn:hover {
+            background: #e0e0e0;
+        }
+
+        .saved-report-btn.favorite {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .saved-report-btn.favorite.active {
+            background: #ffc107;
+            color: white;
+        }
+
+        .saved-report-btn.delete {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .saved-report-btn.delete:hover {
+            background: #ffcdd2;
+        }
+
+        .saved-report-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .saved-report-language {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+
+        .saved-report-preview {
+            background: #f9f9f9;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #555;
+            max-height: 80px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .saved-report-preview.expanded {
+            max-height: none;
+        }
+
+        .saved-report-expand {
+            background: none;
+            border: none;
+            color: #1a73e8;
+            cursor: pointer;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .saved-reports-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .saved-reports-empty p:first-child {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        /* Enhanced Saved Reports Styling */
+        .saved-report-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            transition: all 0.2s ease;
+            overflow: hidden;
+        }
+        
+        .saved-report-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-color: #1976d2;
+        }
+        
+        .saved-report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 12px 16px 8px 16px;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        
+        .report-main-info {
+            flex: 1;
+            cursor: pointer;
+        }
+        
+        .report-text {
+            font-weight: 600;
+            color: #1976d2;
+            font-size: 16px;
+            display: block;
+            margin-bottom: 8px;
+        }
+        
+        .report-badges {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .report-language {
+            background: #1976d2;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .favorite-badge {
+            background: #ff9800;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .audio-badge {
+            background: #4caf50;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .error-badge {
+            background: #f44336;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .correct-badge {
+            background: #4caf50;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .report-actions {
+            display: flex;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        
+        .report-action-btn {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 6px 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            height: 32px;
+        }
+        
+        .report-action-btn:hover {
+            background: #e0e0e0;
+            transform: translateY(-1px);
+        }
+        
+        .favorite-btn.active {
+            background: #fff3e0;
+            border-color: #ff9800;
+            color: #f57c00;
+        }
+        
+        .favorite-btn.active:hover {
+            background: #ffe0b2;
+        }
+        
+        .delete-btn {
+            color: #d32f2f;
+        }
+        
+        .delete-btn:hover {
+            background: #ffebee;
+            border-color: #f44336;
+        }
+        
+        .report-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 16px;
+            font-size: 12px;
+            color: #666;
+            background: #fafafa;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .report-date {
+            color: #888;
+        }
+        
+        .report-tags {
+            color: #555;
+            background: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .report-preview {
+            padding: 12px 16px;
+            border-top: 1px solid #f5f5f5;
+        }
+        
+        .preview-text {
+            color: #555;
+            font-size: 13px;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+        
+        .preview-expand {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 4px 12px;
+            font-size: 12px;
+            color: #1976d2;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .preview-expand:hover {
+            background: #e8f4f8;
+            border-color: #1976d2;
+        }
+
+        /* Tag editing styles */
+        .report-tags-container {
+            margin-top: 8px;
+        }
+
+        .report-tags-display {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .tag-chip {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .no-tags {
+            color: #999;
+            font-size: 11px;
+            font-style: italic;
+        }
+
+        .report-tags-edit {
+            margin-top: 8px;
+            padding: 8px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .tags-input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .tags-input:focus {
+            outline: none;
+            border-color: #1976d2;
+            box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+        }
+
+        .tags-edit-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .save-tags-btn, .cancel-tags-btn {
+            padding: 4px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .save-tags-btn {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .save-tags-btn:hover {
+            background: #45a049;
+        }
+
+        .cancel-tags-btn {
+            background: #f5f5f5;
+            color: #666;
+            border: 1px solid #ddd;
+        }
+
+        .cancel-tags-btn:hover {
+            background: #e0e0e0;
+        }
+
+        .edit-tags-btn {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .edit-tags-btn:hover {
+            background: #ffe0b2;
+        }
+        
+        .option-button {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .option-button:hover {
+            background: #1557b0;
+        }
+        
+        .site-descriptions {
+            border-top: 1px solid #e0e0e0;
+            padding-top: 16px;
+            flex-shrink: 0;
+        }
+        
+        .site-info h6 {
+            margin: 0 0 8px 0;
+            color: #1a73e8;
+            font-size: 12px;
+        }
+        
+        .site-info ul {
+            margin: 0;
+            padding-left: 16px;
+            font-size: 11px;
+            color: #5f6368;
+            line-height: 1.4;
+        }
+        
+        .site-info li {
+            margin-bottom: 4px;
+        }
+        
+        /* AI 分析相關樣式 */
+        .ai-analysis-section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-top: 16px;
+            overflow: hidden;
+        }
+        
+        .section-header {
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .section-header h4 {
+            margin: 0;
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .ai-controls {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .ai-button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        
+        .ai-button.primary {
+            background: #1a73e8;
+            color: white;
+        }
+        
+        .ai-button.primary:hover {
+            background: #1557b0;
+        }
+        
+        .ai-button.secondary {
+            background: #f1f3f4;
+            color: #5f6368;
+            border: 1px solid #dadce0;
+        }
+        
+        .ai-button.secondary:hover {
+            background: #e8eaed;
+        }
+        
+        .ai-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .auto-save-toggle {
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .auto-save-toggle.active {
+            background: #e8f5e8 !important;
+            color: #2e7d32 !important;
+            border-color: #4caf50 !important;
+        }
+        
+        .auto-save-toggle:not(.active) {
+            background: #ffebee !important;
+            color: #c62828 !important;
+            border-color: #f44336 !important;
+        }
+        
+        .auto-save-toggle:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .ai-analysis-content {
+            padding: 16px;
+        }
+        
+        .ai-placeholder {
+            text-align: center;
+            color: #5f6368;
+            padding: 20px;
+        }
+        
+        .placeholder-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+        
+        .ai-placeholder ul {
+            text-align: left;
+            display: inline-block;
+            margin: 12px 0;
+        }
+        
+        .ai-placeholder li {
+            margin-bottom: 6px;
+        }
+        
+        .ai-note {
+            font-size: 12px;
+            color: #999;
+            font-style: italic;
+        }
+
+        /* Quick Search Results Styles */
+        .quick-search-results {
+            background: linear-gradient(135deg, #f0f8ff 0%, #e8f4f8 100%);
+            border: 1px solid #b3d9e6;
+            border-radius: 8px;
+            margin: 12px 0;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .quick-search-header {
+            background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+            color: white;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .quick-search-icon {
+            font-size: 16px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .ai-loading-indicator {
+            margin-left: auto;
+            font-size: 12px;
+            opacity: 0.9;
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 0.9; }
+            51%, 100% { opacity: 0.5; }
+        }
+
+        .quick-search-content {
+            padding: 16px;
+        }
+
+        .quick-translation,
+        .quick-pronunciation, 
+        .quick-definition {
+            margin-bottom: 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .translation-label,
+        .pronunciation-label,
+        .definition-label {
+            font-weight: 600;
+            color: #1976d2;
+            min-width: 80px;
+            font-size: 13px;
+        }
+
+        .translation-result,
+        .pronunciation-result,
+        .definition-result {
+            flex: 1;
+            font-size: 13px;
+            line-height: 1.4;
+            color: #333;
+            background: rgba(255,255,255,0.7);
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .quick-search-note {
+            background: rgba(25,118,210,0.1);
+            border: 1px solid rgba(25,118,210,0.2);
+            border-radius: 4px;
+            padding: 8px 12px;
+            margin-top: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #1976d2;
+        }
+
+        .note-icon {
+            font-size: 14px;
+        }
+
+        /* Flashcards Styles */
+        .flashcards-view {
+            padding: 20px;
+            max-height: 100vh;
+            overflow-y: auto;
+        }
+
+        .flashcards-header {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .flashcards-header h3 {
+            margin: 0 0 10px 0;
+            color: #1976d2;
+            font-size: 20px;
+        }
+
+        .flashcards-stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            padding: 8px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #1976d2;
+        }
+
+        .flashcards-controls {
+            margin-bottom: 25px;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .flashcard-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .flashcard-btn.primary {
+            background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+            color: white;
+            box-shadow: 0 2px 4px rgba(25, 118, 210, 0.3);
+        }
+
+        .flashcard-btn.primary:hover {
+            transform: translateY(-2px) scale(1.03);
+            box-shadow: 0 6px 16px rgba(25, 118, 210, 0.5);
+            animation: smoothBounce 0.6s ease-out;
+        }
+
+        .flashcard-btn.secondary {
+            background: #f5f5f5;
+            color: #666;
+            border: 1px solid #ddd;
+        }
+
+        .flashcard-btn.secondary:hover {
+            background: linear-gradient(135deg, #e8e8e8 0%, #f0f0f0 100%);
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-color: #bbb;
+        }
+
+        .btn-icon {
+            font-size: 16px;
+        }
+
+        .study-options {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .study-mode-selector,
+        .difficulty-filter {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .study-options label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .study-options select {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        /* Study Interface */
+        .study-interface {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .study-progress {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-right: 15px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4caf50 0%, #45a049 100%);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .card-counter {
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+        }
+
+        .flashcard-container {
+            display: flex;
+            justify-content: center;
+            margin: 30px 0;
+        }
+
+        .flashcard {
+            width: 320px;
+            height: 200px;
+            perspective: 1000px;
+            cursor: pointer;
+        }
+
+        .card-front,
+        .card-back {
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            transition: transform 0.6s;
+            backface-visibility: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            position: absolute;
+        }
+
+        .card-front {
+            background: #ffffff !important;
+            color: #333333 !important;
+            border: 2px solid #e0e0e0 !important;
+        }
+
+        .card-back {
+            background: #ffffff !important;
+            color: #333333 !important;
+            border: 2px solid #e0e0e0 !important;
+            transform: rotateY(180deg);
+        }
+
+        .flashcard.flipped .card-front {
+            transform: rotateY(180deg);
+        }
+
+        .flashcard.flipped .card-back {
+            transform: rotateY(0deg);
+        }
+
+        .card-content {
+            padding: 20px;
+            width: 100%;
+        }
+
+        .card-text {
+            font-size: 24px !important;
+            font-weight: bold !important;
+            margin-bottom: 10px !important;
+            word-break: break-word !important;
+            color: #333333 !important;
+        }
+
+        .card-definition {
+            font-size: 14px !important;
+            margin-top: 10px !important;
+            line-height: 1.4 !important;
+            color: #555555 !important;
+        }
+
+        .card-pronunciation {
+            font-size: 16px !important;
+            margin-top: 8px !important;
+            font-style: italic !important;
+            color: #666666 !important;
+            font-family: 'Courier New', monospace !important;
+        }
+
+        .audio-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .audio-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.1);
+        }
+
+        .study-controls {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .study-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .study-btn.primary {
+            background: #1976d2;
+            color: white;
+        }
+
+        .study-btn.primary:hover {
+            background: #1565c0;
+            transform: translateY(-1px);
+        }
+
+        .answer-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .answer-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            min-width: 70px;
+        }
+
+        .answer-btn.again {
+            background: #f44336;
+            color: white;
+        }
+
+        .answer-btn.hard {
+            background: #ff9800;
+            color: white;
+        }
+
+        .answer-btn.good {
+            background: #4caf50;
+            color: white;
+        }
+
+        .answer-btn.easy {
+            background: #2196f3;
+            color: white;
+        }
+
+        .answer-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .btn-label {
+            font-size: 13px;
+            margin-bottom: 2px;
+        }
+
+        .btn-time {
+            font-size: 10px;
+            opacity: 0.8;
+        }
+
+        .study-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .nav-btn.primary {
+            background: #1976d2;
+            color: white;
+        }
+
+        .nav-btn.secondary {
+            background: #f5f5f5;
+            color: #666;
+            border: 1px solid #ddd;
+        }
+
+        .nav-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        /* Empty State */
+        .flashcards-empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .flashcards-empty h3 {
+            margin: 0 0 8px 0;
+            font-size: 18px;
+            color: #333;
+        }
+
+        .flashcards-empty p {
+            margin: 0 0 20px 0;
+            font-size: 14px;
+        }
+
+        /* Flashcard List View Styles */
+        .flashcards-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+        }
+
+        .flashcard-item {
+            background: #ffffff !important;
+            border: 2px solid #e8e8e8 !important;
+            border-radius: 16px !important;
+            padding: 20px !important;
+            margin-bottom: 16px !important;
+            transition: all 0.3s ease !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+            cursor: pointer !important;
+            position: relative !important;
+            overflow: hidden !important;
+            color: #333333 !important;
+        }
+
+        .flashcard-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+            border-color: #1976d2;
+        }
+
+        .flashcard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .card-front-text {
+            font-size: 22px !important;
+            font-weight: 700 !important;
+            color: #1565c0 !important;
+            margin-bottom: 12px !important;
+            line-height: 1.4 !important;
+            word-break: break-word !important;
+        }
+
+        .card-back-text {
+            font-size: 16px !important;
+            color: #424242 !important;
+            margin-bottom: 12px !important;
+            line-height: 1.5 !important;
+            font-weight: 500 !important;
+        }
+        
+        .card-pronunciation {
+            font-size: 14px !important;
+            color: #757575 !important;
+            margin-bottom: 8px !important;
+            font-style: italic !important;
+            font-family: 'Courier New', monospace !important;
+        }
+        
+        .card-definition {
+            font-size: 14px !important;
+            color: #616161 !important;
+            line-height: 1.4 !important;
+            margin-bottom: 12px !important;
+        }
+
+        .card-difficulty {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            position: absolute;
+            top: 12px;
+            right: 12px;
+        }
+
+        .card-difficulty.new {
+            background: #e8f5e8;
+            color: #2e7d2e;
+        }
+
+        .card-difficulty.learning {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .card-difficulty.review {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .card-difficulty.mature {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .card-meta {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 8px !important;
+            align-items: center !important;
+            margin-top: 12px !important;
+            font-size: 12px !important;
+            color: #666666 !important;
+        }
+
+        .card-language {
+            background: #1976d2;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .card-reviews {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .card-next-review {
+            font-size: 11px;
+            opacity: 0.8;
+        }
+
+        .flashcard-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 12px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .flashcard-item:hover .flashcard-actions {
+            opacity: 1;
+        }
+
+        .card-action-btn {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .card-action-btn:hover {
+            background: #e0e0e0;
+            transform: translateY(-1px);
+        }
+
+        .card-action-btn.study {
+            background: #1976d2;
+            color: white;
+            border-color: #1976d2;
+        }
+
+        .card-action-btn.study:hover {
+            background: #1565c0;
+        }
+
+        .card-action-btn.edit {
+            background: #4caf50;
+            color: white;
+            border-color: #4caf50;
+        }
+
+        .card-action-btn.edit:hover {
+            background: #45a049;
+        }
+
+        .card-action-btn.delete {
+            background: #f44336;
+            color: white;
+            border-color: #f44336;
+        }
+
+        .card-action-btn.delete:hover {
+            background: #d32f2f;
+        }
+
+        .flashcard-progress-indicator {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #f0f0f0;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+            border-radius: 0 0 12px 12px;
+        }
+
+        .progress-bar-fill.new {
+            background: linear-gradient(90deg, #4caf50 0%, #45a049 100%);
+            width: 25%;
+        }
+
+        .progress-bar-fill.learning {
+            background: linear-gradient(90deg, #ff9800 0%, #f57c00 100%);
+            width: 50%;
+        }
+
+        .progress-bar-fill.review {
+            background: linear-gradient(90deg, #2196f3 0%, #1976d2 100%);
+            width: 75%;
+        }
+
+        .progress-bar-fill.mature {
+            background: linear-gradient(90deg, #9c27b0 0%, #7b1fa2 100%);
+            width: 100%;
+        }
+
+        /* Responsive Design for Flashcard List */
+        @media (max-width: 768px) {
+            .flashcards-list {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            
+            .flashcard-item {
+                padding: 12px;
+            }
+            
+            .card-front-text {
+                font-size: 16px;
+            }
+            
+            .flashcard-actions {
+                opacity: 1;
+            }
+        }
+
+        /* Pronunciation Button Styles */
+        .pronunciation-btn {
+            background: none !important;
+            border: none !important;
+            font-size: 18px !important;
+            margin-left: 8px !important;
+            cursor: pointer !important;
+            opacity: 0.7 !important;
+            transition: opacity 0.2s ease !important;
+            padding: 2px 4px !important;
+            border-radius: 4px !important;
+        }
+
+        .pronunciation-btn:hover {
+            opacity: 1 !important;
+            background: rgba(25, 118, 210, 0.1) !important;
+        }
+
+        .pronunciation-btn:disabled {
+            opacity: 0.4 !important;
+            cursor: not-allowed !important;
+        }
+
+        /* Modal Styles - Force Light Theme Always */
+        .flashcard-modal,
+        .flashcard-modal[data-theme="light"],
+        body.dark-theme .flashcard-modal,
+        body[data-theme="dark"] .flashcard-modal,
+        [data-theme="dark"] .flashcard-modal {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            background: rgba(250, 250, 250, 0.98) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            z-index: 99999 !important;
+            backdrop-filter: blur(3px) !important;
+        }
+
+        .flashcard-modal-content,
+        .flashcard-modal-content[data-theme="light"],
+        body.dark-theme .flashcard-modal-content,
+        body[data-theme="dark"] .flashcard-modal-content,
+        [data-theme="dark"] .flashcard-modal-content {
+            background: #ffffff !important;
+            border-radius: 16px !important;
+            padding: 32px !important;
+            max-width: 500px !important;
+            width: 90% !important;
+            max-height: 80vh !important;
+            overflow-y: auto !important;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15) !important;
+            border: 3px solid #e8e8e8 !important;
+            color: #333333 !important;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            margin: 0;
+            color: #1976d2;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .modal-close-btn {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            font-size: 20px;
+            cursor: pointer;
+            color: #666;
+            padding: 8px 12px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close-btn:hover {
+            background: #e0e0e0;
+            transform: scale(1.1);
+        }
+
+        /* Modal Text Elements - Force Light Theme */
+        .modal-word,
+        body.dark-theme .modal-word,
+        body[data-theme="dark"] .modal-word,
+        [data-theme="dark"] .modal-word {
+            font-size: 24px !important;
+            font-weight: 600 !important;
+            color: #1976d2 !important;
+            margin-bottom: 12px !important;
+            word-break: break-word !important;
+        }
+
+        .modal-translation,
+        body.dark-theme .modal-translation,
+        body[data-theme="dark"] .modal-translation,
+        [data-theme="dark"] .modal-translation {
+            font-size: 18px !important;
+            color: #333333 !important;
+            margin-bottom: 10px !important;
+            line-height: 1.4 !important;
+            font-weight: 500 !important;
+        }
+
+        .modal-pronunciation,
+        body.dark-theme .modal-pronunciation,
+        body[data-theme="dark"] .modal-pronunciation,
+        [data-theme="dark"] .modal-pronunciation {
+            font-size: 16px !important;
+            color: #666666 !important;
+            margin-bottom: 8px !important;
+            font-style: italic !important;
+            font-family: 'Courier New', monospace !important;
+        }
+
+        .modal-definition,
+        body.dark-theme .modal-definition,
+        body[data-theme="dark"] .modal-definition,
+        [data-theme="dark"] .modal-definition {
+            font-size: 14px !important;
+            color: #555555 !important;
+            margin-bottom: 12px !important;
+            line-height: 1.4 !important;
+        }
+
+        .modal-title,
+        body.dark-theme .modal-title,
+        body[data-theme="dark"] .modal-title,
+        [data-theme="dark"] .modal-title {
+            margin: 0 !important;
+            color: #1976d2 !important;
+            font-size: 18px !important;
+            font-weight: 600 !important;
+        }
+
+        .modal-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-language-badge {
+            background: #1976d2;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .modal-difficulty-badge {
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .modal-difficulty-badge.new {
+            background: #e8f5e8;
+            color: #2e7d2e;
+        }
+
+        .modal-difficulty-badge.learning {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .modal-difficulty-badge.review {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .modal-difficulty-badge.mature {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .modal-stat {
+            color: #666;
+            font-size: 12px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .modal-action-btn {
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .modal-study-btn {
+            background: #1976d2;
+            color: white;
+        }
+
+        .modal-study-btn:hover {
+            background: #1565c0;
+            transform: translateY(-1px);
+        }
+
+        .modal-edit-btn {
+            background: #4caf50;
+            color: white;
+        }
+
+        .modal-edit-btn:hover {
+            background: #45a049;
+            transform: translateY(-1px);
+        }
+
+        /* Override Dark Mode for Flashcard List - Force Light Theme */
+        @media (prefers-color-scheme: dark) {
+            .flashcard-item,
+            .flashcard-item * {
+                background: #ffffff !important;
+                color: #333333 !important;
+                border-color: #e8e8e8 !important;
+            }
+            
+            .card-front-text {
+                color: #1565c0 !important;
+            }
+            
+            .card-back-text {
+                color: #424242 !important;
+            }
+            
+            .card-pronunciation {
+                color: #757575 !important;
+            }
+            
+            .card-definition {
+                color: #616161 !important;
+            }
+            
+            .card-meta {
+                color: #666666 !important;
+            }
+            
+            .flashcard-item:hover {
+                background: #ffffff !important;
+                border-color: #1976d2 !important;
+                box-shadow: 0 8px 20px rgba(0,0,0,0.12) !important;
+            }
+        }
+            
+            /* Override dark mode for flashcard modal to always be light */
+            .flashcard-modal {
+                background: rgba(240, 240, 240, 0.98) !important;
+            }
+            
+            .flashcard-modal-content {
+                background: #ffffff !important;
+                border-color: #e8e8e8 !important;
+                color: #333 !important;
+            }
+            
+            .modal-word {
+                color: #1976d2 !important;
+            }
+            
+            .modal-translation {
+                color: #333 !important;
+            }
+            
+            .modal-close-btn {
+                background: #f5f5f5 !important;
+                color: #666 !important;
+            }
+        }
+
+        /* Analytics View Styles */
+        .analytics-view {
+            padding: 20px;
+            max-height: 100vh;
+            overflow-y: auto;
+        }
+
+        .analytics-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .analytics-header h3 {
+            margin: 0;
+            color: #1976d2;
+            font-size: 20px;
+        }
+
+        .refresh-btn {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .refresh-btn:hover {
+            background: #e0e0e0;
+            transform: translateY(-1px);
+        }
+
+        .analytics-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid #90caf9;
+        }
+
+        .metric-value {
+            display: block;
+            font-size: 32px;
+            font-weight: 700;
+            color: #1976d2;
+            margin-bottom: 8px;
+        }
+
+        .metric-label {
+            font-size: 14px;
+            color: #1565c0;
+            font-weight: 500;
+        }
+
+        .analytics-recommendations {
+            margin-bottom: 32px;
+        }
+
+        .analytics-recommendations h4 {
+            color: #1976d2;
+            font-size: 18px;
+            margin-bottom: 16px;
+        }
+
+        .recommendation-item {
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .recommendation-item:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-color: #1976d2;
+        }
+
+        .recommendation-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .recommendation-content {
+            flex: 1;
+        }
+
+        .recommendation-content h5 {
+            margin: 0 0 8px 0;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .recommendation-content p {
+            margin: 0 0 12px 0;
+            color: #666;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .recommendation-btn {
+            background: #1976d2;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s ease;
+        }
+
+        .recommendation-btn:hover {
+            background: #1565c0;
+        }
+
+        .analytics-actions {
+            text-align: center;
+        }
+
+        .primary-btn {
+            background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .primary-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(25, 118, 210, 0.5);
+            animation: enhancedHover 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+        }
+        
+        .primary-btn:active {
+            transform: translateY(-1px) scale(0.98);
+            box-shadow: 0 4px 12px rgba(25, 118, 210, 0.6);
+        }
+
+        .primary-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .ai-loading {
+            text-align: center;
+            padding: 20px;
+            color: #5f6368;
+        }
+        
+        .loading-spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #1a73e8;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 12px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .ai-analysis-result {
+            line-height: 1.6;
+        }
+        
+        .ai-analysis .ai-section-title {
+            color: #1a73e8;
+            font-size: 15px;
+            font-weight: 600;
+            margin: 16px 0 8px 0;
+            border-bottom: 2px solid #e8f0fe;
+            padding-bottom: 4px;
+        }
+        
+        .ai-analysis .ai-section-title:first-child {
+            margin-top: 0;
+        }
+        
+        .ai-analysis .ai-label {
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .ai-analysis .ai-item {
+            margin: 6px 0;
+            padding-left: 8px;
+        }
+        
+        /* Simple AI Analysis Formatting - Easy to Read */
+        .formatted-analysis {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            line-height: 1.6;
+            color: #000000;
+            font-size: 14px;
+            background: #ffffff;
+            padding: 16px;
+        }
+        
+        .analysis-section {
+            margin: 12px 0;
+            color: #000000;
+        }
+        
+        .analysis-section .section-icon {
+            font-size: 16px;
+            margin-right: 6px;
+        }
+        
+        .analysis-section .section-content {
+            margin-top: 6px;
+            color: #000000;
+            font-size: 14px;
+        }
+        
+        .analysis-list-item {
+            margin: 4px 0;
+            padding: 2px 0;
+            color: #000000;
+            font-size: 14px;
+        }
+        
+        .analysis-list-item .list-number {
+            color: #000000;
+            font-weight: normal;
+            font-size: 14px;
+            margin-right: 8px;
+        }
+        
+        .analysis-bullet {
+            margin: 4px 0;
+            color: #000000;
+            font-size: 14px;
+        }
+        
+        .analysis-bullet::before {
+            content: "• ";
+            color: #000000;
+        }
+        
+        .formatted-analysis h3 {
+            color: #1976d2;
+            font-size: 16px;
+            font-weight: 600;
+            margin: 20px 0 10px 0;
+            padding: 0;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+        
+        .formatted-analysis h3:first-child {
+            margin-top: 0;
+        }
+        
+        .formatted-analysis strong {
+            color: #000000;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .formatted-analysis em {
+            color: #000000;
+            font-style: italic;
+            font-size: 14px;
+        }
+        
+        .formatted-analysis code {
+            background: #f8f8f8;
+            color: #000000;
+            padding: 1px 3px;
+            border-radius: 2px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        
+        /* Minimal highlighting */
+        .formatted-analysis .key-info {
+            color: #000000;
+            font-size: 14px;
+        }
+        
+        .formatted-analysis .pronunciation-guide {
+            background: #f0f8ff;
+            color: #000000;
+            padding: 2px 4px;
+            border-radius: 2px;
+            font-size: 14px;
+        }
+        
+        .formatted-analysis .example-sentence {
+            color: #000000;
+            font-style: italic;
+            font-size: 14px;
+        }
+        
+        .ai-footer {
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid #f0f0f0;
+            text-align: center;
+            color: #999;
+        }
+        
+        .ai-error {
+            text-align: center;
+            padding: 20px;
+            color: #d93025;
+        }
+        
+        .error-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        .error-message {
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .error-details {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 12px;
+        }
+        
+        /* 發音網站選項樣式 */
+        .pronunciation-options {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+        
+        .pronunciation-option {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            background: white;
+            transition: all 0.2s;
+        }
+        
+        .pronunciation-option:hover {
+            border-color: #1a73e8;
+            background: #f8f9ff;
+        }
+        
+        .pronunciation-option.primary {
+            border-color: #1a73e8;
+            background: #f8f9ff;
+        }
+        
+        .option-info {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+        
+        .option-icon {
+            font-size: 20px;
+            margin-right: 10px;
+        }
+        
+        .option-details h5 {
+            margin: 0 0 2px 0;
+            font-size: 14px;
+            color: #202124;
+        }
+        
+        .option-details p {
+            margin: 0;
+            font-size: 11px;
+            color: #5f6368;
+        }
+        
+        .option-badge {
+            background: #1a73e8;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 500;
+            margin-right: 8px;
+        }
+        
+        .option-badge.secondary {
+            background: #34a853;
+        }
+        
+        .option-badge.tertiary {
+            background: #fbbc04;
+            color: #333;
+        }
+        
+        .option-badge.recommended {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .option-button {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        
+        .option-button:hover {
+            background: #1557b0;
+        }
+        
+        .category-header {
+            background: #f8f9fa;
+            padding: 12px 16px;
+            border-left: 4px solid #1a73e8;
+            margin: 16px 0 8px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .category-header h4 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1a73e8;
+        }
+        
+        .category-count {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .sites-header {
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        
+        .sites-header h4 {
+            margin: 0 0 8px 0;
+            color: #1a73e8;
+            font-size: 16px;
+        }
+        
+        .sites-header p {
+            margin: 0;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .site-descriptions {
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .site-info h6 {
+            margin: 0 0 12px 0;
+            color: #1a73e8;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .site-info ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .site-info li {
+            margin-bottom: 8px;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #333;
+        }
+
+        /* AI 語音相關樣式 */
+        .ai-audio-section {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-top: 12px;
+            overflow: hidden;
+        }
+        
+        .audio-header {
+            background: #e8f0fe;
+            border-bottom: 1px solid #d2e3fc;
+            padding: 10px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .audio-header h5 {
+            margin: 0;
+            font-size: 13px;
+            color: #1a73e8;
+            font-weight: 500;
+        }
+        
+        .audio-controls {
+            display: flex;
+            gap: 6px;
+        }
+        
+        .audio-button {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        
+        .audio-button.primary {
+            background: #1a73e8;
+            color: white;
+        }
+        
+        .audio-button.primary:hover {
+            background: #1557b0;
+        }
+        
+        .audio-button.secondary {
+            background: #f1f3f4;
+            color: #5f6368;
+            border: 1px solid #dadce0;
+        }
+        
+        .audio-button.secondary:hover {
+            background: #e8eaed;
+        }
+        
+        .audio-content {
+            padding: 12px;
+        }
+        
+        .audio-placeholder {
+            text-align: center;
+            color: #5f6368;
+            padding: 16px;
+        }
+        
+        .audio-placeholder-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        .audio-note {
+            font-size: 11px;
+            color: #999;
+            font-style: italic;
+            margin-top: 4px;
+        }
+        
+        .audio-loading {
+            text-align: center;
+            padding: 16px;
+            color: #5f6368;
+        }
+        
+        .audio-player {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px;
+        }
+        
+        .audio-info {
+            margin-bottom: 12px;
+        }
+        
+        .audio-text {
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 4px;
+            font-size: 13px;
+        }
+        
+        .audio-meta {
+            font-size: 11px;
+            color: #666;
+        }
+        
+        .audio-controls-full {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        #audioElement {
+            width: 100%;
+            height: 32px;
+        }
+        
+        .audio-actions {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+        }
+        
+        .audio-action-btn {
+            padding: 4px 8px;
+            border: 1px solid #dadce0;
+            background: #f8f9fa;
+            border-radius: 3px;
+            font-size: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .audio-action-btn:hover {
+            background: #e8eaed;
+        }
+        
+        .audio-error {
+            text-align: center;
+            padding: 16px;
+            color: #d93025;
+        }
+        
+        /* Status badges for error detection */
+        .status-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 500;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        
+        .status-badge.correct {
+            background-color: #e8f5e8;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+        
+        .status-badge.error {
+            background-color: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
+        }
+        
+        /* Filter buttons for history */
+        .history-filters {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding: 0 16px;
+        }
+        
+        .filter-btn {
+            padding: 4px 8px;
+            border: 1px solid #dadce0;
+            background: #f8f9fa;
+            color: #5f6368;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .filter-btn:hover {
+            background: #e8eaed;
+        }
+        
+        .filter-btn.active {
+            background: #1a73e8;
+            color: white;
+            border-color: #1a73e8;
+        }
+        
+        .filter-btn.error-filter.active {
+            background: #d93025;
+            border-color: #d93025;
+        }
+        
+        .filter-btn.correct-filter.active {
+            background: #188038;
+            border-color: #188038;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1 data-i18n="header_title">YouGlish Quick Search</h1>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <div id="userInfo" class="user-info" style="display: none;">
+                <img id="userAvatar" class="user-avatar" src="" alt="User">
+                <span id="userEmail"></span>
+            </div>
+            <button id="signInBtn" class="auth-button">🔐 Sign In</button>
+            <button id="signOutBtn" class="auth-button signed-in" style="display: none;">👤 Sign Out</button>
+            <select id="headerLanguageSelect" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;" title="Switch interface language" data-i18n-title="language_switch_tooltip">
+                <option value="auto" data-i18n="ui_language_auto">Auto</option>
+                <option value="en" data-i18n="ui_language_english">English</option>
+                <option value="zh_TW" data-i18n="ui_language_chinese">中文</option>
+                <option value="ja" data-i18n="ui_language_japanese">日本語</option>
+                <option value="ko" data-i18n="ui_language_korean">한국어</option>
+                <option value="nl" data-i18n="ui_language_dutch">Nederlands</option>
+            </select>
+            <button class="settings-button" data-i18n="settings_button">Settings</button>
+        </div>
+    </div>
+    
+    <!-- 手動搜尋區域 -->
+    <div class="manual-search-section">
+        <div class="search-form">
+            <div class="search-input-container">
+                <input type="text" id="manualSearchInput" data-i18n-placeholder="manual_search_placeholder" placeholder="輸入單字或片語..." />
+                <select id="manualLanguageSelect">
+                    <option value="auto" data-i18n="smart_detection">自動偵測</option>
+                    <option value="english" data-i18n="language_english">英文</option>
+                    <option value="japanese" data-i18n="language_japanese">日文</option>
+                    <option value="korean" data-i18n="language_korean">韓文</option>
+                    <option value="dutch" data-i18n="language_dutch">荷蘭文</option>
+                </select>
+                <button id="manualSearchBtn" data-i18n="search_button">搜尋</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="searchInfo" class="search-info" style="display: none;">
+        <div class="search-term" id="searchTerm"></div>
+        <div class="search-language">
+            <span data-i18n="language_label">Language:</span> <span id="searchLanguage"></span>
+            <span id="languageBadge" class="language-badge"></span>
+            <button id="openInNewTabBtn" class="new-tab-button" style="display: none;" data-i18n="new_tab">
+                🔗 New Tab
+            </button>
+        </div>
+    </div>
+    
+    <div class="main-container">
+        <div id="welcome" class="welcome">
+            <h2 data-i18n="welcome_title">🎯 YouGlish Quick Search</h2>
+            <p data-i18n="welcome_description">Select text on any webpage, then:</p>
+            <p data-i18n="welcome_step1">• Right-click and select "Search on YouGlish"</p>
+            <p data-i18n="welcome_step2">• Or use the keyboard shortcut <kbd>Ctrl+Shift+Y</kbd></p>
+            <p data-i18n="welcome_step3">• Or click the extension icon to open this panel</p>
+            <p data-i18n="welcome_languages">Supports English, Japanese, Korean, Dutch</p>
+            <hr style="margin: 16px 0; border: none; border-top: 1px solid #e0e0e0;">
+            <p style="font-size: 12px; color: #666;" data-i18n="welcome_shortcut_note">
+                Shortcuts can be customized at <code>chrome://extensions/shortcuts</code>
+            </p>
+        </div>
+        
+        <div id="searchResult" class="search-result" style="display: block;">
+            <div class="result-header">
+                <h3 data-i18n="search_results_title">📺 YouGlish 查詢結果</h3>
+                <div class="view-controls">
+                    <button id="showAnalysisBtn" class="view-button active" data-i18n="analysis_view">📊 分析</button>
+                    <button id="showVideoBtn" class="view-button" data-i18n="video_view">🎥 影片</button>
+                    <button id="showWebsitesBtn" class="view-button" data-i18n="websites_view">🌐 網站</button>
+                    <button id="showHistoryBtn" class="view-button" data-i18n="history_view">📚 歷史</button>
+                    <button id="showSavedReportsBtn" class="view-button" data-i18n="saved_reports_view">💾 已保存</button>
+                    <button id="showFlashcardsBtn" class="view-button" data-i18n="flashcards_view">🃏 記憶卡</button>
+                    <button id="showAnalyticsBtn" class="view-button">📊 學習統計</button>
+                    <button id="showTranscriptBtn" class="view-button" data-i18n="transcript_view">📝 字幕重構</button>
+                    <button id="openNewTabBtn" class="view-button" data-i18n="new_tab">🔗 新分頁</button>
+                </div>
+            </div>
+            
+            <!-- 分析視圖 -->
+            <div id="analysisView" class="analysis-view">
+                <div class="result-actions">
+                    <button id="searchAgainBtn" class="action-button secondary" data-i18n="search_again" style="display: none;">
+                        🔍 Search Other Content
+                    </button>
+                </div>
+                
+                <div class="result-info">
+                    <div class="info-item">
+                        <span class="info-label" data-i18n="search_term_label">Search Term:</span>
+                        <span id="resultText" class="info-value"></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label" data-i18n="language_label">Language:</span>
+                        <span id="resultLanguage" class="info-value"></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label" data-i18n="url_label">URL:</span>
+                        <a id="resultUrl" class="info-link" href="#" target="_blank" data-i18n="click_to_open">Click to open</a>
+                    </div>
+                </div>
+                
+                <!-- AI 語音發音區域 -->
+                <div id="aiAudioSection" class="ai-audio-section" style="display: none;">
+                    <div class="audio-header">
+                        <h5>🔊 AI 語音發音</h5>
+                        <div class="audio-controls">
+                            <button id="generateAudioBtn" class="audio-button primary">
+                                🎵 生成語音
+                            </button>
+                            <button id="regenerateAudioBtn" class="audio-button secondary" style="display: none;">
+                                🔄 重新生成
+                            </button>
+                            <button id="testAudioBtn" class="audio-button secondary" style="font-size: 10px;">
+                                🧪 測試
+                            </button>
+                            <button id="saveAudioToggleBtn" class="audio-button secondary save-audio-toggle active" title="自動儲存語音到報告中">
+                                🔊 儲存語音
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="audioContent" class="audio-content">
+                        <div id="audioPlaceholder" class="audio-placeholder">
+                            <div class="placeholder-icon">🎵</div>
+                            <p class="placeholder-text">點擊「生成語音」開始</p>
+                        </div>
+                        
+                        <div id="audioLoading" class="audio-loading" style="display: none;">
+                            <div class="loading-icon">⏳</div>
+                            <p class="loading-text">正在生成語音...</p>
+                        </div>
+                        
+                        <div id="audioResult" class="audio-result" style="display: none;">
+                            <div class="audio-info">
+                                <span class="audio-duration" id="audioDuration"></span>
+                                <span class="audio-size" id="audioSize"></span>
+                            </div>
+                            
+                            <div class="audio-player">
+                                <audio id="aiAudio" controls preload="metadata" style="width: 100%;">
+                                    <source id="audioSource" src="" type="audio/mpeg">
+                                    您的瀏覽器不支援音頻播放
+                                </audio>
+                                <div class="audio-actions">
+                                    <button id="playAudioBtn" class="audio-action-btn">
+                                        ▶️ 播放
+                                    </button>
+                                    <button id="downloadAudioBtn" class="audio-action-btn">
+                                        💾 下載
+                                    </button>
+                                    <button id="repeatAudioBtn" class="audio-action-btn">
+                                        🔄 重複
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="audioError" class="audio-error" style="display: none;">
+                            <div class="error-icon">⚠️</div>
+                            <p class="error-message">語音生成失敗</p>
+                            <p class="error-details" id="audioErrorDetails"></p>
+                            <button id="retryAudioBtn" class="audio-button secondary">重試</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- AI 分析區域 -->
+                <div id="aiAnalysisSection" class="ai-analysis-section" style="display: none;">
+                    <div class="section-header">
+                        <h4 data-i18n="ai_analysis_title">🤖 AI Language Analysis</h4>
+                        <div class="ai-controls">
+                            <button id="generateAiAnalysisBtn" class="ai-button primary" data-i18n="generate_analysis">
+                                ✨ Generate Analysis
+                            </button>
+                            <button id="refreshAiAnalysisBtn" class="ai-button secondary" style="display: none;" data-i18n="regenerate_analysis">
+                                🔄 Regenerate
+                            </button>
+                            <button id="autoSaveToggleBtn" class="ai-button secondary auto-save-toggle active" data-i18n="auto_save_on" title="Click to toggle auto-save">
+                                💾 Auto-Save
+                            </button>
+                            <button id="errorDetectionToggleBtn" class="ai-button secondary error-detection-toggle" title="啟用錯誤檢測功能（會增加分析時間）">
+                                🔍 錯誤檢測
+                            </button>
+                            <button id="manualSaveBtn" class="ai-button primary" style="display: none;" data-i18n="save_this_report" title="Save this analysis to your saved reports">
+                                💾 Save This Report
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="aiAnalysisContent" class="ai-analysis-content">
+                        <div id="aiAnalysisPlaceholder" class="ai-placeholder">
+                            <div class="placeholder-icon">🎯</div>
+                            <p data-i18n="ai_analysis_placeholder">Click 'Generate Analysis' and AI will provide:</p>
+                            <ul>
+                                <li data-i18n="ai_feature_pronunciation">📢 Pronunciation guidance and IPA</li>
+                                <li data-i18n="ai_feature_explanation">📖 Vocabulary explanations and usage</li>
+                                <li data-i18n="ai_feature_grammar">📝 Grammar analysis and sentence structure</li>
+                                <li data-i18n="ai_feature_culture">🌍 Cultural context and usage scenarios</li>
+                            </ul>
+                            <p class="ai-note" data-i18n="ai_config_note">Configure AI API key in settings</p>
+                        </div>
+
+                        <!-- Quick Search Results - Shows immediately while AI loads -->
+                        <div id="quickSearchResults" class="quick-search-results" style="display: none;">
+                            <div class="quick-search-header">
+                                <span class="quick-search-icon">⚡</span>
+                                <span class="quick-search-title" data-i18n="quick_search_title">即時查詢結果</span>
+                                <span class="ai-loading-indicator">🤖 AI 分析中...</span>
+                            </div>
+                            
+                            <div class="quick-search-content">
+                                <div class="quick-translation">
+                                    <div class="translation-label" data-i18n="quick_translation">快速翻譯：</div>
+                                    <div id="quickTranslation" class="translation-result">載入中...</div>
+                                </div>
+                                
+                                <div class="quick-pronunciation">
+                                    <div class="pronunciation-label" data-i18n="quick_pronunciation">發音：</div>
+                                    <div id="quickPronunciation" class="pronunciation-result">載入中...</div>
+                                </div>
+                                
+                                <div class="quick-definition">
+                                    <div class="definition-label" data-i18n="quick_definition">簡要定義：</div>
+                                    <div id="quickDefinition" class="definition-result">載入中...</div>
+                                </div>
+                                
+                                <div class="quick-search-note">
+                                    <span class="note-icon">💡</span>
+                                    <span data-i18n="quick_search_note">完整 AI 分析即將完成，請稍候...</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="aiAnalysisLoading" class="ai-loading" style="display: none;">
+                            <div class="loading-spinner"></div>
+                            <p data-i18n="ai_analyzing">AI analyzing, please wait...</p>
+                        </div>
+                        
+                        <div id="aiAnalysisResult" class="ai-analysis-result" style="display: none;">
+                            <!-- AI 分析結果將在這裡顯示 -->
+                        </div>
+                        
+                        <div id="aiAnalysisError" class="ai-error" style="display: none;">
+                            <div class="error-icon">⚠️</div>
+                            <p class="error-message">AI 分析失敗</p>
+                            <p class="error-details"></p>
+                            <button id="retryAiAnalysisBtn" class="ai-button secondary">重試</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 影片視圖 -->
+            <div id="videoView" class="video-view" style="display: none; padding: 16px;">
+                
+                <!-- Quick Stats Card -->
+                <div class="quick-stats-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 16px; text-align: center; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer;">
+                    <h3 style="margin: 0 0 16px 0; font-size: 18px;">📚 學習追踪器</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+                        <div>
+                            <div id="quickTotalSearches" style="font-size: 24px; font-weight: bold; margin-bottom: 4px;">0</div>
+                            <div style="font-size: 12px; opacity: 0.9;">總搜尋</div>
+                        </div>
+                        <div>
+                            <div id="quickUniqueWords" style="font-size: 24px; font-weight: bold; margin-bottom: 4px;">0</div>
+                            <div style="font-size: 12px; opacity: 0.9;">詞彙量</div>
+                        </div>
+                        <div>
+                            <div id="quickTodaySearches" style="font-size: 24px; font-weight: bold; margin-bottom: 4px;">0</div>
+                            <div style="font-size: 12px; opacity: 0.9;">今日</div>
+                        </div>
+                    </div>
+                    <button id="quickExportBtn" class="quick-action-btn" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 12px; margin-top: 12px;">
+                        📥 匯出學習數據
+                    </button>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="learning-section" style="background: white; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4 style="margin: 0; color: #333;">🕐 最近活動</h4>
+                        <div style="display: flex; gap: 8px;">
+                            <select id="quickTimeFilter" style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
+                                <option value="all">全部</option>
+                                <option value="today">今天</option>
+                                <option value="week">本週</option>
+                            </select>
+                            <button id="quickClearBtn" style="background: #ff5722; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">清除</button>
+                        </div>
+                    </div>
+                    <div id="quickHistoryList" style="max-height: 300px; overflow-y: auto; border: 1px solid #f0f0f0; border-radius: 4px; padding: 8px;">
+                        <div style="text-align: center; color: #999; padding: 20px;">
+                            <div style="font-size: 48px; margin-bottom: 16px;">📖</div>
+                            <div style="font-size: 14px; margin-bottom: 8px;">尚無學習記錄</div>
+                            <div style="font-size: 12px; color: #ccc; margin-bottom: 16px;">開始在 YouTube 上選擇文字來建立學習記錄</div>
+                            
+                            <!-- Useful learning links -->
+                            <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-top: 20px; text-align: left;">
+                                <h5 style="margin: 0 0 12px 0; color: #333; font-size: 14px;">🔗 推薦學習資源</h5>
+                                <div style="display: flex; flex-direction: column; gap: 8px;">
+                                    <a href="https://www.youtube.com/results?search_query=english+learning" target="_blank" 
+                                       style="display: flex; align-items: center; text-decoration: none; color: #1a73e8; font-size: 12px; padding: 8px; border-radius: 4px; background: white; border: 1px solid #e0e0e0;">
+                                        <span style="margin-right: 8px;">🎥</span>
+                                        <span>YouTube 英語學習頻道</span>
+                                    </a>
+                                    <a href="https://www.youtube.com/results?search_query=language+exchange" target="_blank" 
+                                       style="display: flex; align-items: center; text-decoration: none; color: #1a73e8; font-size: 12px; padding: 8px; border-radius: 4px; background: white; border: 1px solid #e0e0e0;">
+                                        <span style="margin-right: 8px;">💬</span>
+                                        <span>語言交換影片</span>
+                                    </a>
+                                    <a href="https://www.youtube.com/results?search_query=pronunciation+practice" target="_blank" 
+                                       style="display: flex; align-items: center; text-decoration: none; color: #1a73e8; font-size: 12px; padding: 8px; border-radius: 4px; background: white; border: 1px solid #e0e0e0;">
+                                        <span style="margin-right: 8px;">🗣️</span>
+                                        <span>發音練習影片</span>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Video Learning Queue -->
+                <div class="learning-section" style="background: white; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4 style="margin: 0; color: #333;">📹 學習影片列表</h4>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="clearVideoQueueBtn" style="background: #ff5722; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="清除學習影片歷史">🗑️ 清除</button>
+                            <button id="refreshVideoQueueBtn" style="background: #2196F3; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="重新整理影片列表">🔄 刷新</button>
+                        </div>
+                    </div>
+                    <div id="videoLearningQueue" style="max-height: 280px; overflow-y: auto; border: 1px solid #f0f0f0; border-radius: 4px; padding: 8px;">
+                        <div style="text-align: center; color: #999; padding: 30px 20px;">
+                            <div style="font-size: 48px; margin-bottom: 16px;">🎬</div>
+                            <div style="font-size: 14px; margin-bottom: 8px; color: #666;">尚無學習影片</div>
+                            <div style="font-size: 12px; color: #ccc; margin-bottom: 16px;">在 YouTube 影片中點擊字幕開始學習</div>
+                            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px;">
+                                <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank" 
+                                   style="display: flex; align-items: center; text-decoration: none; color: #1a73e8; font-size: 12px; padding: 8px; border-radius: 4px; background: #f8f9fa; border: 1px solid #e0e0e0; transition: all 0.2s;">
+                                    <span style="margin-right: 8px;">🎓</span>
+                                    <span>推薦英語學習影片</span>
+                                </a>
+                                <a href="https://www.youtube.com/results?search_query=english+conversation+practice" target="_blank" 
+                                   style="display: flex; align-items: center; text-decoration: none; color: #1a73e8; font-size: 12px; padding: 8px; border-radius: 4px; background: #f8f9fa; border: 1px solid #e0e0e0; transition: all 0.2s;">
+                                    <span style="margin-right: 8px;">💬</span>
+                                    <span>會話練習影片</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Analysis Section -->
+                <div id="videoAiAnalysisSection" style="background: white; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4 style="margin: 0; color: #333;">💬 實際應用場景</h4>
+                        <button id="closeAiAnalysis" style="background: #f0f0f0; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; color: #666;">✕</button>
+                    </div>
+                    
+                    <!-- Current Analysis Text -->
+                    <div id="videoCurrentText" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                        <div style="font-size: 12px; opacity: 0.9; margin-bottom: 6px;">學習內容:</div>
+                        <div id="videoAnalysisText" style="font-size: 14px; font-weight: 500; word-wrap: break-word;"></div>
+                    </div>
+                    
+                    <!-- AI Analysis Results -->
+                    <div id="videoAiResults" style="border: 1px solid #f0f0f0; border-radius: 6px; padding: 12px; min-height: 100px; max-height: 300px; overflow-y: auto;">
+                        <div id="videoAiLoading" style="text-align: center; color: #666; padding: 20px;">
+                            <div style="font-size: 24px; margin-bottom: 8px;">💭</div>
+                            <div>生成實際應用場景中...</div>
+                        </div>
+                        <div id="videoAiContent" style="display: none;"></div>
+                        <div id="videoAiError" style="display: none; text-align: center; color: #ff5722; padding: 20px;">
+                            <div style="font-size: 24px; margin-bottom: 8px;">❌</div>
+                            <div>分析失敗，請重試</div>
+                        </div>
+                    </div>
+                    
+                    <!-- AI Analysis Actions -->
+                    <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
+                        <button id="videoSaveAnalysis" style="background: #4CAF50; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 11px;">💾 保存應用</button>
+                        <button id="videoRetryAnalysis" style="background: #FF9800; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 11px;">🔄 重新生成</button>
+                        <button id="videoSpeakText" style="background: #2196F3; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 11px;">🔊 朗讀</button>
+                    </div>
+                </div>
+
+                <!-- Learning Achievements & Progress -->
+                <div class="learning-section" style="background: white; border-radius: 8px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <h4 style="margin: 0 0 12px 0; color: #333;">🏆 學習成就</h4>
+                    
+                    <!-- Progress Overview -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                        <div style="background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%); color: white; padding: 12px; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: bold; margin-bottom: 4px;" id="todayLearningCount">0</div>
+                            <div style="font-size: 11px; opacity: 0.9;">今日學習</div>
+                        </div>
+                        
+                        <div style="background: linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%); color: white; padding: 12px; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: bold; margin-bottom: 4px;" id="weekStreakCount">0</div>
+                            <div style="font-size: 11px; opacity: 0.9;">本週連續</div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Achievements -->
+                    <div style="background: #f8f9fa; border-radius: 6px; padding: 12px; margin-bottom: 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div style="font-size: 12px; color: #666; font-weight: 500;">🎖️ 最近成就</div>
+                            <button id="viewAllAchievementsBtn" style="background: #4CAF50; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="查看所有成就">查看全部</button>
+                        </div>
+                        <div id="recentAchievementsList" style="max-height: 120px; overflow-y: auto;">
+                            <div style="text-align: center; color: #999; padding: 20px; font-size: 12px;">
+                                開始學習來解鎖成就！
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Learning Stats Mini Dashboard -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; font-size: 11px;">
+                        <div style="background: #e3f2fd; color: #1565c0; padding: 8px; border-radius: 4px; text-align: center;">
+                            <div style="font-weight: bold;" id="totalVideoCount">0</div>
+                            <div>影片學習</div>
+                        </div>
+                        <div style="background: #f3e5f5; color: #7b1fa2; padding: 8px; border-radius: 4px; text-align: center;">
+                            <div style="font-weight: bold;" id="accuracyRate">0%</div>
+                            <div>準確率</div>
+                        </div>
+                        <div style="background: #e8f5e8; color: #2e7d32; padding: 8px; border-radius: 4px; text-align: center;">
+                            <div style="font-weight: bold;" id="learningStreak">0</div>
+                            <div>連續天數</div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions for YouTube Learning -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <button id="openYouTubeBtn" style="background: #FF0000; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px;" title="開啟 YouTube">
+                            <span>🎥</span>
+                            <span>開啟 YouTube</span>
+                        </button>
+                        <button id="viewProgressBtn" style="background: #9C27B0; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px;" title="查看詳細學習進度">
+                            <span>📊</span>
+                            <span>查看進度</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 網站視圖 -->
+            <div id="websitesView" class="websites-view" style="display: none;">
+                <div class="websites-header">
+                    <h3>🌐 發音學習網站</h3>
+                    <p data-i18n="websites_description">選擇最適合的發音學習網站來學習您搜尋的內容</p>
+                </div>
+                
+                <div class="pronunciation-sites">
+                    <div class="sites-header">
+                        <h4>🎯 發音資源</h4>
+                        <p data-i18n="pronunciation_sites_description">Choose the most suitable pronunciation website:</p>
+                    </div>
+                    
+                    <div id="websitePronunciationOptions" class="pronunciation-options">
+                        <!-- 動態生成的發音網站選項 -->
+                    </div>
+                    
+                    <div class="site-descriptions">
+                        <div class="site-info">
+                            <h6 data-i18n="site_descriptions_title">📖 Website Descriptions</h6>
+                            <ul id="websiteSiteDescriptions">
+                                <!-- 動態生成的網站描述 -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 網站顯示區域 -->
+                <div id="websiteIframeContainer" class="iframe-container" style="display: none; margin-top: 16px;">
+                    <div id="currentWebsiteName" style="background: linear-gradient(135deg, #1a73e8 0%, #1565c0 100%); color: white; padding: 12px 16px; font-size: 14px; font-weight: 500; display: none; border-radius: 8px 8px 0 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"></div>
+                    <div id="websiteLoading" class="loading" style="display: none;">
+                        <div>載入中...</div>
+                    </div>
+                    <div id="websiteError" class="error" style="display: none;">
+                        載入失敗，請重試
+                    </div>
+                    <iframe id="websiteFrame" name="websiteFrame" src="about:blank" style="width: 100%; height: 600px; border: 1px solid #e0e0e0; background: white; border-radius: 0 0 8px 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"></iframe>
+                </div>
+            </div>
+            
+            <!-- 歷史記錄視圖 -->
+            <div id="historyView" class="history-view" style="display: none;">
+                <div class="history-controls">
+                    <div class="history-search">
+                        <input type="text" id="historySearchInput" data-i18n-placeholder="search_history" placeholder="Search history..." />
+                        <select id="historyLanguageFilter">
+                            <option value="" data-i18n="all_languages">All Languages</option>
+                            <option value="english" data-i18n="language_english">English</option>
+                            <option value="japanese" data-i18n="language_japanese">Japanese</option>
+                            <option value="korean" data-i18n="language_korean">Korean</option>
+                            <option value="dutch" data-i18n="language_dutch">Dutch</option>
+                        </select>
+                        <button id="clearHistoryBtn" class="clear-btn" data-i18n="clear_history">Clear History</button>
+                    </div>
+                    
+                    <!-- Error status filters -->
+                    <div class="history-filters">
+                        <button id="filterAllBtn" class="filter-btn active" data-filter="all">全部</button>
+                        <button id="filterCorrectBtn" class="filter-btn correct-filter" data-filter="correct">✅ 正確</button>
+                        <button id="filterErrorBtn" class="filter-btn error-filter" data-filter="error">❌ 錯誤</button>
+                        <button id="filterUnanalyzedBtn" class="filter-btn" data-filter="unanalyzed">🔍 未分析</button>
+                        <button id="filterYouTubeBtn" class="filter-btn youtube-filter" data-filter="youtube">📺 YouTube</button>
+                    </div>
+                </div>
+                
+                <div class="history-stats" id="historyStats">
+                    <!-- 歷史統計信息 -->
+                </div>
+                
+                <div class="history-list" id="historyList">
+                    <!-- 動態生成的歷史記錄 -->
+                </div>
+                
+                <div class="history-empty" id="historyEmpty" style="display: none;">
+                    <p data-i18n="history_empty_title">📝 No search history yet</p>
+                    <p data-i18n="history_empty_desc">Start searching for words or phrases to build your learning record!</p>
+                </div>
+            </div>
+            
+            <!-- 已保存報告視圖 -->
+            <div id="savedReportsView" class="saved-reports-view" style="display: none;">
+                <div class="saved-reports-controls">
+                    <div class="saved-reports-search">
+                        <input type="text" id="savedReportsSearchInput" data-i18n-placeholder="search_saved_reports" placeholder="Search saved reports..." />
+                        <select id="savedReportsLanguageFilter">
+                            <option value="" data-i18n="all_languages">All Languages</option>
+                            <option value="english" data-i18n="language_english">English</option>
+                            <option value="japanese" data-i18n="language_japanese">Japanese</option>
+                            <option value="korean" data-i18n="language_korean">Korean</option>
+                            <option value="dutch" data-i18n="language_dutch">Dutch</option>
+                        </select>
+                        <select id="savedReportsTagFilter">
+                            <option value="" data-i18n="all_tags">All Tags</option>
+                            <!-- Dynamic tag options will be populated here -->
+                        </select>
+                        <select id="savedReportsDateFilter">
+                            <option value="">📅 All Dates</option>
+                            <option value="today">📅 Today</option>
+                            <option value="week">📅 This Week</option>
+                            <option value="month">📅 This Month</option>
+                            <option value="custom">📅 Custom Range</option>
+                        </select>
+                        <div class="export-dropdown">
+                            <button id="exportReportsBtn" class="export-btn" data-i18n="export_reports">💾 Export ▼</button>
+                            <div id="exportDropdown" class="export-dropdown-content">
+                                <a href="#" id="exportMarkdown">📝 Markdown</a>
+                                <a href="#" id="exportHeptabase">🧠 Heptabase</a>
+                                <a href="#" id="exportObsidian">🔗 Obsidian</a>
+                                <a href="#" id="exportNotion">📄 Notion API</a>
+                                <a href="#" id="exportEmail">📧 Send Email</a>
+                                <a href="#" id="exportJSON">📊 JSON</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="date-range-inputs" id="dateRangeInputs" style="display: none;">
+                        <input type="date" id="startDate" placeholder="Start date" />
+                        <span style="padding: 0 10px;">to</span>
+                        <input type="date" id="endDate" placeholder="End date" />
+                    </div>
+                    <div class="saved-reports-filters">
+                        <label>
+                            <input type="checkbox" id="favoritesOnlyFilter" />
+                            <span data-i18n="favorites_only">⭐ Favorites Only</span>
+                        </label>
+                        <button id="cleanupDuplicatesBtn" class="cleanup-btn">🗂️ Clean Duplicates</button>
+                        <button id="createAllFlashcardsBtn" class="flashcard-bulk-btn">🃏 Create All Flashcards</button>
+                        <button id="syncToNotionBtn" class="notion-sync-btn">📄 Sync to Notion</button>
+                        <button id="reAnalyzeReportsBtn" class="re-analyze-btn" title="重新分析所有報告的錯誤狀態">🔄 Re-analyze Errors</button>
+                        <button id="migrateArticlesBtn" class="migrate-btn" title="修復文章來源標記">🔧 Fix Article Icons</button>
+                    </div>
+                    
+                    <!-- Error status filters for saved reports -->
+                    <div class="history-filters">
+                        <button id="reportsFilterAllBtn" class="filter-btn active" data-filter="all">全部</button>
+                        <button id="reportsFilterCorrectBtn" class="filter-btn correct-filter" data-filter="correct">✅ 正確</button>
+                        <button id="reportsFilterErrorBtn" class="filter-btn error-filter" data-filter="error">❌ 錯誤</button>
+                        <button id="reportsFilterUnanalyzedBtn" class="filter-btn" data-filter="unanalyzed">🔍 未分析</button>
+                        <button id="reportsFilterYouTubeBtn" class="filter-btn youtube-filter" data-filter="youtube">📺 YouTube</button>
+                    </div>
+                </div>
+                
+                <div class="saved-reports-stats" id="savedReportsStats">
+                    <!-- 保存報告統計信息 -->
+                </div>
+                
+                <!-- Storage Info Section -->
+                <div class="storage-info-section" style="background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4 style="margin: 0; color: #1976d2; font-size: 14px;">💾 儲存空間</h4>
+                        <button id="checkStorageBtn" style="background: transparent; border: 1px solid #1976d2; color: #1976d2; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="重新檢查">
+                            🔄 更新
+                        </button>
+                    </div>
+                    
+                    <!-- Main Storage Info -->
+                    <div style="padding: 12px; background: #e8f5e9; border-radius: 6px; margin-bottom: 12px;">
+                        <div id="audioDataInfo" style="font-size: 13px; color: #2e7d32; line-height: 1.4;"></div>
+                    </div>
+                    
+                    <!-- Management Actions (only show if there are audio files) -->
+                    <div id="audioManagementActions" style="display: none; border-top: 1px solid #e0e0e0; padding-top: 12px;">
+                        <div style="font-size: 11px; color: #666; margin-bottom: 8px;">音檔管理：</div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="exportAudioBtn" style="flex: 1; background: #4CAF50; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="下載所有音檔備份">
+                                📥 匯出音檔
+                            </button>
+                            <button id="emergencyCleanBtn" style="flex: 1; background: #f44336; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="刪除所有音檔">
+                                🗑️ 清除音檔
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="saved-reports-list" id="savedReportsList">
+                    <!-- 動態生成的保存報告 -->
+                </div>
+                
+                <div class="saved-reports-empty" id="savedReportsEmpty" style="display: none;">
+                    <p data-i18n="saved_reports_empty_title">📝 No saved reports yet</p>
+                    <p data-i18n="saved_reports_empty_desc">Generate AI analysis to automatically save reports!</p>
+                </div>
+            </div>
+            
+            <!-- 記憶卡視圖 -->
+            <div id="flashcardsView" class="flashcards-view" style="display: none;">
+                <div class="flashcards-header">
+                    <h3>🃏 記憶卡系統</h3>
+                    <div class="flashcards-stats">
+                        <span id="totalCards" class="stat-item">總卡片: 0</span>
+                        <span id="studyProgress" class="stat-item">學習進度: 0%</span>
+                        <span id="todayReviews" class="stat-item">今日複習: 0</span>
+                    </div>
+                </div>
+                
+                <!-- 記憶卡控制面板 -->
+                <div class="flashcards-controls">
+                    <div class="control-row">
+                        <button id="createFlashcardBtn" class="flashcard-btn primary">
+                            <span class="btn-icon">➕</span>
+                            <span data-i18n="create_flashcard">建立記憶卡</span>
+                        </button>
+                        <button id="studyModeBtn" class="flashcard-btn primary">
+                            <span class="btn-icon">🎯</span>
+                            <span data-i18n="start_study">開始學習</span>
+                        </button>
+                    </div>
+                    
+                    <div class="study-options">
+                        <div class="study-mode-selector">
+                            <label data-i18n="study_mode">學習模式:</label>
+                            <select id="studyModeSelect">
+                                <option value="word-to-translation" data-i18n="word_to_translation">單字 → 翻譯</option>
+                                <option value="translation-to-word" data-i18n="translation_to_word">翻譯 → 單字</option>
+                                <option value="audio-to-meaning" data-i18n="audio_to_meaning">發音 → 含義</option>
+                                <option value="mixed" data-i18n="mixed_mode">混合模式</option>
+                            </select>
+                        </div>
+                        
+                        <div class="difficulty-filter">
+                            <label data-i18n="difficulty">難度篩選:</label>
+                            <select id="difficultyFilter">
+                                <option value="all" data-i18n="all_difficulties">所有難度</option>
+                                <option value="new" data-i18n="new_cards">新卡片</option>
+                                <option value="learning" data-i18n="learning_cards">學習中</option>
+                                <option value="review" data-i18n="review_cards">複習卡片</option>
+                                <option value="difficult" data-i18n="difficult_cards">困難卡片</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 記憶卡列表 -->
+                <div class="flashcards-list" id="flashcardsList">
+                    <!-- 動態生成的記憶卡 -->
+                </div>
+                
+                <!-- 學習模式界面 -->
+                <div id="studyInterface" class="study-interface" style="display: none;">
+                    <div class="study-card">
+                        <div class="study-progress">
+                            <div class="progress-bar">
+                                <div id="progressFill" class="progress-fill"></div>
+                            </div>
+                            <span id="cardCounter" class="card-counter">1 / 10</span>
+                        </div>
+                        
+                        <div class="flashcard-container">
+                            <div id="flashcard" class="flashcard">
+                                <div class="card-front">
+                                    <div class="card-content">
+                                        <div id="frontText" class="card-text">Loading...</div>
+                                        <button id="audioPlayBtn" class="audio-btn" style="display: none;">🔊</button>
+                                    </div>
+                                </div>
+                                <div class="card-back" style="display: none;">
+                                    <div class="card-content">
+                                        <div id="backText" class="card-text">Loading...</div>
+                                        <div id="cardDefinition" class="card-definition"></div>
+                                        <div id="cardPronunciation" class="card-pronunciation"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="study-controls">
+                            <button id="flipCardBtn" class="study-btn primary">
+                                <span data-i18n="flip_card">翻轉卡片</span>
+                            </button>
+                        </div>
+                        
+                        <div id="answerButtons" class="answer-buttons" style="display: none;">
+                            <button id="againBtn" class="answer-btn again" data-difficulty="0">
+                                <span class="btn-label" data-i18n="again">再次學習</span>
+                                <span class="btn-time">< 1分鐘</span>
+                            </button>
+                            <button id="hardBtn" class="answer-btn hard" data-difficulty="1">
+                                <span class="btn-label" data-i18n="hard">困難</span>
+                                <span class="btn-time">< 6分鐘</span>
+                            </button>
+                            <button id="goodBtn" class="answer-btn good" data-difficulty="2">
+                                <span class="btn-label" data-i18n="good">良好</span>
+                                <span class="btn-time">< 10分鐘</span>
+                            </button>
+                            <button id="easyBtn" class="answer-btn easy" data-difficulty="3">
+                                <span class="btn-label" data-i18n="easy">簡單</span>
+                                <span class="btn-time">4天</span>
+                            </button>
+                        </div>
+                        
+                        <div class="study-navigation">
+                            <button id="exitStudyBtn" class="nav-btn secondary" data-i18n="exit_study">退出學習</button>
+                            <button id="nextCardBtn" class="nav-btn primary" data-i18n="next_card">下一張卡片</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 空狀態 -->
+                <div class="flashcards-empty" id="flashcardsEmpty">
+                    <div class="empty-icon">🃏</div>
+                    <h3 data-i18n="no_flashcards">還沒有記憶卡</h3>
+                    <p data-i18n="create_first_flashcard">建立您的第一張記憶卡開始學習！</p>
+                    <button id="createFirstCardBtn" class="flashcard-btn primary">
+                        <span data-i18n="create_first_card">建立第一張卡片</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 學習統計視圖 -->
+            <div id="analyticsView" class="analytics-view" style="display: none;">
+                <div class="analytics-header">
+                    <h3>📊 學習統計</h3>
+                    <button id="refreshAnalyticsBtn" class="refresh-btn">🔄 重新整理</button>
+                </div>
+                
+                <div class="analytics-overview">
+                    <div class="metric-card" title="您創建的記憶卡總數" data-detail="cards">
+                        <span class="metric-value" id="totalVocab">0</span>
+                        <span class="metric-label">記憶卡總數</span>
+                        <div class="metric-detail" id="totalVocabDetail"></div>
+                    </div>
+                    <div class="metric-card" title="連續學習天數" data-detail="streak">
+                        <span class="metric-value" id="currentStreak">0</span>
+                        <span class="metric-label">學習連續天數</span>
+                        <div class="metric-detail" id="streakDetail"></div>
+                    </div>
+                    <div class="metric-card" title="答對率：複習記憶卡時答對的百分比，越高表示記得越好" data-detail="retention">
+                        <span class="metric-value" id="retentionRate">0%</span>
+                        <span class="metric-label">複習答對率</span>
+                        <div class="metric-detail" id="retentionDetail"></div>
+                    </div>
+                </div>
+                
+                <!-- 詳細統計說明 -->
+                <div id="analyticsExplanation" style="
+                    background: #f8f9fa; 
+                    padding: 16px; 
+                    border-radius: 8px; 
+                    margin-top: 16px;
+                    border-left: 4px solid #1976d2;
+                ">
+                    <h4 style="margin: 0 0 8px 0; color: #1976d2;">📊 如何累積統計數據</h4>
+                    <div style="font-size: 14px; line-height: 1.5; color: #666;">
+                        <p style="margin: 4px 0;"><strong>建立記憶卡</strong>：搜尋單字後點擊「建立記憶卡」</p>
+                        <p style="margin: 4px 0;"><strong>開始學習</strong>：在記憶卡頁面點擊「開始學習」</p>
+                        <p style="margin: 4px 0;"><strong>完成複習</strong>：學習時選擇難易度（簡單/困難/忘記/記住）</p>
+                        <p style="margin: 4px 0;"><strong>查看進步</strong>：數據會在每次學習後更新</p>
+                    </div>
+                </div>
+                
+                <div class="analytics-recommendations">
+                    <h4>🎯 個人化建議</h4>
+                    <div id="recommendationsList"></div>
+                </div>
+                
+                <div class="analytics-actions">
+                    <button id="generateStudyBtn" class="primary-btn">📚 智能學習計劃</button>
+                </div>
+            </div>
+            
+            <!-- 字幕重構視圖 -->
+            <div id="transcriptView" class="transcript-view" style="display: none;">
+                <div id="transcriptRestructurerContainer"></div>
+            </div>
+            
+        </div>
+    </div>
+    
+    <script src="lib/i18n-helper.js"></script>
+    <script src="article-navigator.js"></script>
+    <script src="lib/ai-service.js"></script>
+    <script src="lib/indexeddb-manager.js"></script>
+    <script src="lib/storage-manager.js"></script>
+    <script src="lib/history-manager.js"></script>
+    <script src="lib/lang-detect.js"></script>
+    <script src="lib/export-templates.js"></script>
+    <script src="lib/flashcard-manager.js"></script>
+    <script src="lib/security-utils.js"></script>
+    <script src="lib/performance-utils.js"></script>
+    <script src="lib/error-handler.js"></script>
+    <script src="security-fixes.js"></script>
+    <script src="lib/learning-analytics.js"></script>
+    <script src="lib/study-session-generator.js"></script>
+    <script src="lib/notion-integration.js"></script>
+    <script src="lib/auth-manager.js"></script>
+    <script src="lib/cloud-sync-manager.js"></script>
+    <script src="lib/analytics-manager.js"></script>
+    <script src="lib/subscription-manager.js"></script>
+    <script src="lib/youtube-transcript.js"></script>
+    <script src="components/transcript-viewer.js"></script>
+    <script src="components/transcript-restructurer.js"></script>
+    <script src="sidepanel.js"></script>
+</body>
+</html>

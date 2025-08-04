@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Language Learning Tool",
+  "version": "1.0",
+  "description": "Enhanced subtitle interaction for language learning on YouTube",
+  "default_locale": "en",
+  
+  "permissions": [
+    "activeTab",
+    "storage",
+    "sidePanel",
+    "tabs"
+  ],
+  
+  "host_permissions": [
+    "https://*.youtube.com/*",
+    "https://api.dictionaryapi.dev/*"
+  ],
+  
+  "background": {
+    "service_worker": "background.js"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.youtube.com/*"
+      ],
+      "js": ["youtube-standalone-inject.js"],
+      "run_at": "document_end"
+    }
+  ],
+  
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  
+  "action": {
+    "default_title": "YouTube Language Learning"
+  }
+}

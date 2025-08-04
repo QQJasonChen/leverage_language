@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tag Editing Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .test-container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #1a73e8;
+            margin-bottom: 20px;
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        
+        .test-button {
+            padding: 10px 20px;
+            margin: 10px 5px;
+            background: #1976d2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .test-button:hover {
+            background: #1565c0;
+        }
+        
+        .test-result {
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 4px;
+            min-height: 100px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .success { color: #4caf50; font-weight: bold; }
+        .error { color: #f44336; font-weight: bold; }
+        .info { color: #2196f3; }
+        
+        /* Copy tag editing styles from main extension */
+        .saved-report-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            padding: 16px;
+            transition: all 0.2s ease;
+        }
+        
+        .report-tags-container {
+            margin-top: 8px;
+        }
+
+        .report-tags-display {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .tag-chip {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .no-tags {
+            color: #999;
+            font-size: 11px;
+            font-style: italic;
+        }
+
+        .report-tags-edit {
+            margin-top: 8px;
+            padding: 8px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .tags-input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .tags-input:focus {
+            outline: none;
+            border-color: #1976d2;
+            box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+        }
+
+        .tags-edit-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .save-tags-btn, .cancel-tags-btn {
+            padding: 4px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .save-tags-btn {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .save-tags-btn:hover {
+            background: #45a049;
+        }
+
+        .cancel-tags-btn {
+            background: #f5f5f5;
+            color: #666;
+            border: 1px solid #ddd;
+        }
+
+        .cancel-tags-btn:hover {
+            background: #e0e0e0;
+        }
+
+        .edit-tags-btn {
+            background: #fff3e0;
+            color: #f57c00;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .edit-tags-btn:hover {
+            background: #ffe0b2;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🏷️ Custom Tag Editing Test</h1>
+        
+        <div class="test-section">
+            <h3>Demo Report with Tag Editing</h3>
+            <p>This demonstrates the custom tag editing interface for saved reports.</p>
+            
+            <div class="saved-report-item" data-report-id="test-report-1">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div>
+                        <strong style="color: #1976d2;">serendipity</strong>
+                        <span style="background: #e3f2fd; color: #1976d2; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">English</span>
+                    </div>
+                    <button class="edit-tags-btn" onclick="toggleTagEditing('test-report-1')">🏷️ Edit Tags</button>
+                </div>
+                
+                <div class="report-tags-container">
+                    <div class="report-tags-display">
+                        <span class="tag-chip">#advanced</span>
+                        <span class="tag-chip">#literature</span>
+                        <span class="tag-chip">#chance</span>
+                    </div>
+                    <div class="report-tags-edit" style="display: none;">
+                        <input type="text" class="tags-input" placeholder="Enter tags separated by commas..." value="advanced, literature, chance" />
+                        <div class="tags-edit-actions">
+                            <button class="save-tags-btn" onclick="saveTagsDemo('test-report-1')">Save</button>
+                            <button class="cancel-tags-btn" onclick="cancelTagEditing('test-report-1')">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 8px; color: #666; font-size: 12px;">
+                    📅 2025/1/21 14:30
+                </div>
+            </div>
+            
+            <div id="demo-result" class="test-result">
+                <div class="info">✨ Click "🏷️ Edit Tags" to test the custom tag editing functionality!</div>
+                <div class="info">💡 Features:</div>
+                <ul style="margin-top: 8px;">
+                    <li>✅ Click edit button to enter tag editing mode</li>
+                    <li>✅ Tags are shown as chips with # prefix</li>
+                    <li>✅ Input field prefilled with current tags</li>
+                    <li>✅ Enter to save, Escape to cancel</li>
+                    <li>✅ Real-time visual feedback</li>
+                    <li>✅ Comma-separated tag input</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Features Implemented</h3>
+            <div class="test-result">
+                <div class="success">✅ Custom Tag Editing Interface</div>
+                <ul style="margin-top: 8px;">
+                    <li>🏷️ Edit button for each saved report</li>
+                    <li>📝 Inline editing with input field</li>
+                    <li>⌨️ Keyboard shortcuts (Enter/Escape)</li>
+                    <li>💾 Save/Cancel buttons</li>
+                    <li>🔄 Real-time tag filter updates</li>
+                    <li>🏷️ Visual tag chips display</li>
+                    <li>📊 Export filename integration</li>
+                </ul>
+                
+                <div class="info" style="margin-top: 15px;">
+                    <strong>How to use in the extension:</strong><br>
+                    1. Go to the "💾 Saved" tab in YouGlish extension<br>
+                    2. Click the 🏷️ button on any saved report<br>
+                    3. Edit tags (comma-separated)<br>
+                    4. Press Enter or click Save<br>
+                    5. Tags appear in filter dropdown and exports!
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Demo functions for testing
+        function toggleTagEditing(reportId) {
+            const reportItem = document.querySelector(`[data-report-id="${reportId}"]`);
+            const tagsDisplay = reportItem.querySelector('.report-tags-display');
+            const tagsEdit = reportItem.querySelector('.report-tags-edit');
+            
+            if (tagsDisplay && tagsEdit) {
+                const isEditing = tagsEdit.style.display !== 'none';
+                
+                if (isEditing) {
+                    tagsDisplay.style.display = 'flex';
+                    tagsEdit.style.display = 'none';
+                } else {
+                    tagsDisplay.style.display = 'none';
+                    tagsEdit.style.display = 'block';
+                    
+                    const tagsInput = tagsEdit.querySelector('.tags-input');
+                    if (tagsInput) {
+                        tagsInput.focus();
+                        tagsInput.select();
+                        
+                        // Add keyboard shortcuts
+                        tagsInput.onkeydown = function(e) {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                saveTagsDemo(reportId);
+                            } else if (e.key === 'Escape') {
+                                e.preventDefault();
+                                cancelTagEditing(reportId);
+                            }
+                        };
+                    }
+                }
+            }
+            
+            updateDemoResult(isEditing ? 'Editing cancelled' : 'Editing mode activated');
+        }
+        
+        function cancelTagEditing(reportId) {
+            const reportItem = document.querySelector(`[data-report-id="${reportId}"]`);
+            const tagsDisplay = reportItem.querySelector('.report-tags-display');
+            const tagsEdit = reportItem.querySelector('.report-tags-edit');
+            
+            if (tagsDisplay && tagsEdit) {
+                tagsDisplay.style.display = 'flex';
+                tagsEdit.style.display = 'none';
+            }
+            
+            updateDemoResult('Tag editing cancelled');
+        }
+        
+        function saveTagsDemo(reportId) {
+            const reportItem = document.querySelector(`[data-report-id="${reportId}"]`);
+            const tagsInput = reportItem.querySelector('.tags-input');
+            const tagsDisplay = reportItem.querySelector('.report-tags-display');
+            
+            if (tagsInput && tagsDisplay) {
+                const tagText = tagsInput.value.trim();
+                const newTags = tagText ? tagText.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) : [];
+                
+                // Update display
+                if (newTags.length > 0) {
+                    tagsDisplay.innerHTML = newTags.map(tag => `<span class="tag-chip">#${tag}</span>`).join('');
+                } else {
+                    tagsDisplay.innerHTML = '<span class="no-tags">No tags</span>';
+                }
+                
+                cancelTagEditing(reportId);
+                updateDemoResult(`Tags saved: ${newTags.join(', ') || 'none'}`);
+            }
+        }
+        
+        function updateDemoResult(message) {
+            const result = document.getElementById('demo-result');
+            const timestamp = new Date().toLocaleTimeString();
+            const newMessage = `<div class="success">[${timestamp}] ${message}</div>`;
+            result.innerHTML = newMessage + result.innerHTML;
+        }
+        
+        // Initial message
+        setTimeout(() => {
+            updateDemoResult('Tag editing demo loaded successfully!');
+        }, 500);
+    </script>
+</body>
+</html>

@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Export Formats Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .test-section { 
+            margin: 20px 0; 
+            padding: 15px; 
+            border: 1px solid #ddd; 
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        .test-button { 
+            padding: 10px 15px; 
+            margin: 5px; 
+            background: #1976d2; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .test-button:hover {
+            background: #1565c0;
+        }
+        .test-result { 
+            margin-top: 15px; 
+            padding: 15px; 
+            background: white; 
+            border-radius: 4px; 
+            max-height: 400px; 
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+        }
+        .success { color: #4caf50; font-weight: bold; }
+        .error { color: #f44336; font-weight: bold; }
+        .info { color: #2196f3; }
+        .preview { 
+            background: #f5f5f5; 
+            padding: 10px; 
+            border-left: 4px solid #2196f3; 
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        h3 { color: #333; border-bottom: 2px solid #1976d2; padding-bottom: 5px; }
+        .format-info {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        .sample-data {
+            background: #fff3e0;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>📥 Export Formats Test & Preview</h1>
+    
+    <div class="test-section">
+        <h3>Setup Test Data</h3>
+        <p>Create sample vocabulary reports for testing different export formats.</p>
+        <button class="test-button" id="createTestData">🔧 Create Test Data</button>
+        <button class="test-button" id="clearTestData">🗑️ Clear Test Data</button>
+        <div class="test-result" id="setupResult"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>📝 Markdown Export</h3>
+        <div class="format-info">
+            <strong>Best for:</strong> General note-taking apps, GitHub, GitBook<br>
+            <strong>Features:</strong> Organized by language, favorites first, clean formatting
+        </div>
+        <button class="test-button" id="testMarkdown">Preview Markdown</button>
+        <button class="test-button" id="downloadMarkdown">📥 Download Markdown</button>
+        <div class="test-result" id="markdownResult"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>🧠 Heptabase Export</h3>
+        <div class="format-info">
+            <strong>Best for:</strong> Heptabase knowledge management<br>
+            <strong>Features:</strong> Card-based structure, backlinks, tags, index card
+        </div>
+        <button class="test-button" id="testHeptabase">Preview Heptabase</button>
+        <button class="test-button" id="downloadHeptabase">📥 Download Heptabase</button>
+        <div class="test-result" id="heptabaseResult"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>🔗 Obsidian Export</h3>
+        <div class="format-info">
+            <strong>Best for:</strong> Obsidian vault<br>
+            <strong>Features:</strong> Individual files, backlinks, tags, vault structure
+        </div>
+        <button class="test-button" id="testObsidian">Preview Obsidian</button>
+        <button class="test-button" id="downloadObsidian">📥 Download Obsidian</button>
+        <div class="test-result" id="obsidianResult"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>📄 Notion Export</h3>
+        <div class="format-info">
+            <strong>Best for:</strong> Notion database import<br>
+            <strong>Features:</strong> CSV format, structured properties, import-ready
+        </div>
+        <button class="test-button" id="testNotion">Preview Notion</button>
+        <button class="test-button" id="downloadNotion">📥 Download Notion</button>
+        <div class="test-result" id="notionResult"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>📊 JSON Export</h3>
+        <div class="format-info">
+            <strong>Best for:</strong> Data backup, programmatic use<br>
+            <strong>Features:</strong> Complete data preservation, structured format
+        </div>
+        <button class="test-button" id="testJSON">Preview JSON</button>
+        <button class="test-button" id="downloadJSON">📥 Download JSON</button>
+        <div class="test-result" id="jsonResult"></div>
+    </div>
+
+    <script src="lib/storage-manager.js"></script>
+    <script src="lib/export-templates.js"></script>
+    <script>
+        const storageManager = new StorageManager();
+        
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'success' ? 'success' : (type === 'error' ? 'error' : 'info');
+            element.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            element.scrollTop = element.scrollHeight;
+        }
+        
+        function showPreview(elementId, content, title = 'Preview') {
+            const element = document.getElementById(elementId);
+            element.innerHTML += `<div class="preview"><strong>${title}:</strong>\n${content}</div>`;
+            element.scrollTop = element.scrollHeight;
+        }
+
+        // Sample test data
+        const sampleReports = [
+            {
+                searchText: "serendipity",
+                language: "english",
+                timestamp: Date.now() - 86400000, // 1 day ago
+                analysisData: `# Serendipity Analysis
+
+**Definition:** The occurrence of events by chance in a happy or beneficial way.
+
+**Pronunciation:** /ˌserənˈdipədē/
+
+**Etymology:** Coined by Horace Walpole in 1754, from the Persian fairy tale "The Three Princes of Serendip"
+
+**Usage Examples:**
+- "Meeting my future business partner at that coffee shop was pure serendipity"
+- "The discovery was made by serendipity rather than systematic research"
+
+**Synonyms:** Chance, fortune, luck, happenstance
+**Level:** Advanced vocabulary`,
+                tags: ["advanced", "literature", "chance"],
+                favorite: true,
+                audioData: { size: 1024, format: "mp3" }
+            },
+            {
+                searchText: "頑張って",
+                language: "japanese",
+                timestamp: Date.now() - 172800000, // 2 days ago
+                analysisData: `# 頑張って (Ganbatte) Analysis
+
+**Meaning:** "Good luck" / "Do your best" / "Keep trying"
+
+**Pronunciation:** がんばって (gan-bat-te)
+
+**Grammar:** Te-form of 頑張る (ganbaru - to do one's best, to try hard)
+
+**Usage Context:**
+- Encouraging someone before a test or challenge
+- Supporting someone going through difficulties
+- Common in sports and academic contexts
+
+**Related Forms:**
+- 頑張る (ganbaru) - verb form
+- 頑張ります (ganbari masu) - polite form
+- 頑張れ (ganbare) - imperative form
+
+**Cultural Note:** Very commonly used in Japanese daily life as encouragement`,
+                tags: ["common", "encouragement", "daily-use"],
+                favorite: true,
+                audioData: null
+            },
+            {
+                searchText: "schadenfreude",
+                language: "english",
+                timestamp: Date.now() - 259200000, // 3 days ago
+                analysisData: `# Schadenfreude Analysis
+
+**Definition:** Pleasure derived from another person's misfortune.
+
+**Origin:** German compound word: Schaden (damage/harm) + Freude (joy)
+
+**Pronunciation:** /ˈʃɑːdənfrɔɪdə/
+
+**Psychology:** Often considered a negative emotion, but psychologists note it's a common human experience
+
+**Examples:**
+- Feeling satisfaction when a rival fails
+- Enjoying gossip about celebrity scandals
+- Laughing at someone slipping on ice (though this crosses into cruelty)
+
+**Related Terms:**
+- Epicaricacy (English equivalent, rarely used)
+- Mudita (Buddhist opposite - joy in others' happiness)`,
+                tags: ["psychology", "german-origin", "emotions"],
+                favorite: false,
+                audioData: null
+            },
+            {
+                searchText: "gezellig",
+                language: "dutch",
+                timestamp: Date.now() - 345600000, // 4 days ago
+                analysisData: `# Gezellig Analysis
+
+**Meaning:** Cozy, pleasant, convivial, fun - a uniquely Dutch concept
+
+**Pronunciation:** /ɣəˈzɛləx/
+
+**Cultural Significance:** 
+Core concept in Dutch culture representing coziness, togetherness, and a warm atmosphere
+
+**Usage Examples:**
+- "Het is hier gezellig" (It's cozy/pleasant here)
+- Used to describe homes, gatherings, restaurants
+- Can describe people who create a warm atmosphere
+
+**Untranslatable:** 
+Often cited as one of the most difficult Dutch words to translate directly
+
+**Similar Concepts:**
+- Danish "hygge"
+- German "gemütlich"
+- But each has unique cultural nuances`,
+                tags: ["culture", "untranslatable", "atmosphere"],
+                favorite: false,
+                audioData: { size: 2048, format: "mp3" }
+            }
+        ];
+
+        // Setup functions
+        document.getElementById('createTestData').addEventListener('click', async () => {
+            const resultId = 'setupResult';
+            log(resultId, 'Creating test data...', 'info');
+            
+            try {
+                // Clear existing test data first
+                const existing = await storageManager.getAIReports();
+                for (const report of existing) {
+                    if (sampleReports.some(sample => sample.searchText === report.searchText)) {
+                        await storageManager.deleteAIReport(report.id);
+                    }
+                }
+                
+                // Create new test reports
+                const createdReports = [];
+                for (const sample of sampleReports) {
+                    const report = await storageManager.saveAIReport(
+                        sample.searchText,
+                        sample.language,
+                        sample.analysisData,
+                        sample.audioData,
+                        false // Don't update existing
+                    );
+                    
+                    // Set additional properties
+                    if (sample.favorite) {
+                        await storageManager.toggleFavorite(report.id);
+                    }
+                    
+                    createdReports.push(report);
+                }
+                
+                log(resultId, `✅ SUCCESS: Created ${createdReports.length} test reports`, 'success');
+                
+                // Show sample data
+                const sampleDiv = document.createElement('div');
+                sampleDiv.className = 'sample-data';
+                sampleDiv.innerHTML = `<strong>Sample Data Created:</strong><br>
+                    ${sampleReports.map(r => `• ${r.searchText} (${r.language})${r.favorite ? ' ⭐' : ''}${r.audioData ? ' 🔊' : ''}`).join('<br>')}`;
+                document.getElementById(resultId).appendChild(sampleDiv);
+                
+            } catch (error) {
+                log(resultId, `❌ ERROR: ${error.message}`, 'error');
+            }
+        });
+        
+        document.getElementById('clearTestData').addEventListener('click', async () => {
+            const resultId = 'setupResult';
+            log(resultId, 'Clearing test data...', 'info');
+            
+            try {
+                const reports = await storageManager.getAIReports();
+                let cleared = 0;
+                
+                for (const report of reports) {
+                    if (sampleReports.some(sample => sample.searchText === report.searchText)) {
+                        await storageManager.deleteAIReport(report.id);
+                        cleared++;
+                    }
+                }
+                
+                log(resultId, `✅ SUCCESS: Cleared ${cleared} test reports`, 'success');
+            } catch (error) {
+                log(resultId, `❌ ERROR: ${error.message}`, 'error');
+            }
+        });
+
+        // Export format tests
+        document.getElementById('testMarkdown').addEventListener('click', async () => {
+            const resultId = 'markdownResult';
+            log(resultId, 'Generating Markdown preview...', 'info');
+            
+            try {
+                const reports = await storageManager.getAIReports();
+                if (reports.length === 0) {
+                    log(resultId, '⚠️ No reports found. Create test data first.', 'error');
+                    return;
+                }
+                
+                const markdown = ExportTemplates.generateMarkdown(reports);
+                const preview = markdown.substring(0, 1000) + (markdown.length > 1000 ? '\n\n... (truncated)' : '');
+                
+                log(resultId, `✅ Generated ${markdown.length} characters of Markdown`, 'success');
+                showPreview(resultId, preview, 'Markdown Preview');
+                
+            } catch (error) {
+                log(resultId, `❌ ERROR: ${error.message}`, 'error');
+            }
+        });
+
+        document.getElementById('testHeptabase').addEventListener('click', async () => {
+            const resultId = 'heptabaseResult';
+            log(resultId, 'Generating Heptabase preview...', 'info');
+            
+            try {
+                const reports = await storageManager.getAIReports();
+                if (reports.length === 0) {
+                    log(resultId, '⚠️ No reports found. Create test data first.', 'error');
+                    return;
+                }
+                
+                const heptabaseData = ExportTemplates.generateHeptabase(reports);
+                const preview = JSON.stringify(heptabaseData, null, 2).substring(0, 1500) + '\n\n... (truncated)';
+                
+                log(resultId, `✅ Generated ${heptabaseData.cards.length} cards for Heptabase`, 'success');
+                log(resultId, `Cards: Index + ${heptabaseData.cards.length - 1} word cards`, 'info');
+                showPreview(resultId, preview, 'Heptabase Structure Preview');
+                
+                // Also show a sample card content
+                if (heptabaseData.cards.length > 1) {
+                    const sampleCard = heptabaseData.cards[1]; // First word card
+                    const cardPreview = sampleCard.content.substring(0, 500) + (sampleCard.content.length > 500 ? '\n... (truncated)' : '');
+                    showPreview(resultId, cardPreview, `Sample Card: "${sampleCard.title}"`);
+                }
+                
+            } catch (error) {
+                log(resultId, `❌ ERROR: ${error.message}`, 'error');
+            }
+        });
+
+        document.getElementById('testObsidian').addEventListener('click', async () => {
+            const resultId = 'obsidianResult';
+            log(resultId, 'Generating Obsidian preview...', 'info');
+            
+            try {
+                const reports = await storageManager.getAIReports();
+                if (reports.length === 0) {
+                    log(resultId, '⚠️ No reports found. Create test data first.', 'error');
+                    return;
+                }
+                
+                const obsidianFiles = ExportTemplates.generateObsidian(reports);
+                
+                log(resultId, `✅ Generated ${obsidianFiles.length} files for Obsidian`, 'success');
+                log(resultId, `Files: 1 index + ${obsidianFiles.length - 1} word files`, 'info');
+                
+                // Show index file preview
+                const indexFile = obsidianFiles[0];
+                const indexPreview = indexFile.content.substring(0, 800) + (indexFile.content.length > 800 ? '\n... (truncated)' : '');
+                showPreview(resultId, indexPreview, `Index File: "${indexFile.filename}"`);
+                
+                // Show sample word file
+                if (obsidianFiles.length > 1) {
+                    const wordFile = obsidianFiles[1];
+                    const wordPreview = wordFile.content.substring(0, 600) + (wordFile.content.length > 600 ? '\n... (truncated)' : '');
+                    showPreview(resultId, wordPreview, `Sample Word File: "${wordFile.filename}"`);
+                }
+                
+            } catch (error) {
+                log(resultId, `❌ ERROR: ${error.message}`, 'error');
+            }
+        });
+
+        document.getElementById('testNotion').addEventListener('click', async () => {
+            const resultId = 'notionResult';
+            log(resultId, 'Generating Notion preview...', 'info');
+            
+            try {
+                const reports = await storageManager.getAIReports();
+                if (reports.length === 0) {
+                    log(resultId, '⚠️ No reports found. Create test data first.', 'error');
+                    return;
+                }
+                
+                const notionData = ExportTemplates.generateNotion(reports);
+                
+                log(resultId, `✅ Generated Notion database with ${notionData.rows.length} entries`, 'success');
+                log(resultId, `Properties: ${Object.keys(notionData.database.properties).join(', ')}`, 'info');
+                
+                // Show CSV preview
+                const csvContent = convertNotionToCSV(notionData);
+                const csvPreview = csvContent.split('\n').slice(0, 6).join('\n') + (notionData.rows.length > 5 ? '\n... (more rows)' : '');
+                showPreview(resultId, csvPreview, 'CSV Preview (ready for Notion import)');
+                
+                // Show JSON structure
+                const jsonPreview = JSON.stringify({
+                    database: notionData.database,
+                    sampleRow: notionData.rows[0]
+                }, null, 2);
+                showPreview(resultId, jsonPreview, 'Database Structure');
+                
+            } catch (error) {
+                log(resultId, `❌ ERROR: ${error.message}`, 'error');
+            }
+        });
+
+        document.getElementById('testJSON').addEventListener('click', async () => {
+            const resultId = 'jsonResult';
+            log(resultId, 'Generating JSON preview...', 'info');
+            
+            try {
+                const reports = await storageManager.getAIReports();
+                if (reports.length === 0) {
+                    log(resultId, '⚠️ No reports found. Create test data first.', 'error');
+                    return;
+                }
+                
+                // Use the same format as the export function
+                const exportData = reports.map(report => ({
+                    searchText: report.searchText,
+                    language: report.language,
+                    timestamp: new Date(report.timestamp).toISOString(),
+                    favorite: report.favorite || false,
+                    tags: report.tags || [],
+                    analysis: typeof report.analysisData === 'string' ? report.analysisData : 
+                              (report.analysisData?.content || 'No analysis available'),
+                    hasAudio: !!report.audioData
+                }));
+                
+                log(resultId, `✅ Generated JSON export with ${exportData.length} entries`, 'success');
+                
+                const jsonPreview = JSON.stringify(exportData.slice(0, 2), null, 2) + 
+                                  (exportData.length > 2 ? '\n\n... (more entries)' : '');
+                showPreview(resultId, jsonPreview, 'JSON Export Preview');
+                
+            } catch (error) {
+                log(resultId, `❌ ERROR: ${error.message}`, 'error');
+            }
+        });
+
+        // Helper function for CSV conversion (same as in sidepanel.js)
+        function convertNotionToCSV(notionData) {
+            const headers = Object.keys(notionData.database.properties).join(',');
+            const rows = notionData.rows.map(row => {
+                return Object.values(row).map(value => {
+                    if (typeof value === 'string') {
+                        return value.includes(',') || value.includes('"') ? 
+                               `"${value.replace(/"/g, '""')}"` : value;
+                    } else if (Array.isArray(value)) {
+                        return `"${value.join('; ')}"`;
+                    } else {
+                        return String(value);
+                    }
+                }).join(',');
+            });
+            
+            return [headers, ...rows].join('\n');
+        }
+
+        // Download buttons (simplified versions that just trigger downloads)
+        ['downloadMarkdown', 'downloadHeptabase', 'downloadObsidian', 'downloadNotion', 'downloadJSON'].forEach(id => {
+            document.getElementById(id).addEventListener('click', () => {
+                const format = id.replace('download', '').toLowerCase();
+                alert(`This would download the ${format} export. In the actual extension, this triggers the full export functionality.`);
+            });
+        });
+
+        // Auto-load test data info on page load
+        setTimeout(async () => {
+            try {
+                const reports = await storageManager.getAIReports();
+                const testReports = reports.filter(r => sampleReports.some(s => s.searchText === r.searchText));
+                
+                if (testReports.length > 0) {
+                    log('setupResult', `Found ${testReports.length} existing test reports`, 'info');
+                } else {
+                    log('setupResult', 'No test data found. Click "Create Test Data" to begin.', 'info');
+                }
+            } catch (error) {
+                log('setupResult', `Error checking existing data: ${error.message}`, 'error');
+            }
+        }, 500);
+    </script>
+</body>
+</html>

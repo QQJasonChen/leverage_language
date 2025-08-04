@@ -1,0 +1,633 @@
+{
+  "extensionName": {
+    "message": "LeverageLanguage - AI Language Learning (Alpha Test)",
+    "description": "Extension name"
+  },
+  "extensionDescription": {
+    "message": "ALPHA TEST VERSION - Leverage AI to amplify your language learning: advanced error detection, pronunciation analysis, grammar insights, and contextual learning tools. Some features may not be fully optimized.",
+    "description": "Extension description"
+  },
+  "searchOnYouglish": {
+    "message": "Analyze \"%s\" with AI",
+    "description": "Context menu item text"
+  },
+  
+  "header_title": {
+    "message": "LeverageLanguage",
+    "description": "Header title"
+  },
+  
+  "welcome_title": {
+    "message": "🚀 LeverageLanguage - AI Language Learning",
+    "description": "Welcome section title"
+  },
+  "welcome_description": {
+    "message": "AI-powered language learning with advanced error detection:",
+    "description": "Welcome description"
+  },
+  "welcome_step1": {
+    "message": "• 🎯 Smart error detection finds and explains mistakes",
+    "description": "Welcome step 1"
+  },
+  "welcome_step2": {
+    "message": "• 🤖 Comprehensive AI analysis (pronunciation, grammar, culture)",
+    "description": "Welcome step 2"
+  },
+  "welcome_step3": {
+    "message": "• 📚 Advanced learning tools with export and history",
+    "description": "Welcome step 3"
+  },
+  "welcome_languages": {
+    "message": "Supports English, Japanese, Korean, Dutch with AI-powered insights",
+    "description": "Supported languages"
+  },
+  "welcome_shortcut_note": {
+    "message": "Shortcuts can be customized at chrome://extensions/shortcuts",
+    "description": "Shortcut customization note"
+  },
+  
+  "manual_search_placeholder": {
+    "message": "Enter text to search...",
+    "description": "Manual search input placeholder"
+  },
+  "search_button": {
+    "message": "Search",
+    "description": "Search button text"
+  },
+  
+  "analysis_view": {
+    "message": "📊 Analysis",
+    "description": "Analysis view button"
+  },
+  "video_view": {
+    "message": "🎥 Video",
+    "description": "Video view button"
+  },
+  "history_view": {
+    "message": "📚 History",
+    "description": "History view button"
+  },
+  "transcript_view": {
+    "message": "📝 Transcript",
+    "description": "Transcript restructuring view button"
+  },
+  "new_tab": {
+    "message": "🔗 New Tab",
+    "description": "New tab button"
+  },
+  
+  "search_results_title": {
+    "message": "🎯 Language Analysis Results",
+    "description": "Search results title"
+  },
+  "search_again": {
+    "message": "🔍 Search Other Content",
+    "description": "Search again button"
+  },
+  
+  "search_term_label": {
+    "message": "Search Term:",
+    "description": "Search term label"
+  },
+  "language_label": {
+    "message": "Language:",
+    "description": "Language label"
+  },
+  "url_label": {
+    "message": "URL:",
+    "description": "URL label"
+  },
+  "click_to_open": {
+    "message": "Click to open",
+    "description": "Click to open link text"
+  },
+  
+  "language_english": {
+    "message": "English",
+    "description": "English language name"
+  },
+  "language_japanese": {
+    "message": "Japanese",
+    "description": "Japanese language name"
+  },
+  "language_korean": {
+    "message": "Korean",
+    "description": "Korean language name"
+  },
+  "language_dutch": {
+    "message": "Dutch",
+    "description": "Dutch language name"
+  },
+  
+  "options_title": {
+    "message": "LeverageLanguage Settings",
+    "description": "Options page title"
+  },
+  "basic_settings": {
+    "message": "Basic Settings",
+    "description": "Basic settings section"
+  },
+  "default_language": {
+    "message": "Default Language",
+    "description": "Default language setting"
+  },
+  "smart_detection": {
+    "message": "Smart Detection (Recommended)",
+    "description": "Smart detection option"
+  },
+  "fixed_english": {
+    "message": "Fixed English",
+    "description": "Fixed English option"
+  },
+  "fixed_japanese": {
+    "message": "Fixed Japanese",
+    "description": "Fixed Japanese option"
+  },
+  "fixed_korean": {
+    "message": "Fixed Korean",
+    "description": "Fixed Korean option"
+  },
+  "fixed_dutch": {
+    "message": "Fixed Dutch",
+    "description": "Fixed Dutch option"
+  },
+  "default_language_desc": {
+    "message": "Choose 'Smart Detection' to automatically detect language, or select a fixed language to disable auto-detection.",
+    "description": "Default language description"
+  },
+  
+  "preferred_language": {
+    "message": "Preferred Language",
+    "description": "Preferred language setting"
+  },
+  "no_preference": {
+    "message": "No Preference",
+    "description": "No preference option"
+  },
+  "preferred_language_desc": {
+    "message": "When smart detection results are ambiguous, the system will prioritize this language. Can improve detection accuracy for frequently used languages.",
+    "description": "Preferred language description"
+  },
+  
+  "uncertainty_handling": {
+    "message": "Language Uncertainty Handling",
+    "description": "Uncertainty handling setting"
+  },
+  "ask_user": {
+    "message": "Ask User (Recommended)",
+    "description": "Ask user option"
+  },
+  "default_to_english": {
+    "message": "Default to English",
+    "description": "Default to English option"
+  },
+  "default_to_dutch": {
+    "message": "Default to Dutch",
+    "description": "Default to Dutch option"
+  },
+  "use_preferred": {
+    "message": "Use Preferred Language",
+    "description": "Use preferred language option"
+  },
+  "uncertainty_handling_desc": {
+    "message": "How to handle cases when the system cannot determine if text is English or Dutch. 'Ask User' will show a selection dialog.",
+    "description": "Uncertainty handling description"
+  },
+  
+  "open_method": {
+    "message": "Open Method",
+    "description": "Open method setting"
+  },
+  "sidepanel_newtab": {
+    "message": "Side Panel + New Tab",
+    "description": "Sidepanel + new tab option"
+  },
+  "newtab_only": {
+    "message": "New Tab Only",
+    "description": "New tab only option"
+  },
+  "open_method_desc": {
+    "message": "'Side Panel + New Tab': Opens side panel with AI analysis and embedded pronunciation video viewing. 'New Tab Only': Opens pronunciation videos directly in a new tab.",
+    "description": "Open method description"
+  },
+  
+  "ai_pronunciation_features": {
+    "message": "AI Pronunciation & Explanation Features",
+    "description": "AI pronunciation and explanation features"
+  },
+  "enable_ai_analysis": {
+    "message": "Enable AI Analysis",
+    "description": "Enable AI analysis"
+  },
+  "disabled": {
+    "message": "Disabled",
+    "description": "Disabled option"
+  },
+  "enabled": {
+    "message": "Enabled ✅",
+    "description": "Enabled option"
+  },
+  "enable_ai_desc": {
+    "message": "Please select 'Enabled ✅' first to show API key input and other settings.",
+    "description": "Enable AI description"
+  },
+  "ai_enable_note": {
+    "message": "When enabled, provides AI pronunciation guidance and vocabulary explanations in search results.",
+    "description": "AI enable note"
+  },
+  
+  "ai_provider": {
+    "message": "AI Service Provider",
+    "description": "AI service provider"
+  },
+  "google_gemini": {
+    "message": "Google Gemini",
+    "description": "Google Gemini option"
+  },
+  "openai_gpt": {
+    "message": "OpenAI GPT",
+    "description": "OpenAI GPT option"
+  },
+  "ai_provider_desc": {
+    "message": "Choose your preferred AI service provider.",
+    "description": "AI provider description"
+  },
+  
+  "api_key": {
+    "message": "API Key",
+    "description": "API key setting"
+  },
+  "api_key_placeholder": {
+    "message": "Enter your API key",
+    "description": "API key placeholder"
+  },
+  "api_key_desc": {
+    "message": "Your API key will be securely stored locally and never transmitted to third parties.",
+    "description": "API key description"
+  },
+  "gemini_link_text": {
+    "message": "Get free API key at Google AI Studio",
+    "description": "Gemini link text"
+  },
+  "openai_link_text": {
+    "message": "Get API key at OpenAI Platform",
+    "description": "OpenAI link text"
+  },
+  
+  "ai_features": {
+    "message": "AI Feature Options",
+    "description": "AI features setting"
+  },
+  "pronunciation_guide": {
+    "message": "Pronunciation Guide (IPA, pronunciation tips)",
+    "description": "Pronunciation guide option"
+  },
+  "word_explanation": {
+    "message": "Word Explanation (meaning, usage, examples)",
+    "description": "Word explanation option"
+  },
+  "grammar_analysis": {
+    "message": "Grammar Analysis (sentence structure, grammar points)",
+    "description": "Grammar analysis option"
+  },
+  "cultural_context": {
+    "message": "Cultural Context (idioms, cultural meaning)",
+    "description": "Cultural context option"
+  },
+  "audio_pronunciation": {
+    "message": "🔊 AI Voice Pronunciation (requires OpenAI API)",
+    "description": "Audio pronunciation option"
+  },
+  "ai_features_desc": {
+    "message": "Select the types of analysis you want AI to provide. More options will increase API usage.",
+    "description": "AI features description"
+  },
+  
+  "voice_settings": {
+    "message": "Voice Settings",
+    "description": "Voice settings"
+  },
+  "voice_selection": {
+    "message": "Voice Selection:",
+    "description": "Voice selection label"
+  },
+  "voice_alloy": {
+    "message": "Alloy (Balanced, Natural)",
+    "description": "Alloy voice option"
+  },
+  "voice_echo": {
+    "message": "Echo (Male, Deep)",
+    "description": "Echo voice option"
+  },
+  "voice_fable": {
+    "message": "Fable (British, Elegant)",
+    "description": "Fable voice option"
+  },
+  "voice_onyx": {
+    "message": "Onyx (Deep, Authoritative)",
+    "description": "Onyx voice option"
+  },
+  "voice_nova": {
+    "message": "Nova (Female, Lively)",
+    "description": "Nova voice option"
+  },
+  "voice_shimmer": {
+    "message": "Shimmer (Female, Gentle)",
+    "description": "Shimmer voice option"
+  },
+  "speech_speed": {
+    "message": "Speech Speed:",
+    "description": "Speech speed label"
+  },
+  "speed_slow": {
+    "message": "Slow (0.7x)",
+    "description": "Slow speed option"
+  },
+  "speed_somewhat_slow": {
+    "message": "Somewhat Slow (0.85x)",
+    "description": "Somewhat slow speed option"
+  },
+  "speed_normal": {
+    "message": "Normal (1.0x)",
+    "description": "Normal speed option"
+  },
+  "speed_somewhat_fast": {
+    "message": "Somewhat Fast (1.15x)",
+    "description": "Somewhat fast speed option"
+  },
+  "speed_fast": {
+    "message": "Fast (1.3x)",
+    "description": "Fast speed option"
+  },
+  "auto_play_audio": {
+    "message": "Auto-play generated audio",
+    "description": "Auto play audio option"
+  },
+  "voice_settings_desc": {
+    "message": "AI voice feature uses OpenAI TTS API. Recommend selecting a voice suitable for the target language and appropriate playback speed.",
+    "description": "Voice settings description"
+  },
+  
+  "save_settings": {
+    "message": "Save Settings",
+    "description": "Save settings button"
+  },
+  "saving": {
+    "message": "Saving...",
+    "description": "Saving status"
+  },
+  "settings_saved": {
+    "message": "Settings Saved",
+    "description": "Settings saved message"
+  },
+  
+  "keyboard_shortcuts": {
+    "message": "Keyboard Shortcuts",
+    "description": "Keyboard shortcuts section"
+  },
+  "search_shortcut": {
+    "message": "Analyze selected text with AI",
+    "description": "Search shortcut description"
+  },
+  "current_shortcut": {
+    "message": "Current shortcut:",
+    "description": "Current shortcut label"
+  },
+  "customize_shortcuts": {
+    "message": "Customize Shortcuts",
+    "description": "Customize shortcuts button"
+  },
+  "shortcuts_note": {
+    "message": "Click the button above to open Chrome's shortcuts settings page where you can customize shortcuts.",
+    "description": "Shortcuts note"
+  },
+  
+  "ai_analysis_title": {
+    "message": "🤖 AI Language Analysis",
+    "description": "AI analysis title"
+  },
+  "generate_analysis": {
+    "message": "✨ Generate Analysis",
+    "description": "Generate analysis button"
+  },
+  "regenerate_analysis": {
+    "message": "🔄 Regenerate",
+    "description": "Regenerate analysis button"
+  },
+  "ai_analysis_placeholder": {
+    "message": "Click 'Generate Analysis' and AI will provide:",
+    "description": "AI analysis placeholder"
+  },
+  "ai_feature_pronunciation": {
+    "message": "📢 Pronunciation guidance and IPA",
+    "description": "AI pronunciation feature"
+  },
+  "ai_feature_explanation": {
+    "message": "📖 Vocabulary explanations and usage",
+    "description": "AI explanation feature"
+  },
+  "ai_feature_grammar": {
+    "message": "📝 Grammar analysis and sentence structure",
+    "description": "AI grammar feature"
+  },
+  "ai_feature_culture": {
+    "message": "🌍 Cultural context and usage scenarios",
+    "description": "AI culture feature"
+  },
+  "ai_config_note": {
+    "message": "Configure AI API key in settings",
+    "description": "AI config note"
+  },
+  "ai_analyzing": {
+    "message": "AI analyzing, please wait...",
+    "description": "AI analyzing message"
+  },
+  "ai_analysis_failed": {
+    "message": "AI analysis failed",
+    "description": "AI analysis failed message"
+  },
+  "retry": {
+    "message": "Retry",
+    "description": "Retry button"
+  },
+  
+  "ai_audio_title": {
+    "message": "🔊 AI Voice Pronunciation",
+    "description": "AI audio title"
+  },
+  "generate_audio": {
+    "message": "🎵 Generate Audio",
+    "description": "Generate audio button"
+  },
+  "regenerate_audio": {
+    "message": "🔄 Regenerate",
+    "description": "Regenerate audio button"
+  },
+  "test_audio": {
+    "message": "🧪 Test",
+    "description": "Test audio button"
+  },
+  "audio_placeholder": {
+    "message": "Click 'Generate Audio' to get AI voice pronunciation",
+    "description": "Audio placeholder message"
+  },
+  "audio_tech_note": {
+    "message": "Uses OpenAI TTS technology for natural speech",
+    "description": "Audio technology note"
+  },
+  "generating_audio": {
+    "message": "Generating audio, please wait...",
+    "description": "Generating audio message"
+  },
+  "play_audio": {
+    "message": "▶️ Play",
+    "description": "Play audio button"
+  },
+  "download_audio": {
+    "message": "💾 Download",
+    "description": "Download audio button"
+  },
+  "repeat_audio": {
+    "message": "🔄 Repeat",
+    "description": "Repeat audio button"
+  },
+  "repeat_on": {
+    "message": "🔁 Repeating",
+    "description": "Repeat on status"
+  },
+  "audio_generation_failed": {
+    "message": "Audio generation failed",
+    "description": "Audio generation failed message"
+  },
+  
+  "language_uncertain": {
+    "message": "Language Uncertain",
+    "description": "Language uncertain title"
+  },
+  "language_select_prompt": {
+    "message": "The system cannot determine the language of the following text. Please select the correct language:",
+    "description": "Language selection prompt"
+  },
+  "language_option_english": {
+    "message": "English",
+    "description": "English option in language selector"
+  },
+  "language_option_dutch": {
+    "message": "Nederlands",
+    "description": "Dutch option in language selector"
+  },
+  "remember_choice": {
+    "message": "Remember my choice (for similar text)",
+    "description": "Remember choice option"
+  },
+  "cancel": {
+    "message": "Cancel",
+    "description": "Cancel button"
+  },
+  "confirm": {
+    "message": "Confirm",
+    "description": "Confirm button"
+  },
+  
+  "audio_not_supported": {
+    "message": "Your browser does not support audio playback",
+    "description": "Audio not supported message"
+  },
+  "pronunciation_sites_description": {
+    "message": "Choose the most suitable pronunciation website:",
+    "description": "Pronunciation sites description"
+  },
+  "site_descriptions_title": {
+    "message": "📖 Website Descriptions",
+    "description": "Site descriptions title"
+  },
+  
+  "websites_view": {
+    "message": "🌐 Websites",
+    "description": "Websites view button"
+  },
+  "saved_reports_view": {
+    "message": "💾 Saved Reports",
+    "description": "Saved reports view button"
+  },
+  "flashcards_view": {
+    "message": "🃏 Flashcards",
+    "description": "Flashcards view button"
+  },
+  "analytics_view": {
+    "message": "📊 Analytics",
+    "description": "Analytics view button"
+  },
+  "analytics_title": {
+    "message": "📊 Learning Analytics",
+    "description": "Analytics title"
+  },
+  "refresh": {
+    "message": "🔄 Refresh",
+    "description": "Refresh button"
+  },
+  "clear_history": {
+    "message": "Clear History",
+    "description": "Clear history button"
+  },
+  "export_reports": {
+    "message": "💾 Export Reports",
+    "description": "Export reports button"
+  },
+  "auto_save_on": {
+    "message": "💾 Auto-Save",
+    "description": "Auto save toggle button"
+  },
+  "save_this_report": {
+    "message": "💾 Save This Report",
+    "description": "Save this report button"
+  },
+  
+  "transcript_view": {
+    "message": "📝 Transcript",
+    "description": "Transcript view button"
+  },
+  "ui_language_chinese": {
+    "message": "中文",
+    "description": "Chinese language option"
+  },
+  "ui_language_japanese": {
+    "message": "日本語",
+    "description": "Japanese language option"
+  },
+  
+  "save_audio": {
+    "message": "🔊 Save Audio",
+    "description": "Save audio button"
+  },
+  
+  "error_detection": {
+    "message": "🔍 Error Detection",
+    "description": "Error detection toggle button"
+  },
+  
+  "quick_search_title": {
+    "message": "Quick Search Results",
+    "description": "Quick search results title"
+  },
+  "quick_translation": {
+    "message": "Quick Translation:",
+    "description": "Quick translation label"
+  },
+  "quick_pronunciation": {
+    "message": "Pronunciation:",
+    "description": "Quick pronunciation label"
+  },
+  "quick_definition": {
+    "message": "Quick Definition:",
+    "description": "Quick definition label"
+  },
+  "quick_search_note": {
+    "message": "Full AI analysis coming soon, please wait...",
+    "description": "Quick search note"
+  },
+  "loading": {
+    "message": "Loading...",
+    "description": "Loading text"
+  }
+}

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Timestamp Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+        .log { background: #f5f5f5; padding: 10px; border-radius: 4px; margin: 10px 0; font-family: monospace; white-space: pre-wrap; }
+        button { padding: 8px 16px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; background: #007bff; color: white; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Simple YouTube Timestamp Test</h1>
+    
+    <div class="test">
+        <h3>Step 1: Test Basic Video Access</h3>
+        <button onclick="testVideoAccess()">Test if Video Element is Accessible</button>
+        <div id="videoTest" class="log" style="display: none;"></div>
+    </div>
+
+    <div class="test">
+        <h3>Step 2: Manual Instructions</h3>
+        <ol>
+            <li>Open YouTube in another tab</li>
+            <li>Play any video for 30+ seconds</li>
+            <li>Come back to this tab and click "Test Video Access"</li>
+            <li>If working, go back to YouTube and open browser console (F12)</li>
+            <li>Run this command in console: <code>document.querySelector('video').currentTime</code></li>
+        </ol>
+    </div>
+
+    <div class="test">
+        <h3>Step 3: Check Extension Access</h3>
+        <p>If basic access works but extension doesn't:</p>
+        <ul>
+            <li>Check if content script is injected properly</li>
+            <li>Verify chrome.runtime.sendMessage is working</li>
+            <li>Check if async/await is executing correctly</li>
+        </ul>
+        <button onclick="testExtensionAccess()">Test Extension Message System</button>
+        <div id="extensionTest" class="log" style="display: none;"></div>
+    </div>
+
+    <script>
+        function testVideoAccess() {
+            const resultDiv = document.getElementById('videoTest');
+            resultDiv.style.display = 'block';
+            
+            try {
+                // Try to access YouTube video element from this tab (won't work due to cross-origin)
+                // But we can test the basic concept
+                const videos = document.querySelectorAll('video');
+                
+                let result = `Found ${videos.length} video elements on this page\n\n`;
+                
+                if (videos.length > 0) {
+                    videos.forEach((video, i) => {
+                        result += `Video ${i + 1}:\n`;
+                        result += `  currentTime: ${video.currentTime}\n`;
+                        result += `  duration: ${video.duration}\n`;
+                        result += `  paused: ${video.paused}\n`;
+                        result += `  src: ${video.src}\n\n`;
+                    });
+                } else {
+                    result += "No video elements found on this page.\n\n";
+                    result += "Instructions for YouTube:\n";
+                    result += "1. Go to YouTube.com in another tab\n";
+                    result += "2. Play a video\n";
+                    result += "3. Open Console (F12)\n";
+                    result += "4. Type: document.querySelector('video').currentTime\n";
+                    result += "5. You should see the current timestamp\n\n";
+                    result += "If that works, the issue is in our extension logic.";
+                }
+                
+                resultDiv.textContent = result;
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        function testExtensionAccess() {
+            const resultDiv = document.getElementById('extensionTest');
+            resultDiv.style.display = 'block';
+            
+            if (typeof chrome !== 'undefined' && chrome.runtime) {
+                resultDiv.textContent = "✅ Chrome extension API is available\n\nTesting message system...";
+                
+                // Test if we can send a message to background script
+                chrome.runtime.sendMessage({ action: 'testMessage', test: true }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        resultDiv.textContent += `\n❌ Message error: ${chrome.runtime.lastError.message}`;
+                    } else {
+                        resultDiv.textContent += `\n✅ Message sent successfully: ${JSON.stringify(response)}`;
+                    }
+                });
+            } else {
+                resultDiv.textContent = "❌ Chrome extension API not available (this is normal on this page)";
+            }
+        }
+    </script>
+</body>
+</html>

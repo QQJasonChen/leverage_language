@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>History Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .test-button { padding: 10px 15px; margin: 5px; background: #1976d2; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        .test-result { margin-top: 10px; padding: 10px; background: #f5f5f5; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>YouGlish Extension History Test</h1>
+    
+    <div class="test-section">
+        <h3>Test History Manager</h3>
+        <button class="test-button" id="addTestRecord">Add Test Record</button>
+        <button class="test-button" id="getHistory">Get All History</button>
+        <button class="test-button" id="searchHistory">Search History</button>
+        <button class="test-button" id="clearHistory">Clear History</button>
+        <div class="test-result" id="historyResult"></div>
+    </div>
+
+    <script>
+        const resultDiv = document.getElementById('historyResult');
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            resultDiv.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            resultDiv.scrollTop = resultDiv.scrollHeight;
+        }
+
+        document.getElementById('addTestRecord').addEventListener('click', () => {
+            const testWord = 'test_' + Math.floor(Math.random() * 1000);
+            chrome.runtime.sendMessage({
+                action: 'manualSearch',
+                text: testWord,
+                language: 'english'
+            }, (response) => {
+                log(`Added test record: ${testWord} - ${response?.success ? 'Success' : 'Failed'}`);
+            });
+        });
+
+        document.getElementById('getHistory').addEventListener('click', () => {
+            chrome.runtime.sendMessage({ action: 'getHistory' }, (response) => {
+                if (response?.success) {
+                    log(`Found ${response.history.length} history records:`);
+                    response.history.slice(0, 5).forEach(item => {
+                        log(`- ${item.text} (${item.language}) - ${item.queryCount || 1} queries - ${new Date(item.timestamp).toLocaleString()}`);
+                    });
+                } else {
+                    log(`Failed to get history: ${response?.error || 'Unknown error'}`);
+                }
+            });
+        });
+
+        document.getElementById('searchHistory').addEventListener('click', () => {
+            chrome.runtime.sendMessage({ 
+                action: 'searchHistory',
+                query: 'test'
+            }, (response) => {
+                if (response?.success) {
+                    log(`Search found ${response.results.length} matches:`);
+                    response.results.forEach(item => {
+                        log(`- ${item.text} (${item.language})`);
+                    });
+                } else {
+                    log(`Search failed: ${response?.error || 'Unknown error'}`);
+                }
+            });
+        });
+
+        document.getElementById('clearHistory').addEventListener('click', () => {
+            if (confirm('Really clear all history?')) {
+                chrome.runtime.sendMessage({ action: 'clearHistory' }, (response) => {
+                    log(`Clear history: ${response?.success ? 'Success' : 'Failed'}`);
+                });
+            }
+        });
+
+        // Auto-load history on page load
+        setTimeout(() => {
+            document.getElementById('getHistory').click();
+        }, 1000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Manual Language Selection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .language-selector { margin: 20px 0; }
+        select { padding: 8px; margin: 10px; }
+        button { padding: 8px 16px; margin: 5px; }
+        .test-text { margin: 10px 0; padding: 10px; background: #f5f5f5; }
+    </style>
+</head>
+<body>
+    <h1>🌍 Manual Language Selection Test</h1>
+    
+    <div class="language-selector">
+        <label>Select UI Language:</label>
+        <select id="languageSelect">
+            <option value="auto">Auto-detect</option>
+            <option value="en">English</option>
+            <option value="zh_TW">繁體中文</option>
+            <option value="ja">日本語</option>
+        </select>
+        <button onclick="applyLanguage()">Apply Language</button>
+        <button onclick="testAllLanguages()">Test All Languages</button>
+    </div>
+
+    <div class="test-section">
+        <h3>Current Language Status</h3>
+        <p>Stored UI Language: <span id="storedLanguage">Loading...</span></p>
+        <p>Browser Language: <span id="browserLanguage"></span></p>
+        <p>Effective Language: <span id="effectiveLanguage">Loading...</span></p>
+    </div>
+
+    <div class="test-section">
+        <h3>Message Translation Test</h3>
+        <div class="test-text">
+            <p>Extension Name: <span id="extensionName" data-i18n="extensionName">Loading...</span></p>
+            <p>Welcome Title: <span id="welcomeTitle" data-i18n="welcome_title">Loading...</span></p>
+            <p>Search Button: <span id="searchButton" data-i18n="search_button">Loading...</span></p>
+            <p>Language English: <span id="languageEnglish" data-i18n="language_english">Loading...</span></p>
+            <p>Language Japanese: <span id="languageJapanese" data-i18n="language_japanese">Loading...</span></p>
+            <p>Save Settings: <span id="saveSettings" data-i18n="save_settings">Loading...</span></p>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test Log</h3>
+        <div id="testLog" style="background: #f0f0f0; padding: 10px; height: 200px; overflow-y: auto; font-family: monospace; font-size: 12px;"></div>
+    </div>
+
+    <script src="lib/i18n-helper.js"></script>
+    <script>
+        let currentTestLanguage = 'auto';
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadCurrentSettings();
+            document.getElementById('browserLanguage').textContent = chrome.i18n.getUILanguage();
+            await updateDisplay();
+            
+            // Load current language setting
+            chrome.storage.sync.get(['uiLanguage'], (result) => {
+                const currentLang = result.uiLanguage || 'auto';
+                document.getElementById('languageSelect').value = currentLang;
+                log(`Loaded current language setting: ${currentLang}`);
+            });
+        });
+
+        async function loadCurrentSettings() {
+            const effective = await window.getCurrentUILanguage();
+            document.getElementById('effectiveLanguage').textContent = effective;
+            
+            chrome.storage.sync.get(['uiLanguage'], (result) => {
+                document.getElementById('storedLanguage').textContent = result.uiLanguage || 'auto';
+            });
+        }
+
+        async function applyLanguage() {
+            const selectedLang = document.getElementById('languageSelect').value;
+            currentTestLanguage = selectedLang;
+            
+            log(`Applying language: ${selectedLang}`);
+            
+            // Save to storage
+            chrome.storage.sync.set({ uiLanguage: selectedLang }, async () => {
+                log(`Language saved to storage: ${selectedLang}`);
+                await updateDisplay();
+                await loadCurrentSettings();
+            });
+        }
+
+        async function updateDisplay() {
+            const currentLang = await window.getCurrentUILanguage();
+            log(`Current effective language: ${currentLang}`);
+            
+            // Update all test messages
+            const testElements = [
+                { id: 'extensionName', key: 'extensionName' },
+                { id: 'welcomeTitle', key: 'welcome_title' },
+                { id: 'searchButton', key: 'search_button' },
+                { id: 'languageEnglish', key: 'language_english' },
+                { id: 'languageJapanese', key: 'language_japanese' },
+                { id: 'saveSettings', key: 'save_settings' }
+            ];
+
+            testElements.forEach(item => {
+                const element = document.getElementById(item.id);
+                const message = window.getI18nMessage(item.key, currentLang);
+                element.textContent = message;
+                log(`${item.key}: "${message}"`);
+            });
+        }
+
+        async function testAllLanguages() {
+            const languages = ['en', 'zh_TW', 'ja'];
+            
+            for (const lang of languages) {
+                log(`\n=== Testing Language: ${lang} ===`);
+                
+                // Temporarily set language
+                chrome.storage.sync.set({ uiLanguage: lang }, async () => {
+                    await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
+                    
+                    const effective = await window.getCurrentUILanguage();
+                    log(`Effective language for ${lang}: ${effective}`);
+                    
+                    // Test a few key messages
+                    const extensionName = window.getI18nMessage('extensionName', effective);
+                    const searchButton = window.getI18nMessage('search_button', effective);
+                    const languageEnglish = window.getI18nMessage('language_english', effective);
+                    
+                    log(`  extensionName: "${extensionName}"`);
+                    log(`  search_button: "${searchButton}"`);
+                    log(`  language_english: "${languageEnglish}"`);
+                });
+            }
+        }
+
+        function log(message) {
+            const logElement = document.getElementById('testLog');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.innerHTML += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+    </script>
+</body>
+</html>

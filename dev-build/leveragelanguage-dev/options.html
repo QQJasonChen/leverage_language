@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-i18n-title="options_title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="options_title">YouGlish Quick Search - 設定</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #1a73e8;
+            margin-bottom: 20px;
+            font-size: 24px;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+        
+        .setting-group {
+            margin-bottom: 25px;
+        }
+        
+        .setting-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .setting-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background-color: white;
+        }
+        
+        .setting-group .description {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+            line-height: 1.4;
+        }
+        
+        .save-button {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .save-button:hover {
+            background: #1557b0;
+        }
+        
+        .save-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .status-message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+            display: none;
+        }
+        
+        .status-message.success {
+            background: #e8f5e8;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+        
+        .status-message.error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
+        }
+        
+        .keyboard-shortcuts {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        
+        .keyboard-shortcuts h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        
+        .shortcut-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .shortcut-key {
+            background: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .shortcut-button {
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .shortcut-button:hover {
+            background: #3367d6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>YouGlish Quick Search 設定</h1>
+        
+        <!-- UI Language Selection -->
+        <div class="setting-group">
+            <label for="uiLanguage">介面語言 / Interface Language / インターフェース言語</label>
+            <select id="uiLanguage">
+                <option value="auto">自動偵測 (Auto-detect / 自動検出)</option>
+                <option value="en">English</option>
+                <option value="zh_TW">繁體中文 (Traditional Chinese)</option>
+                <option value="ja">日本語 (Japanese)</option>
+            </select>
+            <div class="description">
+                選擇您偏好的介面語言。「自動偵測」會根據瀏覽器語言設定。<br>
+                Choose your preferred interface language. "Auto-detect" uses browser language settings.<br>
+                お好みのインターフェース言語を選択してください。「自動検出」はブラウザの言語設定を使用します。
+            </div>
+        </div>
+        
+        <h2>基本設定</h2>
+        
+        <div class="setting-group">
+            <label for="defaultLanguage">語言設定模式</label>
+            <select id="defaultLanguage">
+                <option value="auto">智能偵測 (推薦)</option>
+                <option value="english">固定英文</option>
+                <option value="japanese">固定日文</option>
+                <option value="korean">固定韓文</option>
+                <option value="dutch">固定荷蘭文</option>
+            </select>
+            <div class="description">
+                「智能偵測」：自動判斷語言，並考慮您的偏好語言。
+                「固定語言」：始終使用選定的語言，不進行自動偵測。
+            </div>
+        </div>
+        
+        <div class="setting-group" id="preferredLanguageGroup">
+            <label for="preferredLanguage">偏好語言 (智能偵測時優先考慮)</label>
+            <select id="preferredLanguage">
+                <option value="none">無偏好</option>
+                <option value="english">英文</option>
+                <option value="japanese">日文</option>
+                <option value="korean">韓文</option>
+                <option value="dutch">荷蘭文</option>
+            </select>
+            <div class="description">
+                當使用智能偵測時，如果自動判斷結果不確定，將優先選擇此語言。
+                可以提高常用語言的偵測準確度。
+            </div>
+        </div>
+        
+        <div class="setting-group">
+            <label for="openMethod">開啟方式</label>
+            <select id="openMethod">
+                <option value="sidepanel">側邊面板 + 新分頁</option>
+                <option value="newtab">僅新分頁</option>
+                <option value="analysis-only">僅 AI 分析 (不開啟 YouGlish)</option>
+            </select>
+            <div class="description">
+                「側邊面板 + 新分頁」：開啟側邊面板，提供搜尋分析和嵌入式 YouGlish 影片查看。<br>
+                「僅新分頁」：直接在新分頁開啟 YouGlish。<br>
+                「僅 AI 分析」：只觸發 AI 分析，不自動開啟 YouGlish 網站。
+            </div>
+        </div>
+        
+        <div class="setting-group">
+            <label for="uncertaintyHandling">語言不確定時的處理方式</label>
+            <select id="uncertaintyHandling">
+                <option value="ask">詢問用戶選擇（推薦）</option>
+                <option value="english">預設為英文</option>
+                <option value="dutch">預設為荷蘭文</option>
+                <option value="preferred">使用偏好語言</option>
+            </select>
+            <div class="description">
+                當系統無法確定文本是英文還是荷蘭文時的處理方式。「詢問用戶選擇」會彈出選擇視窗讓您決定。
+            </div>
+        </div>
+        
+        <h2>AI 發音與解釋功能</h2>
+        
+        <div class="setting-group">
+            <label for="aiEnabled">啟用 AI 分析</label>
+            <select id="aiEnabled">
+                <option value="false">🔴 停用</option>
+                <option value="true">🟢 啟用</option>
+            </select>
+            <div class="description">
+                啟用後將在搜尋結果中提供 AI 發音指導和詞彙解釋。<br>
+                <em>💡 提示：您可以隨時調整下方的 AI 設定，無需停用後重新啟用。</em>
+            </div>
+        </div>
+
+        <div class="setting-group" id="autoAnalysisGroup">
+            <label for="autoAnalysis">自動觸發 AI 分析</label>
+            <select id="autoAnalysis">
+                <option value="true">自動觸發 ⚡ (推薦)</option>
+                <option value="false">手動觸發</option>
+            </select>
+            <div class="description">
+                「自動觸發」：搜尋時自動開始 AI 分析，無需點擊分析按鈕 (預設)。<br>
+                「手動觸發」：搜尋後需要手動點擊「生成 AI 分析」按鈕。
+            </div>
+        </div>
+        
+        <div class="setting-group" id="aiProviderGroup">
+            <label for="aiProvider">AI 服務提供商</label>
+            <select id="aiProvider">
+                <option value="gemini">Google Gemini</option>
+                <option value="openai">OpenAI GPT</option>
+            </select>
+            <div class="description">
+                選擇您偏好的 AI 服務提供商。
+            </div>
+        </div>
+        
+        <div class="setting-group" id="openaiModelGroup" style="display: none;">
+            <label for="openaiModel">OpenAI 模型選擇</label>
+            <select id="openaiModel">
+                <option value="gpt-4o-mini">GPT-4o Mini (推薦 - 最佳性價比)</option>
+                <option value="gpt-4o">GPT-4o (頂級品質)</option>
+            </select>
+            <div class="description">
+                <strong>💰 價格比較 (每1K tokens):</strong><br>
+                • <span style="color: #4CAF50; font-weight: bold;">GPT-4o Mini: $0.00015 輸入 + $0.0006 輸出 (極便宜且優質！)</span><br>
+                • GPT-4o: $0.0025 輸入 + $0.01 輸出 (最高品質，成本較高)<br>
+                <em>💡 GPT-4o Mini 提供 95% 的品質，但成本僅為 GPT-4o 的 1/10</em>
+            </div>
+        </div>
+        
+        <div class="setting-group" id="apiKeyGroup">
+            <label for="apiKey">API 金鑰</label>
+            <input type="password" id="apiKey" placeholder="輸入您的 API 金鑰">
+            <div class="description">
+                您的 API 金鑰將安全地儲存在本地，不會傳送給第三方。<br>
+                <strong>Gemini:</strong> 前往 <a href="https://ai.google.dev/" target="_blank">Google AI Studio</a> 取得免費 API 金鑰<br>
+                <strong>OpenAI:</strong> 前往 <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI Platform</a> 取得 API 金鑰
+            </div>
+        </div>
+        
+        <div class="setting-group" id="analysisComplexityGroup">
+            <label for="analysisComplexity">AI 分析複雜度</label>
+            <select id="analysisComplexity">
+                <option value="auto">⚡ 自動選擇 (推薦)</option>
+                <option value="simple">🚀 簡單快速 (2-5秒)</option>
+                <option value="medium">⚖️ 平衡模式 (5-15秒)</option>
+                <option value="detailed">📚 詳細分析 (15-45秒)</option>
+            </select>
+            <div class="description">
+                <strong>⚡ 自動選擇：</strong> 短詞句用簡單模式，長句子用平衡模式<br>
+                <strong>🚀 簡單快速：</strong> 基本翻譯 + 發音 + 例句 (2-5秒完成)<br>
+                <strong>⚖️ 平衡模式：</strong> 語法分析 + 文化背景 + 詳細解釋 (5-15秒)<br>
+                <strong>📚 詳細分析：</strong> 完整教學級分析，包含所有功能 (15-45秒)<br>
+                <em>💡 提示：選擇詳細分析可獲得最完整的學習內容，但需要較長等待時間</em>
+            </div>
+        </div>
+
+        <div class="setting-group" id="aiOptionsGroup">
+            <label for="aiFeatures">AI 功能選項</label>
+            <div style="margin-top: 10px;">
+                <label style="display: flex; align-items: center; margin-bottom: 8px; font-weight: normal;">
+                    <input type="checkbox" id="pronunciationGuide" style="margin-right: 8px;">
+                    發音指導（國際音標、發音技巧）
+                </label>
+                <label style="display: flex; align-items: center; margin-bottom: 8px; font-weight: normal;">
+                    <input type="checkbox" id="wordExplanation" style="margin-right: 8px;">
+                    詞彙解釋（含義、用法、例句）
+                </label>
+                <label style="display: flex; align-items: center; margin-bottom: 8px; font-weight: normal;">
+                    <input type="checkbox" id="grammarAnalysis" style="margin-right: 8px;">
+                    語法分析（句型結構、語法重點）
+                </label>
+                <label style="display: flex; align-items: center; margin-bottom: 8px; font-weight: normal;">
+                    <input type="checkbox" id="culturalContext" style="margin-right: 8px;">
+                    文化背景（慣用語、文化含義）
+                </label>
+                <label style="display: flex; align-items: center; margin-bottom: 8px; font-weight: normal;">
+                    <input type="checkbox" id="errorDetection" style="margin-right: 8px;">
+                    🔍 錯誤檢測（拼寫、語法、用詞錯誤檢查）- 預設關閉，會增加分析時間
+                </label>
+                <label style="display: flex; align-items: center; font-weight: normal;">
+                    <input type="checkbox" id="audioPronunciation" style="margin-right: 8px;">
+                    🔊 AI 語音發音（需要 OpenAI API）- 預設啟用
+                </label>
+            </div>
+            <div class="description">
+                選擇您希望 AI 提供的分析類型。更多選項會增加 API 使用量。
+            </div>
+        </div>
+        
+        <div class="setting-group" id="audioOptionsGroup">
+            <label for="voiceSettings">語音設定</label>
+            <div style="margin-top: 10px;">
+                <div style="margin-bottom: 12px;">
+                    <label for="ttsVoice" style="display: block; margin-bottom: 4px; font-weight: normal;">語音選擇：</label>
+                    <select id="ttsVoice" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="alloy">Alloy（平衡、自然）</option>
+                        <option value="echo">Echo（男性、深沉）</option>
+                        <option value="fable">Fable（英式、優雅）</option>
+                        <option value="onyx">Onyx（深沉、權威）</option>
+                        <option value="nova">Nova（女性、活潑）</option>
+                        <option value="shimmer">Shimmer（女性、溫和）</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label for="speechSpeed" style="display: block; margin-bottom: 4px; font-weight: normal;">語音速度：</label>
+                    <select id="speechSpeed" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="0.7">慢速（0.7x）</option>
+                        <option value="0.85">稍慢（0.85x）</option>
+                        <option value="1.0">正常（1.0x）</option>
+                        <option value="1.15">稍快（1.15x）</option>
+                        <option value="1.3">快速（1.3x）</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: flex; align-items: center; font-weight: normal;">
+                        <input type="checkbox" id="autoPlayAudio" style="margin-right: 8px;">
+                        自動播放生成的語音
+                    </label>
+                </div>
+            </div>
+            <div class="description">
+                AI 語音功能使用 OpenAI TTS API。建議選擇適合目標語言的語音和合適的播放速度。
+            </div>
+        </div>
+        
+        <button class="save-button" id="saveButton">儲存設定</button>
+        
+        <div class="status-message" id="statusMessage"></div>
+        
+        <div class="keyboard-shortcuts">
+            <h3>鍵盤快捷鍵</h3>
+            <div class="shortcut-item">
+                <span>快速搜尋選取的文字</span>
+                <span class="shortcut-key" id="currentShortcut">Ctrl+Shift+Y</span>
+            </div>
+            <div class="shortcut-item">
+                <span>右鍵選單</span>
+                <span class="shortcut-key">右鍵 → 在 YouGlish 上搜尋</span>
+            </div>
+            <div class="shortcut-item">
+                <span>自定義快捷鍵</span>
+                <button class="shortcut-button" id="openShortcutSettings">開啟 Chrome 快捷鍵設定</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="lib/i18n-helper.js"></script>
+    <script src="options.js"></script>
+</body>
+</html>

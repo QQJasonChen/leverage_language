@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Saved Reports Fix Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .test-button { padding: 10px 15px; margin: 5px; background: #1976d2; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        .test-result { margin-top: 10px; padding: 10px; background: #f5f5f5; border-radius: 3px; max-height: 300px; overflow-y: auto; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>Saved Reports Fix Test</h1>
+    
+    <div class="test-section">
+        <h3>Test Duplicate Prevention</h3>
+        <p>This test verifies that the same word+language combination gets updated instead of creating duplicates.</p>
+        <button class="test-button" id="testDuplicates">Test Duplicate Prevention</button>
+        <div class="test-result" id="duplicateResult"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test Favorite Functionality</h3>
+        <button class="test-button" id="testFavorites">Test Favorite Toggle</button>
+        <div class="test-result" id="favoriteResult"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test Delete Functionality</h3>
+        <button class="test-button" id="testDelete">Test Delete Report</button>
+        <div class="test-result" id="deleteResult"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test Export Functionality</h3>
+        <button class="test-button" id="testExport">Test Export</button>
+        <div class="test-result" id="exportResult"></div>
+    </div>
+
+    <script src="lib/storage-manager.js"></script>
+    <script>
+        const storageManager = new StorageManager();
+        
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'success' ? 'success' : (type === 'error' ? 'error' : 'info');
+            element.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            element.scrollTop = element.scrollHeight;
+        }
+
+        // Test duplicate prevention
+        document.getElementById('testDuplicates').addEventListener('click', async () => {
+            const resultId = 'duplicateResult';
+            log(resultId, 'Starting duplicate prevention test...', 'info');
+            
+            try {
+                // Clear any existing reports for this test
+                await storageManager.deleteAIReport('test_duplicate_word_en');
+                
+                // Save the same word twice
+                const report1 = await storageManager.saveAIReport(
+                    'test_duplicate_word',
+                    'english',
+                    'First analysis of test word',
+                    null,
+                    true // updateExisting = true
+                );
+                log(resultId, `First save: ${report1.id}`, 'info');
+                
+                // Wait a moment then save again
+                setTimeout(async () => {
+                    const report2 = await storageManager.saveAIReport(
+                        'test_duplicate_word',
+                        'english',
+                        'Updated analysis of test word',
+                        null,
+                        true // updateExisting = true
+                    );
+                    log(resultId, `Second save: ${report2.id}`, 'info');
+                    
+                    // Check if IDs are the same (meaning it was updated, not duplicated)
+                    if (report1.id === report2.id) {
+                        log(resultId, '✅ SUCCESS: Same ID returned - report was updated, not duplicated', 'success');
+                    } else {
+                        log(resultId, '❌ FAILED: Different IDs - duplicate was created', 'error');
+                    }
+                    
+                    // Check storage to see how many reports exist for this word
+                    const reports = await storageManager.getAIReports({ searchText: 'test_duplicate_word' });
+                    log(resultId, `Found ${reports.length} reports for 'test_duplicate_word'`, reports.length === 1 ? 'success' : 'error');
+                    
+                    // Check that the content was updated
+                    if (reports.length > 0 && reports[0].analysisData === 'Updated analysis of test word') {
+                        log(resultId, '✅ SUCCESS: Analysis content was updated', 'success');
+                    } else {
+                        log(resultId, '❌ FAILED: Analysis content was not updated', 'error');
+                    }
+                }, 100);
+                
+            } catch (error) {
+                log(resultId, `Error: ${error.message}`, 'error');
+            }
+        });
+
+        // Test favorite functionality
+        document.getElementById('testFavorites').addEventListener('click', async () => {
+            const resultId = 'favoriteResult';
+            log(resultId, 'Starting favorite functionality test...', 'info');
+            
+            try {
+                // Create a test report
+                const report = await storageManager.saveAIReport(
+                    'test_favorite_word',
+                    'english',
+                    'Test analysis for favorite functionality',
+                    null
+                );
+                log(resultId, `Created test report: ${report.id}`, 'info');
+                log(resultId, `Initial favorite state: ${report.favorite}`, 'info');
+                
+                // Toggle to favorite
+                const favoriteState1 = await storageManager.toggleFavorite(report.id);
+                log(resultId, `After first toggle: ${favoriteState1}`, favoriteState1 ? 'success' : 'info');
+                
+                // Toggle back
+                const favoriteState2 = await storageManager.toggleFavorite(report.id);
+                log(resultId, `After second toggle: ${favoriteState2}`, !favoriteState2 ? 'success' : 'info');
+                
+                // Verify the changes were saved
+                const savedReports = await storageManager.getAIReports();
+                const testReport = savedReports.find(r => r.id === report.id);
+                if (testReport && testReport.favorite === favoriteState2) {
+                    log(resultId, '✅ SUCCESS: Favorite state saved correctly', 'success');
+                } else {
+                    log(resultId, '❌ FAILED: Favorite state not saved correctly', 'error');
+                }
+                
+            } catch (error) {
+                log(resultId, `Error: ${error.message}`, 'error');
+            }
+        });
+
+        // Test delete functionality
+        document.getElementById('testDelete').addEventListener('click', async () => {
+            const resultId = 'deleteResult';
+            log(resultId, 'Starting delete functionality test...', 'info');
+            
+            try {
+                // Create a test report to delete
+                const report = await storageManager.saveAIReport(
+                    'test_delete_word',
+                    'english',
+                    'Test analysis that will be deleted',
+                    null
+                );
+                log(resultId, `Created test report for deletion: ${report.id}`, 'info');
+                
+                // Verify it exists
+                const beforeDelete = await storageManager.getAIReports();
+                const existsBefore = beforeDelete.find(r => r.id === report.id);
+                if (existsBefore) {
+                    log(resultId, 'Confirmed: Report exists before deletion', 'info');
+                } else {
+                    log(resultId, '❌ ERROR: Report not found before deletion', 'error');
+                    return;
+                }
+                
+                // Delete the report
+                const deleteSuccess = await storageManager.deleteAIReport(report.id);
+                log(resultId, `Delete operation result: ${deleteSuccess}`, deleteSuccess ? 'success' : 'error');
+                
+                // Verify it's gone
+                const afterDelete = await storageManager.getAIReports();
+                const existsAfter = afterDelete.find(r => r.id === report.id);
+                if (!existsAfter) {
+                    log(resultId, '✅ SUCCESS: Report successfully deleted', 'success');
+                } else {
+                    log(resultId, '❌ FAILED: Report still exists after deletion', 'error');
+                }
+                
+            } catch (error) {
+                log(resultId, `Error: ${error.message}`, 'error');
+            }
+        });
+
+        // Test export functionality
+        document.getElementById('testExport').addEventListener('click', async () => {
+            const resultId = 'exportResult';
+            log(resultId, 'Starting export functionality test...', 'info');
+            
+            try {
+                // Create a few test reports
+                const reports = await Promise.all([
+                    storageManager.saveAIReport('export_test_1', 'english', 'First export test analysis', null),
+                    storageManager.saveAIReport('export_test_2', 'japanese', 'Second export test analysis', null),
+                    storageManager.saveAIReport('export_test_3', 'korean', 'Third export test analysis', null)
+                ]);
+                
+                log(resultId, `Created ${reports.length} test reports for export`, 'info');
+                
+                // Get all reports
+                const allReports = await storageManager.getAIReports();
+                log(resultId, `Total reports in storage: ${allReports.length}`, 'info');
+                
+                // Test export format
+                const exportData = allReports.map(report => ({
+                    searchText: report.searchText,
+                    language: report.language,
+                    timestamp: new Date(report.timestamp).toISOString(),
+                    favorite: report.favorite || false,
+                    tags: report.tags || [],
+                    analysis: typeof report.analysisData === 'string' ? report.analysisData : 
+                              (report.analysisData?.content || 'No analysis available'),
+                    hasAudio: !!report.audioData
+                }));
+                
+                log(resultId, `Export data prepared for ${exportData.length} reports`, 'success');
+                log(resultId, 'Export data structure:', 'info');
+                log(resultId, JSON.stringify(exportData.slice(0, 2), null, 2), 'info'); // Show first 2 items
+                
+                // Test creating the blob (without actually downloading)
+                const dataStr = JSON.stringify(exportData, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                log(resultId, `Export blob created: ${dataBlob.size} bytes`, 'success');
+                
+                log(resultId, '✅ SUCCESS: Export functionality works correctly', 'success');
+                
+            } catch (error) {
+                log(resultId, `Error: ${error.message}`, 'error');
+            }
+        });
+
+        // Auto-run basic test on page load
+        setTimeout(async () => {
+            try {
+                const reports = await storageManager.getAIReports();
+                console.log('Current saved reports:', reports.length);
+                if (reports.length > 0) {
+                    console.log('Sample report:', reports[0]);
+                }
+            } catch (error) {
+                console.error('Initial test failed:', error);
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

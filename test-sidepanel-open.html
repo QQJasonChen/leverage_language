@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sidepanel Test</title>
+</head>
+<body>
+    <h1>Testing Sidepanel</h1>
+    <button id="testBtn">Test Sidepanel Opening</button>
+    <div id="result"></div>
+    
+    <script>
+        document.getElementById('testBtn').addEventListener('click', async () => {
+            const result = document.getElementById('result');
+            try {
+                result.innerHTML = 'Testing sidepanel opening...';
+                
+                // Test if chrome.sidePanel API is available
+                if (typeof chrome !== 'undefined' && chrome.sidePanel) {
+                    result.innerHTML += '<br>✅ chrome.sidePanel API is available';
+                    
+                    // Try to open sidepanel
+                    const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
+                    await chrome.sidePanel.open({ tabId: tab.id });
+                    result.innerHTML += '<br>✅ Sidepanel opened successfully!';
+                } else {
+                    result.innerHTML += '<br>❌ chrome.sidePanel API not available';
+                }
+            } catch (error) {
+                result.innerHTML += '<br>❌ Error: ' + error.message;
+                console.error('Sidepanel test error:', error);
+            }
+        });
+    </script>
+</body>
+</html>

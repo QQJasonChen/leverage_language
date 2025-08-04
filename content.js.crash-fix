@@ -1,0 +1,38 @@
+// Production-safe logging
+const log = (...args) => {
+  if (!chrome.runtime.getManifest().name.includes("Dev")) return;
+  log(...args);
+};
+// 處理來自背景腳本的訊息
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'getSelection') {
+    const selectedText = window.getSelection().toString();
+    sendResponse({ text: selectedText });
+  }
+});
+
+// 監聽雙擊事件
+document.addEventListener('dblclick', () => {
+  const selectedText = window.getSelection().toString();
+  if (selectedText && selectedText.trim().length > 0) {
+    // 可以在這裡添加雙擊搜尋功能
+    // chrome.runtime.sendMessage({
+    //   action: 'searchYouGlish',
+    //   text: selectedText
+    // });
+  }
+});
+
+// 監聽鍵盤快捷鍵 (作為備用)
+document.addEventListener('keydown', (event) => {
+  if (event.ctrlKey && event.shiftKey && event.key === 'Y') {
+    event.preventDefault();
+    const selectedText = window.getSelection().toString();
+    if (selectedText && selectedText.trim().length > 0) {
+      chrome.runtime.sendMessage({
+        action: 'searchYouGlish',
+        text: selectedText
+      });
+    }
+  }
+});

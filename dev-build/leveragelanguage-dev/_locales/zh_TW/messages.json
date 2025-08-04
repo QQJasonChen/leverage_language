@@ -1,0 +1,544 @@
+{
+  "extensionName": {
+    "message": "Language Learning 快速搜尋 (Alpha 測試版)",
+    "description": "Extension name"
+  },
+  "extensionDescription": {
+    "message": "ALPHA 測試版 - 綜合語言學習擴充功能：發音、字典、語境例句、翻譯、社群問答一站式服務。部分功能尚未完全優化。",
+    "description": "Extension description"
+  },
+  "searchOnYouglish": {
+    "message": "用 AI 分析 \"%s\"",
+    "description": "Context menu item text"
+  },
+  
+  "header_title": {
+    "message": "Language Learning Quick Search",
+    "description": "Header title"
+  },
+  
+  "welcome_title": {
+    "message": "🎯 AI 語言學習助手",
+    "description": "Welcome section title"
+  },
+  "welcome_description": {
+    "message": "選取網頁上的文字，然後：",
+    "description": "Welcome description"
+  },
+  "welcome_step1": {
+    "message": "• 按右鍵選擇「用 AI 分析」",
+    "description": "Welcome step 1"
+  },
+  "welcome_step2": {
+    "message": "• 或使用快捷鍵",
+    "description": "Welcome step 2"
+  },
+  "welcome_step3": {
+    "message": "• 或點擊擴充功能圖示開啟此面板",
+    "description": "Welcome step 3"
+  },
+  "welcome_languages": {
+    "message": "支援英文、日文、韓文、荷蘭文",
+    "description": "Supported languages"
+  },
+  "welcome_shortcut_note": {
+    "message": "快捷鍵可在 chrome://extensions/shortcuts 中自定義",
+    "description": "Shortcut customization note"
+  },
+  
+  "manual_search_placeholder": {
+    "message": "輸入要查詢的文字...",
+    "description": "Manual search input placeholder"
+  },
+  "search_button": {
+    "message": "搜尋",
+    "description": "Search button text"
+  },
+  
+  "analysis_view": {
+    "message": "📊 分析",
+    "description": "Analysis view button"
+  },
+  "video_view": {
+    "message": "🎥 影片",
+    "description": "Video view button"
+  },
+  "history_view": {
+    "message": "📚 歷史",
+    "description": "History view button"
+  },
+  "transcript_view": {
+    "message": "📝 字幕重構",
+    "description": "Transcript restructuring view button"
+  },
+  "new_tab": {
+    "message": "🔗 新分頁",
+    "description": "New tab button"
+  },
+  
+  "search_results_title": {
+    "message": "🎯 語言分析結果",
+    "description": "Search results title"
+  },
+  "search_again": {
+    "message": "🔍 搜尋其他內容",
+    "description": "Search again button"
+  },
+  
+  "search_term_label": {
+    "message": "搜尋內容：",
+    "description": "Search term label"
+  },
+  "language_label": {
+    "message": "語言：",
+    "description": "Language label"
+  },
+  "url_label": {
+    "message": "網址：",
+    "description": "URL label"
+  },
+  "click_to_open": {
+    "message": "點擊開啟",
+    "description": "Click to open link text"
+  },
+  
+  "language_english": {
+    "message": "英文",
+    "description": "English language name"
+  },
+  "language_japanese": {
+    "message": "日文",
+    "description": "Japanese language name"
+  },
+  "language_korean": {
+    "message": "韓文",
+    "description": "Korean language name"
+  },
+  "language_dutch": {
+    "message": "荷蘭文",
+    "description": "Dutch language name"
+  },
+  
+  "options_title": {
+    "message": "Language Learning 擴充功能設定",
+    "description": "Options page title"
+  },
+  "basic_settings": {
+    "message": "基本設定",
+    "description": "Basic settings section"
+  },
+  "default_language": {
+    "message": "預設語言",
+    "description": "Default language setting"
+  },
+  "smart_detection": {
+    "message": "智能偵測 (推薦)",
+    "description": "Smart detection option"
+  },
+  "fixed_english": {
+    "message": "固定英文",
+    "description": "Fixed English option"
+  },
+  "fixed_japanese": {
+    "message": "固定日文",
+    "description": "Fixed Japanese option"
+  },
+  "fixed_korean": {
+    "message": "固定韓文",
+    "description": "Fixed Korean option"
+  },
+  "fixed_dutch": {
+    "message": "固定荷蘭文",
+    "description": "Fixed Dutch option"
+  },
+  "default_language_desc": {
+    "message": "選擇「智能偵測」讓系統自動判斷語言，或選擇固定語言以停用自動偵測。",
+    "description": "Default language description"
+  },
+  
+  "preferred_language": {
+    "message": "偏好語言",
+    "description": "Preferred language setting"
+  },
+  "no_preference": {
+    "message": "無偏好",
+    "description": "No preference option"
+  },
+  "preferred_language_desc": {
+    "message": "當智能偵測結果不明確時，系統會優先考慮此語言。可以提高常用語言的偵測準確度。",
+    "description": "Preferred language description"
+  },
+  
+  "uncertainty_handling": {
+    "message": "語言不確定時的處理方式",
+    "description": "Uncertainty handling setting"
+  },
+  "ask_user": {
+    "message": "詢問用戶選擇（推薦）",
+    "description": "Ask user option"
+  },
+  "default_to_english": {
+    "message": "預設為英文",
+    "description": "Default to English option"
+  },
+  "default_to_dutch": {
+    "message": "預設為荷蘭文",
+    "description": "Default to Dutch option"
+  },
+  "use_preferred": {
+    "message": "使用偏好語言",
+    "description": "Use preferred language option"
+  },
+  "uncertainty_handling_desc": {
+    "message": "當系統無法確定文本是英文還是荷蘭文時的處理方式。「詢問用戶選擇」會彈出選擇視窗讓您決定。",
+    "description": "Uncertainty handling description"
+  },
+  
+  "open_method": {
+    "message": "開啟方式",
+    "description": "Open method setting"
+  },
+  "sidepanel_newtab": {
+    "message": "側邊面板 + 新分頁",
+    "description": "Sidepanel + new tab option"
+  },
+  "newtab_only": {
+    "message": "僅新分頁",
+    "description": "New tab only option"
+  },
+  "open_method_desc": {
+    "message": "「側邊面板 + 新分頁」：開啟側邊面板，提供搜尋分析和嵌入式 Language Learning 影片查看。「僅新分頁」：直接在新分頁開啟 Language Learning。",
+    "description": "Open method description"
+  },
+  
+  "ai_pronunciation_features": {
+    "message": "AI 發音與解釋功能",
+    "description": "AI pronunciation and explanation features"
+  },
+  "enable_ai_analysis": {
+    "message": "啟用 AI 分析",
+    "description": "Enable AI analysis"
+  },
+  "disabled": {
+    "message": "停用",
+    "description": "Disabled option"
+  },
+  "enabled": {
+    "message": "啟用 ✅",
+    "description": "Enabled option"
+  },
+  "enable_ai_desc": {
+    "message": "請先選擇「啟用 ✅」以顯示 API 金鑰輸入框和其他設定選項。",
+    "description": "Enable AI description"
+  },
+  "ai_enable_note": {
+    "message": "啟用後將在搜尋結果中提供 AI 發音指導和詞彙解釋。",
+    "description": "AI enable note"
+  },
+  
+  "ai_provider": {
+    "message": "AI 服務提供商",
+    "description": "AI service provider"
+  },
+  "google_gemini": {
+    "message": "Google Gemini",
+    "description": "Google Gemini option"
+  },
+  "openai_gpt": {
+    "message": "OpenAI GPT",
+    "description": "OpenAI GPT option"
+  },
+  "ai_provider_desc": {
+    "message": "選擇您偏好的 AI 服務提供商。",
+    "description": "AI provider description"
+  },
+  
+  "api_key": {
+    "message": "API 金鑰",
+    "description": "API key setting"
+  },
+  "api_key_placeholder": {
+    "message": "輸入您的 API 金鑰",
+    "description": "API key placeholder"
+  },
+  "api_key_desc": {
+    "message": "您的 API 金鑰將安全地儲存在本地，不會傳送給第三方。",
+    "description": "API key description"
+  },
+  "gemini_link_text": {
+    "message": "前往 Google AI Studio 取得免費 API 金鑰",
+    "description": "Gemini link text"
+  },
+  "openai_link_text": {
+    "message": "前往 OpenAI Platform 取得 API 金鑰",
+    "description": "OpenAI link text"
+  },
+  
+  "ai_features": {
+    "message": "AI 功能選項",
+    "description": "AI features setting"
+  },
+  "pronunciation_guide": {
+    "message": "發音指導（國際音標、發音技巧）",
+    "description": "Pronunciation guide option"
+  },
+  "word_explanation": {
+    "message": "詞彙解釋（含義、用法、例句）",
+    "description": "Word explanation option"
+  },
+  "grammar_analysis": {
+    "message": "語法分析（句型結構、語法重點）",
+    "description": "Grammar analysis option"
+  },
+  "cultural_context": {
+    "message": "文化背景（慣用語、文化含義）",
+    "description": "Cultural context option"
+  },
+  "audio_pronunciation": {
+    "message": "🔊 AI 語音發音（需要 OpenAI API）",
+    "description": "Audio pronunciation option"
+  },
+  "ai_features_desc": {
+    "message": "選擇您希望 AI 提供的分析類型。更多選項會增加 API 使用量。",
+    "description": "AI features description"
+  },
+  
+  "voice_settings": {
+    "message": "語音設定",
+    "description": "Voice settings"
+  },
+  "voice_selection": {
+    "message": "語音選擇：",
+    "description": "Voice selection label"
+  },
+  "voice_alloy": {
+    "message": "Alloy（平衡、自然）",
+    "description": "Alloy voice option"
+  },
+  "voice_echo": {
+    "message": "Echo（男性、深沉）",
+    "description": "Echo voice option"
+  },
+  "voice_fable": {
+    "message": "Fable（英式、優雅）",
+    "description": "Fable voice option"
+  },
+  "voice_onyx": {
+    "message": "Onyx（深沉、權威）",
+    "description": "Onyx voice option"
+  },
+  "voice_nova": {
+    "message": "Nova（女性、活潑）",
+    "description": "Nova voice option"
+  },
+  "voice_shimmer": {
+    "message": "Shimmer（女性、溫和）",
+    "description": "Shimmer voice option"
+  },
+  "speech_speed": {
+    "message": "語音速度：",
+    "description": "Speech speed label"
+  },
+  "speed_slow": {
+    "message": "慢速（0.7x）",
+    "description": "Slow speed option"
+  },
+  "speed_somewhat_slow": {
+    "message": "稍慢（0.85x）",
+    "description": "Somewhat slow speed option"
+  },
+  "speed_normal": {
+    "message": "正常（1.0x）",
+    "description": "Normal speed option"
+  },
+  "speed_somewhat_fast": {
+    "message": "稍快（1.15x）",
+    "description": "Somewhat fast speed option"
+  },
+  "speed_fast": {
+    "message": "快速（1.3x）",
+    "description": "Fast speed option"
+  },
+  "auto_play_audio": {
+    "message": "自動播放生成的語音",
+    "description": "Auto play audio option"
+  },
+  "voice_settings_desc": {
+    "message": "AI 語音功能使用 OpenAI TTS API。建議選擇適合目標語言的語音和合適的播放速度。",
+    "description": "Voice settings description"
+  },
+  
+  "save_settings": {
+    "message": "儲存設定",
+    "description": "Save settings button"
+  },
+  "saving": {
+    "message": "儲存中...",
+    "description": "Saving status"
+  },
+  "settings_saved": {
+    "message": "設定已儲存",
+    "description": "Settings saved message"
+  },
+  
+  "keyboard_shortcuts": {
+    "message": "鍵盤快捷鍵",
+    "description": "Keyboard shortcuts section"
+  },
+  "search_shortcut": {
+    "message": "用 AI 分析選取的文字",
+    "description": "Search shortcut description"
+  },
+  "current_shortcut": {
+    "message": "目前快捷鍵：",
+    "description": "Current shortcut label"
+  },
+  "customize_shortcuts": {
+    "message": "自定義快捷鍵",
+    "description": "Customize shortcuts button"
+  },
+  "shortcuts_note": {
+    "message": "點擊上方按鈕開啟 Chrome 快捷鍵設定頁面，您可以在那裡自定義快捷鍵。",
+    "description": "Shortcuts note"
+  },
+  
+  "ai_analysis_title": {
+    "message": "🤖 AI 語言分析",
+    "description": "AI analysis title"
+  },
+  "generate_analysis": {
+    "message": "✨ 生成分析",
+    "description": "Generate analysis button"
+  },
+  "regenerate_analysis": {
+    "message": "🔄 重新生成",
+    "description": "Regenerate analysis button"
+  },
+  "ai_analysis_placeholder": {
+    "message": "點擊「生成分析」按鈕，AI 將為您提供：",
+    "description": "AI analysis placeholder"
+  },
+  "ai_feature_pronunciation": {
+    "message": "📢 發音指導和國際音標",
+    "description": "AI pronunciation feature"
+  },
+  "ai_feature_explanation": {
+    "message": "📖 詞彙解釋和用法說明",
+    "description": "AI explanation feature"
+  },
+  "ai_feature_grammar": {
+    "message": "📝 語法分析和句型結構",
+    "description": "AI grammar feature"
+  },
+  "ai_feature_culture": {
+    "message": "🌍 文化背景和使用情境",
+    "description": "AI culture feature"
+  },
+  "ai_config_note": {
+    "message": "需要在設定中配置 AI API 金鑰",
+    "description": "AI config note"
+  },
+  "ai_analyzing": {
+    "message": "AI 分析中，請稍候...",
+    "description": "AI analyzing message"
+  },
+  "ai_analysis_failed": {
+    "message": "AI 分析失敗",
+    "description": "AI analysis failed message"
+  },
+  "retry": {
+    "message": "重試",
+    "description": "Retry button"
+  },
+  
+  "ai_audio_title": {
+    "message": "🔊 AI 語音發音",
+    "description": "AI audio title"
+  },
+  "generate_audio": {
+    "message": "🎵 生成語音",
+    "description": "Generate audio button"
+  },
+  "regenerate_audio": {
+    "message": "🔄 重新生成",
+    "description": "Regenerate audio button"
+  },
+  "test_audio": {
+    "message": "🧪 測試",
+    "description": "Test audio button"
+  },
+  "audio_placeholder": {
+    "message": "點擊「生成語音」取得 AI 語音發音",
+    "description": "Audio placeholder message"
+  },
+  "audio_tech_note": {
+    "message": "使用 OpenAI TTS 技術生成自然語音",
+    "description": "Audio technology note"
+  },
+  "generating_audio": {
+    "message": "正在生成語音，請稍候...",
+    "description": "Generating audio message"
+  },
+  "play_audio": {
+    "message": "▶️ 播放",
+    "description": "Play audio button"
+  },
+  "download_audio": {
+    "message": "💾 下載",
+    "description": "Download audio button"
+  },
+  "repeat_audio": {
+    "message": "🔄 重複",
+    "description": "Repeat audio button"
+  },
+  "repeat_on": {
+    "message": "🔁 重複中",
+    "description": "Repeat on status"
+  },
+  "audio_generation_failed": {
+    "message": "語音生成失敗",
+    "description": "Audio generation failed message"
+  },
+  
+  "language_uncertain": {
+    "message": "無法確定語言",
+    "description": "Language uncertain title"
+  },
+  "language_select_prompt": {
+    "message": "系統無法確定以下文本的語言，請選擇正確的語言：",
+    "description": "Language selection prompt"
+  },
+  "language_option_english": {
+    "message": "English",
+    "description": "English option in language selector"
+  },
+  "language_option_dutch": {
+    "message": "Nederlands",
+    "description": "Dutch option in language selector"
+  },
+  "remember_choice": {
+    "message": "記住我的選擇（適用於類似文本）",
+    "description": "Remember choice option"
+  },
+  "cancel": {
+    "message": "取消",
+    "description": "Cancel button"
+  },
+  "confirm": {
+    "message": "確認",
+    "description": "Confirm button"
+  },
+  
+  "audio_not_supported": {
+    "message": "您的瀏覽器不支援音頻播放",
+    "description": "Audio not supported message"
+  },
+  "pronunciation_sites_description": {
+    "message": "選擇最適合的發音網站：",
+    "description": "Pronunciation sites description"
+  },
+  "site_descriptions_title": {
+    "message": "📖 網站說明",
+    "description": "Site descriptions title"
+  }
+}
