@@ -133,8 +133,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log('📖 Processing learning text analysis for:', request.text, 'Platform:', request.platform);
     
     // Handle platform-specific analysis
+    const tabId = sender.tab?.id;
+    if (!tabId) {
+      console.error('📖 No tab ID found in sender');
+      sendResponse({ success: false, error: 'No tab ID found' });
+      return true;
+    }
+    
     if (request.platform === 'netflix') {
-      handleNetflixTextAnalysis(request, sender.tab.id)
+      handleNetflixTextAnalysis(request, tabId)
         .then(() => {
           sendResponse({ success: true, message: 'Netflix text sent to sidepanel for analysis' });
         })
@@ -144,7 +151,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         });
     } else {
       // Default to YouTube analysis
-      handleYouTubeTextAnalysis(request, sender.tab.id)
+      handleYouTubeTextAnalysis(request, tabId)
         .then(() => {
           sendResponse({ success: true, message: 'Text sent to sidepanel for analysis' });
         })

@@ -9,6 +9,7 @@ class TranscriptRestructurer {
     this.transcriptFetcher = null;
     this.currentTranscript = null;
     this.restructuredSentences = null;
+    this.capturedSentencesQueue = []; // Queue to store multiple captured sentences
     
     // Initialize asynchronously
     this.initializeAsync();
@@ -297,6 +298,32 @@ class TranscriptRestructurer {
         ` : ''}
         
         <div class="transcript-status"></div>
+        
+        ${this.currentPlatform === 'netflix' ? `
+        <!-- Captured Sentences Queue Display -->
+        <div class="captured-sentences-container" style="display: none;">
+          <div class="captured-sentences-header">
+            <h4>📚 Captured Sentences (${this.capturedSentencesQueue.length})</h4>
+            <div class="queue-controls">
+              <button class="analyze-all-btn" title="Analyze all captured sentences">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="M9 11H3v10h6V11zM15 3H9v18h6V3zM21 8h-6v13h6V8z"/>
+                </svg>
+                Analyze All
+              </button>
+              <button class="clear-queue-btn" title="Clear all captured sentences">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="M3 6h18"/>
+                  <path d="M8 6V4c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v2"/>
+                  <path d="M19 6v14c0 1.1-.9 2-2 2H7c-1.1 0-2-.9-2-2V6"/>
+                </svg>
+                Clear All
+              </button>
+            </div>
+          </div>
+          <div class="captured-sentences-list"></div>
+        </div>
+        ` : ''}
         
         <!-- ✅ NEW: Real-time audio quality indicator during recording -->
         <div class="live-audio-monitor" id="live-audio-monitor" style="display: none;">
@@ -2389,24 +2416,7 @@ Sentence to fix: "${preCleanedText}"`;
       if (result.success && result.text) {
         console.log('🎭 Captured Netflix subtitle:', result.text);
         
-        statusEl.textContent = `✅ Captured: "${result.text}"`;
-        statusEl.className = 'transcript-status success';
-        
-        // Send to sidepanel for Netflix-specific analysis
-        chrome.runtime.sendMessage({
-          action: 'analyzeTextInSidepanel',
-          text: result.text,
-          url: result.videoInfo?.url || tab.url,
-          originalUrl: result.videoInfo?.url || tab.url,
-          title: result.videoInfo?.title || 'Netflix Content',
-          videoId: result.videoInfo?.videoId,
-          movieId: result.videoInfo?.movieId,
-          timestamp: result.timestamp || 0,
-          platform: 'netflix',
-          source: 'netflix-learning'
-        });
-        
-        // Create a single segment for display with Netflix-specific information
+        // Create a segment object with Netflix-specific information
         const segment = {
           text: result.text,
           cleanText: result.text,
@@ -2420,12 +2430,21 @@ Sentence to fix: "${preCleanedText}"`;
           youtubeLink: result.videoInfo?.url || tab.url, // Use Netflix URL instead of YouGlish
           videoId: result.videoInfo?.videoId,
           movieId: result.videoInfo?.movieId,
-          segmentIndex: 0,
-          groupIndex: 0
+          title: result.videoInfo?.title || 'Netflix Content',
+          segmentIndex: this.capturedSentencesQueue.length,
+          groupIndex: 0,
+          capturedAt: new Date().toISOString()
         };
         
-        // Show the captured text in the transcript viewer
-        this.displayTranscriptInReader([segment]);
+        // Add to queue instead of immediately sending
+        this.capturedSentencesQueue.push(segment);
+        
+        // Update status with queue count
+        statusEl.textContent = `✅ Captured (${this.capturedSentencesQueue.length} total): "${result.text}"`;
+        statusEl.className = 'transcript-status success';
+        
+        // Update the UI to show captured sentences
+        this.updateCapturedSentencesDisplay();
         
         // Add some visual feedback
         captureBtn.style.backgroundColor = '#4CAF50';
@@ -2452,6 +2471,179 @@ Sentence to fix: "${preCleanedText}"`;
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  // Update the captured sentences display
+  updateCapturedSentencesDisplay() {
+    const container = this.container.querySelector('.captured-sentences-container');
+    const listEl = this.container.querySelector('.captured-sentences-list');
+    const headerEl = this.container.querySelector('.captured-sentences-header h4');
+    
+    if (!container || !listEl) return;
+    
+    // Show container if we have sentences
+    container.style.display = this.capturedSentencesQueue.length > 0 ? 'block' : 'none';
+    
+    // Update header count
+    if (headerEl) {
+      headerEl.textContent = `📚 Captured Sentences (${this.capturedSentencesQueue.length})`;
+    }
+    
+    // Clear and rebuild list
+    listEl.innerHTML = '';
+    
+    this.capturedSentencesQueue.forEach((segment, index) => {
+      const sentenceEl = document.createElement('div');
+      sentenceEl.className = 'captured-sentence-item';
+      sentenceEl.innerHTML = `
+        <div class="sentence-content">
+          <span class="sentence-index">${index + 1}.</span>
+          <span class="sentence-text">${segment.text}</span>
+          <span class="sentence-time">${segment.timestampDisplay}</span>
+        </div>
+        <div class="sentence-actions">
+          <button class="analyze-single-btn" data-index="${index}" title="Analyze this sentence">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.35-4.35"/>
+            </svg>
+          </button>
+          <button class="remove-sentence-btn" data-index="${index}" title="Remove this sentence">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+      `;
+      listEl.appendChild(sentenceEl);
+    });
+    
+    // Attach event listeners to the new buttons
+    this.attachQueueEventListeners();
+  }
+
+  // Attach event listeners for queue controls
+  attachQueueEventListeners() {
+    // Analyze all button
+    const analyzeAllBtn = this.container.querySelector('.analyze-all-btn');
+    if (analyzeAllBtn) {
+      analyzeAllBtn.onclick = () => this.analyzeAllCapturedSentences();
+    }
+    
+    // Clear all button
+    const clearAllBtn = this.container.querySelector('.clear-queue-btn');
+    if (clearAllBtn) {
+      clearAllBtn.onclick = () => this.clearCapturedSentences();
+    }
+    
+    // Individual sentence buttons
+    const analyzeSingleBtns = this.container.querySelectorAll('.analyze-single-btn');
+    analyzeSingleBtns.forEach(btn => {
+      btn.onclick = (e) => {
+        const index = parseInt(e.currentTarget.dataset.index);
+        this.analyzeSingleSentence(index);
+      };
+    });
+    
+    const removeBtns = this.container.querySelectorAll('.remove-sentence-btn');
+    removeBtns.forEach(btn => {
+      btn.onclick = (e) => {
+        const index = parseInt(e.currentTarget.dataset.index);
+        this.removeSentenceFromQueue(index);
+      };
+    });
+  }
+
+  // Analyze all captured sentences
+  async analyzeAllCapturedSentences() {
+    if (this.capturedSentencesQueue.length === 0) return;
+    
+    const statusEl = this.container.querySelector('.transcript-status');
+    statusEl.textContent = `🔄 Analyzing ${this.capturedSentencesQueue.length} sentences...`;
+    statusEl.className = 'transcript-status loading';
+    
+    try {
+      // Combine all sentences for analysis
+      const combinedText = this.capturedSentencesQueue.map(s => s.text).join('\n\n');
+      const firstSegment = this.capturedSentencesQueue[0];
+      
+      // Send to sidepanel for analysis
+      await chrome.runtime.sendMessage({
+        action: 'analyzeTextInSidepanel',
+        text: combinedText,
+        url: firstSegment.netflixUrl,
+        originalUrl: firstSegment.netflixUrl,
+        title: firstSegment.title,
+        videoId: firstSegment.videoId,
+        movieId: firstSegment.movieId,
+        timestamp: firstSegment.start,
+        platform: 'netflix',
+        source: 'netflix-learning',
+        isBatch: true,
+        segmentCount: this.capturedSentencesQueue.length
+      });
+      
+      statusEl.textContent = `✅ Sent ${this.capturedSentencesQueue.length} sentences for analysis`;
+      statusEl.className = 'transcript-status success';
+      
+      // Clear the queue after successful analysis
+      setTimeout(() => {
+        this.clearCapturedSentences();
+      }, 2000);
+      
+    } catch (error) {
+      console.error('❌ Error analyzing sentences:', error);
+      statusEl.textContent = '❌ Failed to analyze sentences';
+      statusEl.className = 'transcript-status error';
+    }
+  }
+
+  // Analyze a single sentence
+  async analyzeSingleSentence(index) {
+    const segment = this.capturedSentencesQueue[index];
+    if (!segment) return;
+    
+    try {
+      await chrome.runtime.sendMessage({
+        action: 'analyzeTextInSidepanel',
+        text: segment.text,
+        url: segment.netflixUrl,
+        originalUrl: segment.netflixUrl,
+        title: segment.title,
+        videoId: segment.videoId,
+        movieId: segment.movieId,
+        timestamp: segment.start,
+        platform: 'netflix',
+        source: 'netflix-learning'
+      });
+      
+      // Remove the analyzed sentence from queue
+      this.removeSentenceFromQueue(index);
+      
+    } catch (error) {
+      console.error('❌ Error analyzing sentence:', error);
+    }
+  }
+
+  // Remove a sentence from the queue
+  removeSentenceFromQueue(index) {
+    this.capturedSentencesQueue.splice(index, 1);
+    this.updateCapturedSentencesDisplay();
+    
+    const statusEl = this.container.querySelector('.transcript-status');
+    statusEl.textContent = `📝 Removed sentence. ${this.capturedSentencesQueue.length} remaining`;
+    statusEl.className = 'transcript-status info';
+  }
+
+  // Clear all captured sentences
+  clearCapturedSentences() {
+    this.capturedSentencesQueue = [];
+    this.updateCapturedSentencesDisplay();
+    
+    const statusEl = this.container.querySelector('.transcript-status');
+    statusEl.textContent = '🗑️ Cleared all captured sentences';
+    statusEl.className = 'transcript-status info';
   }
 
   // ✅ NEW: Netflix collection completion handler
@@ -3114,6 +3306,164 @@ Sentence to fix: "${preCleanedText}"`;
       .transcript-status.error {
         background: #ffebee;
         color: #c62828;
+      }
+      
+      .transcript-status.info {
+        background: #f3f4f6;
+        color: #4b5563;
+      }
+      
+      /* Captured Sentences Queue Styles */
+      .captured-sentences-container {
+        background: #f8f9fa;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 15px;
+      }
+      
+      .captured-sentences-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #e0e0e0;
+      }
+      
+      .captured-sentences-header h4 {
+        margin: 0;
+        color: #333;
+        font-size: 16px;
+      }
+      
+      .queue-controls {
+        display: flex;
+        gap: 10px;
+      }
+      
+      .queue-controls button {
+        padding: 6px 12px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        transition: all 0.2s;
+      }
+      
+      .analyze-all-btn {
+        background: #4285f4;
+        color: white;
+      }
+      
+      .analyze-all-btn:hover {
+        background: #3367d6;
+        transform: translateY(-1px);
+      }
+      
+      .clear-queue-btn {
+        background: #ea4335;
+        color: white;
+      }
+      
+      .clear-queue-btn:hover {
+        background: #d33b2c;
+        transform: translateY(-1px);
+      }
+      
+      .captured-sentences-list {
+        max-height: 300px;
+        overflow-y: auto;
+      }
+      
+      .captured-sentence-item {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        padding: 10px;
+        margin-bottom: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s;
+      }
+      
+      .captured-sentence-item:hover {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transform: translateY(-1px);
+      }
+      
+      .sentence-content {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      
+      .sentence-index {
+        font-weight: bold;
+        color: #666;
+        min-width: 25px;
+      }
+      
+      .sentence-text {
+        flex: 1;
+        color: #333;
+        font-size: 14px;
+        line-height: 1.4;
+      }
+      
+      .sentence-time {
+        color: #666;
+        font-size: 12px;
+        background: #f0f0f0;
+        padding: 2px 8px;
+        border-radius: 4px;
+      }
+      
+      .sentence-actions {
+        display: flex;
+        gap: 5px;
+        margin-left: 10px;
+      }
+      
+      .sentence-actions button {
+        width: 28px;
+        height: 28px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        padding: 0;
+      }
+      
+      .analyze-single-btn {
+        background: #4285f4;
+        color: white;
+      }
+      
+      .analyze-single-btn:hover {
+        background: #3367d6;
+      }
+      
+      .remove-sentence-btn {
+        background: #ea4335;
+        color: white;
+      }
+      
+      .remove-sentence-btn:hover {
+        background: #d33b2c;
+      }
+      
+      .sentence-actions svg {
+        width: 14px;
+        height: 14px;
       }
       
       .transcript-content {

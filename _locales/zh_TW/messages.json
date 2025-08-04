@@ -1,10 +1,10 @@
 {
   "extensionName": {
-    "message": "YouGlish 快速搜尋 (Alpha 測試版)",
+    "message": "槓桿AI語言學習插件 (Alpha測試版)",
     "description": "Extension name"
   },
   "extensionDescription": {
-    "message": "ALPHA 測試版 - 綜合語言學習擴充功能：發音、字典、語境例句、翻譯、社群問答一站式服務。部分功能尚未完全優化。",
+    "message": "ALPHA測試版 - AI語言學習助手，支援發音分析、語法解析、字幕處理等功能（部分功能尚不穩定）",
     "description": "Extension description"
   },
   "searchOnYouglish": {

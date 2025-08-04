@@ -932,34 +932,57 @@
     // Test if button is truly clickable and fix if blocked
     setTimeout(() => {
       const rect = button.getBoundingClientRect();
+      
+      // Check if button is within viewport bounds
+      if (rect.width === 0 || rect.height === 0 || 
+          rect.right < 0 || rect.left > window.innerWidth ||
+          rect.bottom < 0 || rect.top > window.innerHeight) {
+        console.warn('📝 Button is outside viewport or has no dimensions:', rect);
+        // Force button back into viewport
+        button.style.top = '50px !important';
+        button.style.left = '50px !important';
+        return;
+      }
+      
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
       const elementAtPoint = document.elementFromPoint(centerX, centerY);
       
       let isClickable = false;
-      if (button.__isShadowButton) {
-        // For shadow DOM button, check if we hit the shadow host
-        isClickable = elementAtPoint === button.shadowContainer || 
-                     button.shadowContainer.contains(elementAtPoint);
-      } else {
-        // For regular button
-        isClickable = elementAtPoint === button || button.contains(elementAtPoint);
+      if (elementAtPoint) {
+        if (button.__isShadowButton) {
+          // For shadow DOM button, check if we hit the shadow host
+          isClickable = elementAtPoint === button.shadowContainer || 
+                       button.shadowContainer.contains(elementAtPoint);
+        } else {
+          // For regular button
+          isClickable = elementAtPoint === button || button.contains(elementAtPoint);
+        }
       }
       
       console.log('📝 Button clickability test:', {
         isClickable,
-        elementAtPoint: elementAtPoint?.tagName,
-        elementAtPointClass: elementAtPoint?.className,
+        elementAtPoint: elementAtPoint?.tagName || 'null',
+        elementAtPointClass: elementAtPoint?.className || 'N/A',
         buttonRect: rect,
         centerPoint: { x: centerX, y: centerY },
+        isInViewport: rect.right > 0 && rect.left < window.innerWidth && 
+                      rect.bottom > 0 && rect.top < window.innerHeight,
         blockingElement: elementAtPoint
       });
       
-      if (!isClickable) {
-        console.warn('📝 Button may not be clickable! Element at center:', elementAtPoint);
+      if (!isClickable && elementAtPoint) {
+        console.warn('📝 Button may not be clickable! Element at center:', elementAtPoint.tagName);
         
         // Try to fix clickability issues
         fixButtonClickability(button, elementAtPoint, rect);
+      } else if (!elementAtPoint) {
+        console.warn('📝 No element found at button center - button may be positioned incorrectly');
+        // Force visible position
+        button.style.position = 'fixed !important';
+        button.style.top = '100px !important';
+        button.style.left = '100px !important';
+        button.style.zIndex = '2147483647 !important';
       }
     }, 100);
   }

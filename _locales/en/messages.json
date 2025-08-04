@@ -1,10 +1,10 @@
 {
   "extensionName": {
-    "message": "LeverageLanguage - AI Language Learning (Alpha Test)",
+    "message": "槓桿AI語言學習插件 (Alpha Test)",
     "description": "Extension name"
   },
   "extensionDescription": {
-    "message": "ALPHA TEST VERSION - Leverage AI to amplify your language learning: advanced error detection, pronunciation analysis, grammar insights, and contextual learning tools. Some features may not be fully optimized.",
+    "message": "ALPHA TEST - AI language learning with error detection, pronunciation analysis & grammar insights (unstable version)",
     "description": "Extension description"
   },
   "searchOnYouglish": {

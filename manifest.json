@@ -96,7 +96,18 @@
   
   
   "action": {
-    "default_title": "__MSG_extensionName__"
+    "default_title": "__MSG_extensionName__",
+    "default_icon": {
+      "16": "icons/icons/icon16_blackwhite.png",
+      "48": "icons/icons/icon48_blackwhite.png",
+      "128": "icons/icons/icon128_blackwhite.png"
+    }
+  },
+  
+  "icons": {
+    "16": "icons/icons/icon16_blackwhite.png",
+    "48": "icons/icons/icon48_blackwhite.png",
+    "128": "icons/icons/icon128_blackwhite.png"
   },
   
   "options_page": "options.html",
