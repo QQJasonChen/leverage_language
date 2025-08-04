@@ -942,7 +942,7 @@ function exportLearningData() {
   a.click();
   URL.revokeObjectURL(url);
 }
-let learningAnalytics = null;
+let learningAnalytics = null; // Disabled analytics functionality
 let studySessionGenerator = null;
 
 // Authentication UI handlers
@@ -1038,18 +1038,9 @@ window.addEventListener('load', async () => {
       storageManager = new StorageManager();
     }
     
-    // Initialize learning analytics
-    if (typeof LearningAnalytics !== 'undefined') {
-      learningAnalytics = new LearningAnalytics();
-      const initialized = await learningAnalytics.initialize();
-      log('Learning Analytics initialized:', initialized);
-    }
+    // Analytics functionality disabled
     
-    // Initialize study session generator
-    if (learningAnalytics && typeof StudySessionGenerator !== 'undefined') {
-      studySessionGenerator = new StudySessionGenerator(learningAnalytics, window.flashcardManager);
-      log('Study Session Generator initialized');
-    }
+    // Study session generator disabled (requires analytics)
 
     // Initialize authentication managers
     if (typeof window.authManager !== 'undefined') {
@@ -1357,7 +1348,7 @@ function initializeViewControls() {
   const showHistoryBtn = document.getElementById('showHistoryBtn');
   const showSavedReportsBtn = document.getElementById('showSavedReportsBtn');
   const showFlashcardsBtn = document.getElementById('showFlashcardsBtn');
-  const showAnalyticsBtn = document.getElementById('showAnalyticsBtn');
+  // Analytics button removed
   const showTranscriptBtn = document.getElementById('showTranscriptBtn');
   const openNewTabBtn = document.getElementById('openNewTabBtn');
   const analysisView = document.getElementById('analysisView');
@@ -1366,7 +1357,7 @@ function initializeViewControls() {
   const historyView = document.getElementById('historyView');
   const savedReportsView = document.getElementById('savedReportsView');
   const flashcardsView = document.getElementById('flashcardsView');
-  const analyticsView = document.getElementById('analyticsView');
+  // Analytics view removed
   const transcriptView = document.getElementById('transcriptView');
   
   // 分析視圖按鈕
@@ -1383,7 +1374,7 @@ function initializeViewControls() {
       if (historyView) historyView.style.display = 'none';
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'none';
-      if (analyticsView) analyticsView.style.display = 'none';
+      // Analytics view removed
       if (transcriptView) transcriptView.style.display = 'none';
       
       log('Switched to analysis view');
@@ -1405,7 +1396,7 @@ function initializeViewControls() {
       if (historyView) historyView.style.display = 'none';
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'none';
-      if (analyticsView) analyticsView.style.display = 'none';
+      // Analytics view removed
       if (transcriptView) transcriptView.style.display = 'none';
       
       // Initialize learning dashboard for video tab
@@ -1436,7 +1427,7 @@ function initializeViewControls() {
       if (historyView) historyView.style.display = 'none';
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'none';
-      if (analyticsView) analyticsView.style.display = 'none';
+      // Analytics view removed
       if (transcriptView) transcriptView.style.display = 'none';
       
       // Load pronunciation sites for current query
@@ -1469,7 +1460,7 @@ function initializeViewControls() {
       if (historyView) historyView.style.display = 'block';
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'none';
-      if (analyticsView) analyticsView.style.display = 'none';
+      // Analytics view removed
       if (transcriptView) transcriptView.style.display = 'none';
       
       loadHistoryView();
@@ -1491,7 +1482,7 @@ function initializeViewControls() {
       if (historyView) historyView.style.display = 'none';
       if (savedReportsView) savedReportsView.style.display = 'block';
       if (flashcardsView) flashcardsView.style.display = 'none';
-      if (analyticsView) analyticsView.style.display = 'none';
+      // Analytics view removed
       
       loadSavedReports();
       console.log('Switched to saved reports view');
@@ -1511,7 +1502,7 @@ function initializeViewControls() {
       if (websitesView) websitesView.style.display = 'none';
       if (historyView) historyView.style.display = 'none';
       if (savedReportsView) savedReportsView.style.display = 'none';
-      if (analyticsView) analyticsView.style.display = 'none';
+      // Analytics view removed
       if (flashcardsView) flashcardsView.style.display = 'block';
       
       loadFlashcardsView();
@@ -1519,26 +1510,7 @@ function initializeViewControls() {
     };
   }
 
-  // Analytics view button
-  if (showAnalyticsBtn) {
-    showAnalyticsBtn.onclick = async () => {
-      // Remove active from all view buttons
-      document.querySelectorAll('.view-button').forEach(btn => btn.classList.remove('active'));
-      showAnalyticsBtn.classList.add('active');
-      
-      // Show analytics view, hide all others
-      if (analysisView) analysisView.style.display = 'none';
-      if (videoView) videoView.style.display = 'none';
-      if (websitesView) websitesView.style.display = 'none';
-      if (historyView) historyView.style.display = 'none';
-      if (savedReportsView) savedReportsView.style.display = 'none';
-      if (flashcardsView) flashcardsView.style.display = 'none';
-      if (analyticsView) analyticsView.style.display = 'block';
-      
-      await loadAnalyticsView();
-      console.log('Switched to analytics view');
-    };
-  }
+  // Analytics view button removed
 
   // Transcript view button
   if (showTranscriptBtn) {
@@ -1554,7 +1526,7 @@ function initializeViewControls() {
       if (historyView) historyView.style.display = 'none';
       if (savedReportsView) savedReportsView.style.display = 'none';
       if (flashcardsView) flashcardsView.style.display = 'none';
-      if (analyticsView) analyticsView.style.display = 'none';
+      // Analytics view removed
       // Show transcript view
       if (transcriptView) transcriptView.style.display = 'block';
       
@@ -9077,7 +9049,7 @@ async function loadAnalyticsView() {
     }
 
     // Set up analytics detail event listeners (CSP compliant)
-    const analyticsView = document.getElementById('analyticsView');
+    // Analytics view removed
     if (analyticsView) {
       // Event delegation for metric cards with data-detail attribute
       analyticsView.addEventListener('click', (e) => {
@@ -9340,7 +9312,7 @@ function getRecommendationIcon(type) {
 
 // Show analytics error
 function showAnalyticsError() {
-  const analyticsView = document.getElementById('analyticsView');
+  // Analytics view removed
   if (analyticsView) {
     analyticsView.innerHTML = `
       <div style="text-align: center; padding: 40px; color: #666;">
@@ -11205,7 +11177,7 @@ async function completeStudySession() {
   );
 
   // Update analytics view if it's currently displayed
-  const analyticsView = document.getElementById('analyticsView');
+  // Analytics view removed
   if (analyticsView && analyticsView.style.display !== 'none') {
     await loadAnalyticsView();
   }

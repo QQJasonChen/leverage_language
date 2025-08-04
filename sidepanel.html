@@ -2981,139 +2981,6 @@
             }
         }
 
-        /* Analytics View Styles */
-        .analytics-view {
-            padding: 20px;
-            max-height: 100vh;
-            overflow-y: auto;
-        }
-
-        .analytics-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-            padding-bottom: 16px;
-            border-bottom: 2px solid #e0e0e0;
-        }
-
-        .analytics-header h3 {
-            margin: 0;
-            color: #1976d2;
-            font-size: 20px;
-        }
-
-        .refresh-btn {
-            background: #f5f5f5;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            padding: 8px 16px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.2s ease;
-        }
-
-        .refresh-btn:hover {
-            background: #e0e0e0;
-            transform: translateY(-1px);
-        }
-
-        .analytics-overview {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 16px;
-            margin-bottom: 32px;
-        }
-
-        .metric-card {
-            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
-            border: 1px solid #90caf9;
-        }
-
-        .metric-value {
-            display: block;
-            font-size: 32px;
-            font-weight: 700;
-            color: #1976d2;
-            margin-bottom: 8px;
-        }
-
-        .metric-label {
-            font-size: 14px;
-            color: #1565c0;
-            font-weight: 500;
-        }
-
-        .analytics-recommendations {
-            margin-bottom: 32px;
-        }
-
-        .analytics-recommendations h4 {
-            color: #1976d2;
-            font-size: 18px;
-            margin-bottom: 16px;
-        }
-
-        .recommendation-item {
-            background: #ffffff;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            transition: all 0.2s ease;
-        }
-
-        .recommendation-item:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            border-color: #1976d2;
-        }
-
-        .recommendation-icon {
-            font-size: 24px;
-            flex-shrink: 0;
-        }
-
-        .recommendation-content {
-            flex: 1;
-        }
-
-        .recommendation-content h5 {
-            margin: 0 0 8px 0;
-            color: #333;
-            font-size: 16px;
-        }
-
-        .recommendation-content p {
-            margin: 0 0 12px 0;
-            color: #666;
-            font-size: 14px;
-            line-height: 1.4;
-        }
-
-        .recommendation-btn {
-            background: #1976d2;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            transition: background 0.2s ease;
-        }
-
-        .recommendation-btn:hover {
-            background: #1565c0;
-        }
-
-        .analytics-actions {
-            text-align: center;
-        }
 
         .primary-btn {
             background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
@@ -3802,7 +3669,6 @@
                     <button id="showHistoryBtn" class="view-button" data-i18n="history_view">📚 History</button>
                     <button id="showSavedReportsBtn" class="view-button" data-i18n="saved_reports_view">💾 Saved Reports</button>
                     <button id="showFlashcardsBtn" class="view-button" data-i18n="flashcards_view">🃏 Flashcards</button>
-                    <button id="showAnalyticsBtn" class="view-button" data-i18n="analytics_view">📊 Analytics</button>
                     <button id="showTranscriptBtn" class="view-button" data-i18n="transcript_view">📝 Transcript</button>
                     <button id="openNewTabBtn" class="view-button" data-i18n="new_tab">🔗 New Tab</button>
                 </div>
@@ -4518,56 +4384,6 @@
             </div>
             
             <!-- 學習統計視圖 -->
-            <div id="analyticsView" class="analytics-view" style="display: none;">
-                <div class="analytics-header">
-                    <h3 data-i18n="analytics_title">📊 Learning Analytics</h3>
-                    <button id="refreshAnalyticsBtn" class="refresh-btn" data-i18n="refresh">🔄 Refresh</button>
-                </div>
-                
-                <div class="analytics-overview">
-                    <div class="metric-card" title="您創建的記憶卡總數" data-detail="cards">
-                        <span class="metric-value" id="totalVocab">0</span>
-                        <span class="metric-label">記憶卡總數</span>
-                        <div class="metric-detail" id="totalVocabDetail"></div>
-                    </div>
-                    <div class="metric-card" title="連續學習天數" data-detail="streak">
-                        <span class="metric-value" id="currentStreak">0</span>
-                        <span class="metric-label">學習連續天數</span>
-                        <div class="metric-detail" id="streakDetail"></div>
-                    </div>
-                    <div class="metric-card" title="答對率：複習記憶卡時答對的百分比，越高表示記得越好" data-detail="retention">
-                        <span class="metric-value" id="retentionRate">0%</span>
-                        <span class="metric-label">複習答對率</span>
-                        <div class="metric-detail" id="retentionDetail"></div>
-                    </div>
-                </div>
-                
-                <!-- 詳細統計說明 -->
-                <div id="analyticsExplanation" style="
-                    background: #f8f9fa; 
-                    padding: 16px; 
-                    border-radius: 8px; 
-                    margin-top: 16px;
-                    border-left: 4px solid #1976d2;
-                ">
-                    <h4 style="margin: 0 0 8px 0; color: #1976d2;">📊 如何累積統計數據</h4>
-                    <div style="font-size: 14px; line-height: 1.5; color: #666;">
-                        <p style="margin: 4px 0;"><strong>建立記憶卡</strong>：搜尋單字後點擊「建立記憶卡」</p>
-                        <p style="margin: 4px 0;"><strong>開始學習</strong>：在記憶卡頁面點擊「開始學習」</p>
-                        <p style="margin: 4px 0;"><strong>完成複習</strong>：學習時選擇難易度（簡單/困難/忘記/記住）</p>
-                        <p style="margin: 4px 0;"><strong>查看進步</strong>：數據會在每次學習後更新</p>
-                    </div>
-                </div>
-                
-                <div class="analytics-recommendations">
-                    <h4>🎯 個人化建議</h4>
-                    <div id="recommendationsList"></div>
-                </div>
-                
-                <div class="analytics-actions">
-                    <button id="generateStudyBtn" class="primary-btn">📚 智能學習計劃</button>
-                </div>
-            </div>
             
             <!-- 字幕重構視圖 -->
             <div id="transcriptView" class="transcript-view" style="display: none;">
@@ -4590,12 +4406,10 @@
     <script src="lib/performance-utils.js"></script>
     <script src="lib/error-handler.js"></script>
     <script src="security-fixes.js"></script>
-    <script src="lib/learning-analytics.js"></script>
     <script src="lib/study-session-generator.js"></script>
     <script src="lib/notion-integration.js"></script>
     <script src="lib/auth-manager.js"></script>
     <script src="lib/cloud-sync-manager.js"></script>
-    <script src="lib/analytics-manager.js"></script>
     <script src="lib/subscription-manager.js"></script>
     <script src="lib/youtube-transcript.js"></script>
     <script src="components/transcript-viewer.js"></script>
