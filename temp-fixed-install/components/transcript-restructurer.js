@@ -131,6 +131,16 @@ class TranscriptRestructurer {
               </svg>
               Capture
             </button>` : ''}
+            <button class="clear-all-btn" title="Clear all captured sentences" style="display: none;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M3 6h18"/>
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                <line x1="10" y1="11" x2="10" y2="17"/>
+                <line x1="14" y1="11" x2="14" y2="17"/>
+              </svg>
+              Clear All
+            </button>
             <button class="debug-platform-btn" title="Debug platform detection">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <circle cx="12" cy="12" r="10"/>
@@ -201,6 +211,12 @@ class TranscriptRestructurer {
     const debugBtn = this.container.querySelector('.debug-platform-btn');
     if (debugBtn) {
       debugBtn.addEventListener('click', () => this.debugPlatformDetection());
+    }
+    
+    // Clear All button
+    const clearAllBtn = this.container.querySelector('.clear-all-btn');
+    if (clearAllBtn) {
+      clearAllBtn.addEventListener('click', () => this.clearAllCapturedSentences());
     }
     
     // ✅ NEW: Add interactive card selection for subtitle modes
@@ -2267,18 +2283,19 @@ Sentence to fix: "${preCleanedText}"`;
         this.analyzeCapture(captureData, analyzeBtn);
       });
       
-      // YouTube link button
-      const youtubeBtn = document.createElement('button');
-      youtubeBtn.className = 'youtube-link-btn';
-      youtubeBtn.innerHTML = '⏰';
-      youtubeBtn.title = `Jump to YouTube at ${this.formatTimestamp(captureData.timestamp)}`;
-      youtubeBtn.addEventListener('click', async () => {
-        // Same logic as timestamp button
-        timestampBtn.click();
+      // Delete row button
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'delete-row-btn';
+      deleteBtn.innerHTML = '🗑️';
+      deleteBtn.title = 'Delete this captured sentence';
+      deleteBtn.addEventListener('click', async () => {
+        if (confirm('Are you sure you want to delete this sentence?')) {
+          row.remove();
+        }
       });
       
       actionsCell.appendChild(analyzeBtn);
-      actionsCell.appendChild(youtubeBtn);
+      actionsCell.appendChild(deleteBtn);
       
       // Add cells to row
       row.appendChild(timestampCell);
@@ -2287,6 +2304,9 @@ Sentence to fix: "${preCleanedText}"`;
       
       // Add row to table
       tbody.appendChild(row);
+      
+      // Show Clear All button now that we have content
+      this.toggleClearAllButton();
       
       // Scroll to show new sentence
       row.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -2379,8 +2399,8 @@ Sentence to fix: "${preCleanedText}"`;
           .capture-sentence-btn:hover {
             background: #F57C00;
           }
-          .youtube-link-btn {
-            background: #2196f3;
+          .delete-row-btn {
+            background: #dc3545;
             border: none;
             padding: 6px;
             border-radius: 4px;
@@ -2388,8 +2408,8 @@ Sentence to fix: "${preCleanedText}"`;
             color: white;
             font-size: 14px;
           }
-          .youtube-link-btn:hover {
-            background: #1976d2;
+          .delete-row-btn:hover {
+            background: #c82333;
           }
         </style>
       `;
@@ -2403,17 +2423,18 @@ Sentence to fix: "${preCleanedText}"`;
     button.disabled = true;
     
     try {
-      // Send for AI analysis
-      const response = await chrome.runtime.sendMessage({
+      // First get the current YouTube tab
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const tab = tabs[0];
+      
+      if (!tab || !tab.url.includes('youtube.com')) {
+        throw new Error('No YouTube tab found');
+      }
+      
+      // Send to YouTube content script, which will forward to background
+      const response = await chrome.tabs.sendMessage(tab.id, {
         action: 'analyzeTextInSidepanel',
-        text: captureData.text,
-        url: captureData.videoInfo.url,
-        title: captureData.videoInfo.title,
-        language: 'english',
-        source: 'youtube-learning',
-        platform: 'youtube',
-        videoId: captureData.videoInfo.videoId,
-        timestamp: captureData.timestamp
+        text: captureData.text
       });
       
       if (response && response.success) {
@@ -2423,7 +2444,7 @@ Sentence to fix: "${preCleanedText}"`;
           button.disabled = false;
         }, 2000);
       } else {
-        throw new Error('Analysis failed');
+        throw new Error(response?.error || 'Analysis failed');
       }
     } catch (error) {
       console.error('Analysis failed:', error);
@@ -2440,6 +2461,32 @@ Sentence to fix: "${preCleanedText}"`;
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  // Clear all captured sentences
+  clearAllCapturedSentences() {
+    if (confirm('Are you sure you want to clear all captured sentences?')) {
+      const transcriptTable = document.querySelector('.transcript-table');
+      if (transcriptTable) {
+        const tbody = transcriptTable.querySelector('tbody');
+        if (tbody) {
+          tbody.innerHTML = '';
+          this.toggleClearAllButton(); // Hide clear all button when table is empty
+        }
+      }
+    }
+  }
+
+  // Show/hide Clear All button based on whether table has content
+  toggleClearAllButton() {
+    const clearAllBtn = this.container.querySelector('.clear-all-btn');
+    const transcriptTable = document.querySelector('.transcript-table');
+    
+    if (clearAllBtn && transcriptTable) {
+      const tbody = transcriptTable.querySelector('tbody');
+      const hasRows = tbody && tbody.children.length > 0;
+      clearAllBtn.style.display = hasRows ? 'flex' : 'none';
+    }
   }
 
   // ✅ NEW: Netflix-specific collection start
@@ -3057,6 +3104,24 @@ Sentence to fix: "${preCleanedText}"`;
       
       .start-collection-btn:hover {
         background: #e64a19;
+      }
+      
+      .clear-all-btn {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 12px;
+        background: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: background 0.2s;
+      }
+      
+      .clear-all-btn:hover {
+        background: #c82333;
       }
       
       .capture-subtitle-btn {
