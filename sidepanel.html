@@ -987,6 +987,155 @@
             background: #1557b0;
         }
         
+        /* Audio Search Button */
+        .audio-search-btn {
+            background: #34a853 !important;
+            color: white;
+            border: none;
+            padding: 8px 12px !important;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s ease;
+            min-width: auto;
+        }
+        
+        .audio-search-btn:hover {
+            background: #2d8f3f !important;
+            transform: translateY(-1px);
+        }
+        
+        .audio-search-btn.recording {
+            background: #ea4335 !important;
+            animation: pulse 1s infinite;
+        }
+        
+        .audio-search-btn.recording:hover {
+            background: #d93025 !important;
+        }
+        
+        .audio-search-btn.processing {
+            background: #fbbc04 !important;
+            color: #333;
+        }
+        
+        .audio-search-btn.processing:hover {
+            background: #f9ab00 !important;
+        }
+        
+        .audio-search-btn:disabled {
+            background: #9aa0a6 !important;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* Audio Search Status */
+        .audio-search-status {
+            position: fixed;
+            top: 50px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 10000;
+            display: none;
+            animation: fadeInUp 0.3s ease;
+        }
+        
+        .audio-search-status.show {
+            display: block;
+        }
+        
+        .audio-search-status.error {
+            background: rgba(234, 67, 53, 0.9);
+        }
+        
+        .audio-search-status.success {
+            background: rgba(52, 168, 83, 0.9);
+        }
+        
+        /* Audio Settings Modal */
+        .audio-settings-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10001;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .audio-settings-modal.show {
+            display: flex;
+        }
+        
+        .audio-settings-content {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .audio-settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 16px;
+        }
+        
+        .audio-settings-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .audio-setting-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .audio-setting-group label {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .audio-setting-group select,
+        .audio-setting-group input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .audio-setting-group .description {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+        
+        .audio-settings-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
         /* 歷史記錄視圖 */
         .history-view {
             padding: 16px;
@@ -3629,6 +3778,9 @@
                     <option value="korean" data-i18n="language_korean">Korean</option>
                     <option value="dutch" data-i18n="language_dutch">Dutch</option>
                 </select>
+                <button id="audioSearchBtn" class="audio-search-btn" title="Voice Search (Click to speak)">
+                    🎤
+                </button>
                 <button id="manualSearchBtn" data-i18n="search_button">Search</button>
             </div>
         </div>
@@ -4412,8 +4564,80 @@
     <script src="lib/cloud-sync-manager.js"></script>
     <script src="lib/subscription-manager.js"></script>
     <script src="lib/youtube-transcript.js"></script>
+    <script src="lib/audio-search.js"></script>
     <script src="components/transcript-viewer.js"></script>
     <script src="components/transcript-restructurer.js"></script>
     <script src="sidepanel.js"></script>
+    
+    <!-- Audio Search Status -->
+    <div id="audioSearchStatus" class="audio-search-status">
+        <span id="audioStatusText">🎤 Ready to listen...</span>
+    </div>
+    
+    <!-- Audio Settings Modal -->
+    <div id="audioSettingsModal" class="audio-settings-modal">
+        <div class="audio-settings-content">
+            <div class="audio-settings-header">
+                <h3>🎤 Voice Search Settings</h3>
+                <button id="closeAudioSettings" style="background: none; border: none; font-size: 20px; cursor: pointer;">×</button>
+            </div>
+            
+            <div class="audio-settings-form">
+                <div class="audio-setting-group">
+                    <label for="audioProvider">Recognition Service</label>
+                    <select id="audioProvider">
+                        <option value="webSpeech">Web Speech API (Free)</option>
+                        <option value="whisper">OpenAI Whisper (Premium)</option>
+                    </select>
+                    <div class="description">Web Speech API is free but less accurate. Whisper requires API key but provides better results.</div>
+                </div>
+                
+                <div class="audio-setting-group" id="whisperApiGroup" style="display: none;">
+                    <label for="whisperApiKey">OpenAI API Key</label>
+                    <input type="password" id="whisperApiKey" placeholder="sk-...">
+                    <div class="description">Your OpenAI API key for Whisper transcription. Stored locally and securely.</div>
+                </div>
+                
+                <div class="audio-setting-group">
+                    <label for="audioLanguage">Recognition Language</label>
+                    <select id="audioLanguage">
+                        <option value="auto">Auto-detect</option>
+                        <option value="english">English</option>
+                        <option value="dutch">Dutch (Nederlands)</option>
+                        <option value="japanese">Japanese (日本語)</option>
+                        <option value="korean">Korean (한국어)</option>
+                        <option value="chinese">Chinese (中文)</option>
+                    </select>
+                    <div class="description">Language for speech recognition. Auto-detect works best with Web Speech API.</div>
+                </div>
+                
+                <div class="audio-setting-group">
+                    <label for="audioQuality">Audio Quality</label>
+                    <select id="audioQuality">
+                        <option value="low">Low (16 kHz) - Faster</option>
+                        <option value="medium">Medium (22 kHz) - Balanced</option>
+                        <option value="high">High (48 kHz) - Best Quality</option>
+                    </select>
+                    <div class="description">Higher quality uses more bandwidth but improves accuracy for Whisper.</div>
+                </div>
+                
+                <div class="audio-setting-group">
+                    <label for="maxRecordingTime">Max Recording Time</label>
+                    <select id="maxRecordingTime">
+                        <option value="10000">10 seconds</option>
+                        <option value="20000">20 seconds</option>
+                        <option value="30000">30 seconds</option>
+                        <option value="60000">1 minute</option>
+                    </select>
+                    <div class="description">Maximum duration for voice recording. Longer recordings use more resources.</div>
+                </div>
+            </div>
+            
+            <div class="audio-settings-actions">
+                <button id="cancelAudioSettings" style="background: #f1f3f4; color: #333; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Cancel</button>
+                <button id="saveAudioSettings" style="background: #1a73e8; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Save Settings</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

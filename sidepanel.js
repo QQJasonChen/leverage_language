@@ -6639,6 +6639,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize TTS voices
   initializeTTSVoices();
   
+  // Initialize audio search
+  initializeAudioSearch();
+  
   // Load learning stats from storage
   await loadLearningStats();
   
@@ -9033,6 +9036,249 @@ function performManualSearch() {
 
 // Make performManualSearch globally accessible for transcript capture
 window.performManualSearch = performManualSearch;
+
+// ================================
+// AUDIO SEARCH FUNCTIONALITY
+// ================================
+
+let audioSearchService = null;
+
+// Initialize audio search
+function initializeAudioSearch() {
+  if (typeof AudioSearchService === 'undefined') {
+    console.warn('⚠️ AudioSearchService not loaded');
+    return;
+  }
+
+  audioSearchService = new AudioSearchService();
+  console.log('🎤 Audio search initialized');
+
+  // Add event listeners
+  const audioSearchBtn = document.getElementById('audioSearchBtn');
+  const audioSettingsModal = document.getElementById('audioSettingsModal');
+  const closeAudioSettings = document.getElementById('closeAudioSettings');
+  const cancelAudioSettings = document.getElementById('cancelAudioSettings');
+  const saveAudioSettings = document.getElementById('saveAudioSettings');
+  const audioProvider = document.getElementById('audioProvider');
+
+  if (audioSearchBtn) {
+    audioSearchBtn.addEventListener('click', handleAudioSearchClick);
+    
+    // Right-click to open settings
+    audioSearchBtn.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      showAudioSettings();
+    });
+  }
+
+  if (closeAudioSettings) {
+    closeAudioSettings.addEventListener('click', hideAudioSettings);
+  }
+
+  if (cancelAudioSettings) {
+    cancelAudioSettings.addEventListener('click', hideAudioSettings);
+  }
+
+  if (saveAudioSettings) {
+    saveAudioSettings.addEventListener('click', saveAudioSettingsAndClose);
+  }
+
+  if (audioProvider) {
+    audioProvider.addEventListener('change', toggleWhisperApiField);
+  }
+
+  // Load saved settings
+  loadAudioSettings();
+}
+
+// Handle audio search button click
+async function handleAudioSearchClick() {
+  if (!audioSearchService) {
+    console.error('❌ Audio search service not initialized');
+    return;
+  }
+
+  const btn = document.getElementById('audioSearchBtn');
+  const manualSearchInput = document.getElementById('manualSearchInput');
+
+  if (audioSearchService.isRecording) {
+    // Stop recording
+    audioSearchService.stopVoiceSearch();
+    updateAudioSearchButton('idle');
+    showAudioStatus('🛑 Recording stopped', 'info');
+  } else {
+    // Start recording
+    try {
+      updateAudioSearchButton('recording');
+      
+      await audioSearchService.startVoiceSearch(
+        // onResult
+        (result) => {
+          console.log('🎤 Voice search result:', result);
+          
+          if (result.text) {
+            // Fill the search input with the recognized text
+            if (manualSearchInput) {
+              manualSearchInput.value = result.text;
+            }
+            
+            // Auto-perform search if text is recognized
+            performManualSearch();
+            
+            showAudioStatus(`✅ Recognized: "${result.text}"`, 'success');
+          } else {
+            showAudioStatus('❌ No speech recognized', 'error');
+          }
+          
+          updateAudioSearchButton('idle');
+        },
+        // onError
+        (error) => {
+          console.error('❌ Voice search error:', error);
+          showAudioStatus(`❌ ${error}`, 'error');
+          updateAudioSearchButton('idle');
+        },
+        // onStatusUpdate
+        (status) => {
+          showAudioStatus(status, 'info');
+        }
+      );
+    } catch (error) {
+      console.error('❌ Failed to start voice search:', error);
+      showAudioStatus(`❌ ${error.message}`, 'error');
+      updateAudioSearchButton('idle');
+    }
+  }
+}
+
+// Update audio search button state
+function updateAudioSearchButton(state) {
+  const btn = document.getElementById('audioSearchBtn');
+  if (!btn) return;
+
+  btn.classList.remove('recording', 'processing');
+  
+  switch (state) {
+    case 'recording':
+      btn.classList.add('recording');
+      btn.textContent = '🛑';
+      btn.title = 'Stop Recording (Click to stop)';
+      btn.disabled = false;
+      break;
+    case 'processing':
+      btn.classList.add('processing');
+      btn.textContent = '⏳';
+      btn.title = 'Processing...';
+      btn.disabled = true;
+      break;
+    case 'idle':
+    default:
+      btn.textContent = '🎤';
+      btn.title = 'Voice Search (Click to speak, right-click for settings)';
+      btn.disabled = false;
+      break;
+  }
+}
+
+// Show audio search status
+function showAudioStatus(message, type = 'info') {
+  const statusDiv = document.getElementById('audioSearchStatus');
+  const statusText = document.getElementById('audioStatusText');
+  
+  if (!statusDiv || !statusText) return;
+
+  statusText.textContent = message;
+  statusDiv.className = `audio-search-status show ${type}`;
+  
+  // Auto-hide after 3 seconds
+  setTimeout(() => {
+    statusDiv.classList.remove('show');
+  }, 3000);
+}
+
+// Show audio settings modal
+function showAudioSettings() {
+  const modal = document.getElementById('audioSettingsModal');
+  if (modal) {
+    modal.classList.add('show');
+  }
+}
+
+// Hide audio settings modal
+function hideAudioSettings() {
+  const modal = document.getElementById('audioSettingsModal');
+  if (modal) {
+    modal.classList.remove('show');
+  }
+}
+
+// Toggle Whisper API key field visibility
+function toggleWhisperApiField() {
+  const provider = document.getElementById('audioProvider');
+  const whisperGroup = document.getElementById('whisperApiGroup');
+  
+  if (provider && whisperGroup) {
+    whisperGroup.style.display = provider.value === 'whisper' ? 'block' : 'none';
+  }
+}
+
+// Load audio settings from storage
+async function loadAudioSettings() {
+  if (!audioSearchService) return;
+
+  await audioSearchService.loadSettings();
+  
+  // Update UI with loaded settings
+  const provider = document.getElementById('audioProvider');
+  const whisperApiKey = document.getElementById('whisperApiKey');
+  const audioLanguage = document.getElementById('audioLanguage');
+  const audioQuality = document.getElementById('audioQuality');
+  const maxRecordingTime = document.getElementById('maxRecordingTime');
+
+  if (provider) {
+    provider.value = audioSearchService.settings.useWhisper ? 'whisper' : 'webSpeech';
+    toggleWhisperApiField();
+  }
+
+  if (whisperApiKey) {
+    whisperApiKey.value = audioSearchService.settings.whisperApiKey;
+  }
+
+  if (audioLanguage) {
+    audioLanguage.value = audioSearchService.settings.language;
+  }
+
+  if (audioQuality) {
+    audioQuality.value = audioSearchService.settings.audioQuality;
+  }
+
+  if (maxRecordingTime) {
+    maxRecordingTime.value = audioSearchService.settings.maxRecordingTime.toString();
+  }
+}
+
+// Save audio settings and close modal
+async function saveAudioSettingsAndClose() {
+  if (!audioSearchService) return;
+
+  const provider = document.getElementById('audioProvider');
+  const whisperApiKey = document.getElementById('whisperApiKey');
+  const audioLanguage = document.getElementById('audioLanguage');
+  const audioQuality = document.getElementById('audioQuality');
+  const maxRecordingTime = document.getElementById('maxRecordingTime');
+
+  const newSettings = {
+    useWhisper: provider ? provider.value === 'whisper' : false,
+    whisperApiKey: whisperApiKey ? whisperApiKey.value.trim() : '',
+    language: audioLanguage ? audioLanguage.value : 'auto',
+    audioQuality: audioQuality ? audioQuality.value : 'medium',
+    maxRecordingTime: maxRecordingTime ? parseInt(maxRecordingTime.value) : 30000
+  };
+
+  await audioSearchService.saveSettings(newSettings);
+  hideAudioSettings();
+  showAudioStatus('✅ Settings saved', 'success');
+}
 
 // ================================
 // ANALYTICS FUNCTIONALITY  
