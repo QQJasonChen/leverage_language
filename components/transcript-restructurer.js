@@ -2826,7 +2826,7 @@ Sentence to fix: "${preCleanedText}"`;
     this.addKeyboardHints();
     
     // Add debug test buttons
-    this.addDebugButtons();
+    // this.addDebugButtons();
     
     console.log('⌨️ Keyboard shortcuts initialized: C=Capture, E=Edit, D=Delete, A=Analyze, X=Clear, H=Help');
   }

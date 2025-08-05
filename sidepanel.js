@@ -9070,6 +9070,12 @@ function initializeAudioSearch() {
       showAudioSettings();
     });
   }
+  
+  // Audio settings button
+  const audioSettingsBtn = document.getElementById('audioSettingsBtn');
+  if (audioSettingsBtn) {
+    audioSettingsBtn.addEventListener('click', showAudioSettings);
+  }
 
   if (closeAudioSettings) {
     closeAudioSettings.addEventListener('click', hideAudioSettings);

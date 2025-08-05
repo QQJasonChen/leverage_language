@@ -117,7 +117,7 @@
   
   "web_accessible_resources": [
     {
-      "resources": ["proxy.html", "language-selector.html", "language-selector.js", "auth-ui.html"],
+      "resources": ["proxy.html", "language-selector.html", "language-selector.js", "auth-ui.html", "audio-permission.html"],
       "matches": ["<all_urls>"]
     },
     {

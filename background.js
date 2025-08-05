@@ -406,6 +406,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true; // Keep the message channel open for async response
   }
   
+  // Microphone permission action
+  if (request.action === 'openMicrophonePermission') {
+    console.log('🎤 Opening microphone permission page');
+    
+    chrome.tabs.create({
+      url: chrome.runtime.getURL('audio-permission.html')
+    }).then(() => {
+      sendResponse({ success: true, message: 'Permission page opened' });
+    }).catch((error) => {
+      console.error('❌ Error opening permission page:', error);
+      sendResponse({ success: false, error: error.message });
+    });
+    
+    return true; // Keep the message channel open for async response
+  }
+  
   // Unknown action
   console.log('❓ Unknown action:', request.action);
   sendResponse({ success: false, error: 'Unknown action' });
