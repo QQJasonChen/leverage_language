@@ -170,6 +170,24 @@ class TranscriptRestructurer {
             Capture from <span class="timing-offset-desc">1.0</span> seconds before click (0-3s)
           </div>
         </div>
+        
+        <!-- Keyboard shortcuts hint -->
+        <div class="keyboard-shortcuts-hint" style="margin: 5px 0; padding: 8px; background: #e3f2fd; border-radius: 4px; border-left: 3px solid #2196f3;">
+          <div style="font-size: 12px; color: #1976d2; display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
+            ⌨️ <strong>Quick Keys:</strong> 
+            <span style="background: white; padding: 1px 4px; border-radius: 2px; margin: 0 2px;">C</span>Capture
+            <span style="background: white; padding: 1px 4px; border-radius: 2px; margin: 0 2px;">E</span>Edit
+            <span style="background: white; padding: 1px 4px; border-radius: 2px; margin: 0 2px;">D</span>Delete
+            <span style="background: white; padding: 1px 4px; border-radius: 2px; margin: 0 2px;">A</span>Analyze
+            <span style="background: white; padding: 1px 4px; border-radius: 2px; margin: 0 2px;">B</span>Back
+            <span style="background: white; padding: 1px 4px; border-radius: 2px; margin: 0 2px;">X</span>Clear
+            <span style="background: white; padding: 1px 4px; border-radius: 2px; margin: 0 2px;">H</span>Help
+          </div>
+          <div style="margin-top: 5px;">
+            <button class="test-shortcuts-btn" style="font-size: 10px; padding: 2px 6px; background: #2196f3; color: white; border: none; border-radius: 3px; cursor: pointer;">Test B & A</button>
+            <button class="test-analyze-btn" style="font-size: 10px; padding: 2px 6px; background: #ff9800; color: white; border: none; border-radius: 3px; cursor: pointer; margin-left: 3px;">Test A Only</button>
+          </div>
+        </div>
         ` : ''}
         
         <div class="transcript-status"></div>
@@ -239,6 +257,12 @@ class TranscriptRestructurer {
     
     // Timing offset controls
     this.setupTimingOffsetControls();
+    
+    // Test shortcuts button
+    const testBtn = this.container.querySelector('.test-shortcuts-btn');
+    if (testBtn) {
+      testBtn.addEventListener('click', () => this.testShortcuts());
+    }
     
     // ✅ NEW: Add interactive card selection for subtitle modes
     this.setupSubtitleModeCards();
@@ -2660,25 +2684,373 @@ Sentence to fix: "${preCleanedText}"`;
 
   // Setup keyboard shortcuts
   setupKeyboardShortcuts() {
-    // Add global keyboard event listener
-    document.addEventListener('keydown', (e) => {
-      // Alt + C for collect (avoids YouTube's Shift+C transcript shortcut)
+    console.log('🔧 Setting up keyboard shortcuts...');
+    
+    // Make the container focusable and focus it initially
+    if (this.container && !this.container.getAttribute('tabindex')) {
+      this.container.setAttribute('tabindex', '-1');
+      this.container.style.outline = 'none'; // Remove focus outline
+    }
+    
+    // Add keyboard event listener to the container specifically
+    this.container.addEventListener('keydown', async (e) => {
+      console.log('🔍 Container keydown event detected:', e.key, 'Target:', e.target.tagName);
+      // Skip if user is typing in an input/textarea
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.contentEditable === 'true') {
+        console.log('🔍 Skipping - user is typing in input field');
+        return;
+      }
+      
+      // Get current active tab to check if it's YouTube
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const isYouTube = tabs[0]?.url?.includes('youtube.com');
+      
+      // Single key shortcuts (no modifiers)
+      if (!e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
+        console.log('⌨️ Keyboard shortcut detected:', e.key, 'isYouTube:', isYouTube);
+        switch(e.key.toLowerCase()) {
+          case 'c': // Capture
+            if (isYouTube) {
+              e.preventDefault();
+              const collectBtn = this.container.querySelector('.start-collection-btn');
+              if (collectBtn && collectBtn.style.display !== 'none') {
+                console.log('⌨️ Shortcut: C = Capture');
+                collectBtn.click();
+              }
+            }
+            break;
+            
+          case 'e': // Edit last captured item
+            e.preventDefault();
+            const editBtns = this.container.querySelectorAll('.edit-text-btn');
+            if (editBtns.length > 0) {
+              const lastEditBtn = editBtns[editBtns.length - 1];
+              console.log('⌨️ Shortcut: E = Edit last item');
+              lastEditBtn.click();
+            }
+            break;
+            
+          case 'd': // Delete last captured item
+            e.preventDefault();
+            const deleteBtns = this.container.querySelectorAll('.delete-row-btn');
+            if (deleteBtns.length > 0) {
+              const lastDeleteBtn = deleteBtns[deleteBtns.length - 1];
+              console.log('⌨️ Shortcut: D = Delete last item');
+              lastDeleteBtn.click();
+            }
+            break;
+            
+          case 'a': // Analyze last captured item and switch to AI tab
+            e.preventDefault();
+            console.log('⌨️ Shortcut: A = Analyze & switch to AI Analysis tab');
+            await this.analyzeLastAndSwitchTab();
+            break;
+            
+          case 'x': // Clear all (with confirmation)
+            e.preventDefault();
+            const clearAllBtn = this.container.querySelector('.clear-all-btn');
+            if (clearAllBtn && clearAllBtn.style.display !== 'none') {
+              console.log('⌨️ Shortcut: X = Clear all');
+              clearAllBtn.click();
+            }
+            break;
+            
+          case 'b': // Back to latest timestamp
+            if (isYouTube) {
+              e.preventDefault();
+              console.log('⌨️ Shortcut: B = Back to latest timestamp');
+              try {
+                await this.jumpToLatestTimestamp();
+              } catch (error) {
+                console.error('⌨️ B shortcut error:', error);
+              }
+            } else {
+              console.log('⌨️ B shortcut - not on YouTube');
+            }
+            break;
+            
+          case 'h': // Show help
+            e.preventDefault();
+            this.showKeyboardShortcutHelp();
+            break;
+        }
+      }
+      
+      // Alt + C for collect (backup shortcut)
       if (e.altKey && e.key.toLowerCase() === 'c') {
-        e.preventDefault();
-        
-        // Only trigger if we're on a YouTube page
-        if (window.location.href.includes('youtube.com')) {
-          // Find the collect button and trigger it
+        if (isYouTube) {
+          e.preventDefault();
           const collectBtn = this.container.querySelector('.start-collection-btn');
           if (collectBtn && collectBtn.style.display !== 'none') {
-            console.log('⌨️ Keyboard shortcut: Alt+C triggered collect');
+            console.log('⌨️ Shortcut: Alt+C = Capture');
             collectBtn.click();
           }
         }
       }
     });
     
-    console.log('⌨️ Keyboard shortcuts initialized: Alt+C for collect');
+    // Add visual keyboard shortcut hints
+    this.addKeyboardHints();
+    
+    // Auto-focus container when user clicks anywhere in it
+    this.container.addEventListener('click', () => {
+      this.container.focus();
+      console.log('🎯 Container focused for keyboard shortcuts');
+    });
+    
+    // Focus container initially
+    setTimeout(() => {
+      if (this.container) {
+        this.container.focus();
+        console.log('🎯 Container auto-focused for keyboard shortcuts');
+        
+        // Add a simple test - press any key to see if events work
+        console.log('🧪 TEST: Try pressing any key now to test keyboard detection');
+        
+        // Make container more focusable
+        this.container.style.outline = '2px solid blue'; // Temporary visual indicator
+        setTimeout(() => {
+          if (this.container.style.outline) {
+            this.container.style.outline = 'none';
+          }
+        }, 3000);
+      } else {
+        console.error('❌ Container not found for keyboard shortcuts');
+      }
+    }, 500);
+    
+    console.log('⌨️ Keyboard shortcuts initialized: C=Capture, E=Edit, D=Delete, A=Analyze, B=Back, X=Clear, H=Help');
+  }
+  
+  // Add visual hints for keyboard shortcuts
+  addKeyboardHints() {
+    // Add hints to buttons
+    const collectBtn = this.container.querySelector('.start-collection-btn');
+    if (collectBtn) {
+      collectBtn.title += ' (C)';
+    }
+    
+    const clearAllBtn = this.container.querySelector('.clear-all-btn');
+    if (clearAllBtn) {
+      clearAllBtn.title += ' (X)';
+    }
+  }
+  
+  // Show keyboard shortcut help dialog
+  showKeyboardShortcutHelp() {
+    const helpDialog = document.createElement('div');
+    helpDialog.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 10000;
+      max-width: 400px;
+    `;
+    
+    helpDialog.innerHTML = `
+      <h3 style="margin: 0 0 15px 0;">⌨️ Keyboard Shortcuts</h3>
+      <div style="font-size: 14px; line-height: 1.8;">
+        <div><kbd style="background: #eee; padding: 2px 6px; border-radius: 3px;">C</kbd> - Capture current subtitle</div>
+        <div><kbd style="background: #eee; padding: 2px 6px; border-radius: 3px;">E</kbd> - Edit last captured item</div>
+        <div><kbd style="background: #eee; padding: 2px 6px; border-radius: 3px;">D</kbd> - Delete last captured item</div>
+        <div><kbd style="background: #eee; padding: 2px 6px; border-radius: 3px;">A</kbd> - Analyze last captured item</div>
+        <div><kbd style="background: #eee; padding: 2px 6px; border-radius: 3px;">B</kbd> - Back to latest timestamp</div>
+        <div><kbd style="background: #eee; padding: 2px 6px; border-radius: 3px;">X</kbd> - Clear all items</div>
+        <div><kbd style="background: #eee; padding: 2px 6px; border-radius: 3px;">H</kbd> - Show this help</div>
+        <div style="margin-top: 10px; color: #666;">
+          <div><kbd style="background: #eee; padding: 2px 6px; border-radius: 3px;">Alt+C</kbd> - Alternative capture</div>
+        </div>
+      </div>
+      <button onclick="this.parentElement.remove()" style="margin-top: 15px; padding: 5px 15px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">Close</button>
+    `;
+    
+    document.body.appendChild(helpDialog);
+    
+    // Auto-remove after 10 seconds
+    setTimeout(() => helpDialog.remove(), 10000);
+  }
+
+  // Jump to the latest captured timestamp
+  async jumpToLatestTimestamp() {
+    try {
+      console.log('📍 Starting B shortcut - jump to latest timestamp');
+      
+      // Get the captured sentences table
+      const tbody = this.container.querySelector('.captured-sentences tbody');
+      if (!tbody) {
+        console.log('📍 No captured sentences table found');
+        console.log('📍 Available tables:', this.container.querySelectorAll('table').length);
+        return;
+      }
+
+      // Get all rows and find the last one with a timestamp
+      const rows = tbody.querySelectorAll('tr');
+      console.log('📍 Found rows:', rows.length);
+      if (rows.length === 0) {
+        console.log('📍 No captured sentences found');
+        return;
+      }
+
+      // Get the last row
+      const lastRow = rows[rows.length - 1];
+      console.log('📍 Last row HTML:', lastRow.innerHTML);
+      
+      const timestampCell = lastRow.querySelector('td:first-child a');
+      console.log('📍 Timestamp cell found:', !!timestampCell);
+      
+      if (!timestampCell) {
+        // Try alternative selectors
+        const altTimestamp = lastRow.querySelector('a[href*="t="]');
+        console.log('📍 Alternative timestamp found:', !!altTimestamp);
+        if (altTimestamp) {
+          const href = altTimestamp.getAttribute('href');
+          console.log('📍 Alternative href:', href);
+          const timestampMatch = href.match(/[&?]t=(\d+)s?/);
+          if (timestampMatch) {
+            const timestamp = parseInt(timestampMatch[1]);
+            console.log('📍 Parsed alternative timestamp:', timestamp);
+            await this.seekToTimestamp(timestamp);
+            return;
+          }
+        }
+        console.log('📍 No timestamp found in latest capture');
+        return;
+      }
+
+      // Extract timestamp from the href
+      const href = timestampCell.getAttribute('href');
+      console.log('📍 Timestamp href:', href);
+      if (!href) {
+        console.log('📍 No href found in timestamp link');
+        return;
+      }
+
+      // Parse timestamp from URL (format: &t=123s)
+      const timestampMatch = href.match(/[&?]t=(\d+)s?/);
+      if (!timestampMatch) {
+        console.log('📍 Could not parse timestamp from URL:', href);
+        return;
+      }
+
+      const timestamp = parseInt(timestampMatch[1]);
+      console.log('📍 Jumping to latest timestamp:', timestamp);
+      await this.seekToTimestamp(timestamp);
+
+    } catch (error) {
+      console.error('📍 Error jumping to latest timestamp:', error);
+    }
+  }
+
+  // Helper function to seek to timestamp
+  async seekToTimestamp(timestamp) {
+    try {
+      // Send message to YouTube content script to seek to this time
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs[0]) {
+        console.log('📍 Sending seek message to tab:', tabs[0].id, 'timestamp:', timestamp);
+        const response = await chrome.tabs.sendMessage(tabs[0].id, {
+          action: 'seekToTime',
+          timestamp: timestamp
+        });
+        console.log('📍 Seek response:', response);
+        console.log('✅ Successfully jumped back to timestamp:', timestamp);
+      } else {
+        console.log('📍 No active tab found');
+      }
+    } catch (error) {
+      console.error('📍 Error seeking to timestamp:', error);
+    }
+  }
+
+  // Analyze last captured sentence and switch to AI Analysis tab
+  async analyzeLastAndSwitchTab() {
+    try {
+      console.log('🎯 Starting A shortcut - analyze and switch to AI tab');
+      
+      // Get the last captured sentence directly
+      const tbody = this.container.querySelector('.captured-sentences tbody');
+      if (!tbody) {
+        console.log('⚠️ No captured sentences table found');
+        return;
+      }
+
+      const rows = tbody.querySelectorAll('tr');
+      if (rows.length === 0) {
+        console.log('⚠️ No captured sentences found - capture some sentences first');
+        return;
+      }
+
+      // Get the text from the last row
+      const lastRow = rows[rows.length - 1];
+      const textCell = lastRow.querySelector('td:nth-child(2)'); // Second column contains the text
+      if (!textCell) {
+        console.log('⚠️ Could not find text in last captured sentence');
+        return;
+      }
+
+      const sentenceText = textCell.textContent.trim();
+      console.log('🎯 Analyzing sentence:', sentenceText);
+
+      // Send directly to analysis (bypass button click)
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const tab = tabs[0];
+      
+      if (!tab || !tab.url.includes('youtube.com')) {
+        console.error('❌ No YouTube tab found');
+        return;
+      }
+      
+      // Send to YouTube content script for analysis
+      const response = await chrome.tabs.sendMessage(tab.id, {
+        action: 'analyzeTextInSidepanel',
+        text: sentenceText
+      });
+      
+      console.log('🎯 Analysis response:', response);
+      
+      // Wait a moment for analysis to complete, then switch to Analysis tab
+      setTimeout(() => {
+        console.log('🎯 Switching to Analysis tab...');
+        const analysisBtn = document.getElementById('showAnalysisBtn');
+        if (analysisBtn) {
+          analysisBtn.click();
+          console.log('✅ Successfully analyzed and switched to Analysis tab');
+        } else {
+          console.error('❌ Could not find Analysis tab button');
+        }
+      }, 1500); // Wait 1.5 seconds for analysis to process
+
+    } catch (error) {
+      console.error('❌ Error in analyzeLastAndSwitchTab:', error);
+    }
+  }
+
+  // Test shortcuts functionality
+  async testShortcuts() {
+    console.log('🧪 Testing shortcuts...');
+    
+    // Test B - Back to latest timestamp
+    console.log('🧪 Testing B (Back to latest timestamp)...');
+    try {
+      await this.jumpToLatestTimestamp();
+      console.log('✅ B shortcut test completed');
+    } catch (error) {
+      console.error('❌ B shortcut test failed:', error);
+    }
+    
+    // Test A - Analyze and switch to AI tab
+    console.log('🧪 Testing A (Analyze & switch to AI tab)...');
+    try {
+      await this.analyzeLastAndSwitchTab();
+      console.log('✅ A shortcut test completed');
+    } catch (error) {
+      console.error('❌ A shortcut test failed:', error);
+    }
   }
 
   // Setup timing offset controls

@@ -14,24 +14,13 @@
     "sidePanel",
     "commands",
     "tabs",
-    "declarativeNetRequest",
     "identity",
     "notifications"
   ],
   
   "host_permissions": [
-    "https://youglish.com/*",
     "https://*.youtube.com/*",
-    "https://*.netflix.com/*",
-    "https://generativelanguage.googleapis.com/*",
-    "https://api.openai.com/*",
-    "https://translate.googleapis.com/*",
-    "https://api.cognitive.microsofttranslator.com/*",
-    "https://api.dictionaryapi.dev/*",
-    "https://www.immersionkit.com/*",
-    "https://api.notion.com/*",
-    "https://www.googleapis.com/*",
-    "https://accounts.google.com/*"
+    "https://*.netflix.com/*"
   ],
   
   "background": {
@@ -91,6 +80,20 @@
         "mac": "Command+Shift+Y"
       },
       "description": "__MSG_search_shortcut__"
+    },
+    "quick-capture": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+C",
+        "mac": "Command+Shift+C"
+      },
+      "description": "Quick capture current subtitle on YouTube"
+    },
+    "open-extension": {
+      "suggested_key": {
+        "default": "Alt+Shift+L",
+        "mac": "MacCtrl+Shift+L"
+      },
+      "description": "Open Language Learning Extension"
     }
   },
   

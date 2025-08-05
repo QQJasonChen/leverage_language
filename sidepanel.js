@@ -54,6 +54,37 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       loadYouGlish(request.url, request.text, request.language);
     }
   }
+
+  // Switch to AI Analysis tab after analysis
+  if (request.action === 'switchToAIAnalysisTab') {
+    console.log('🎯 Switching to AI Analysis tab after analyzing:', request.text);
+    
+    // Switch to Analysis tab
+    const analysisBtn = document.getElementById('showAnalysisBtn');
+    if (analysisBtn) {
+      analysisBtn.click();
+      console.log('✅ Successfully switched to AI Analysis tab');
+      
+      // Small delay to ensure tab is loaded, then trigger analysis display
+      setTimeout(() => {
+        // The analysis should already be completed and stored
+        // This will refresh the analysis view to show the latest result
+        const analysisContent = document.getElementById('analysis-content');
+        if (analysisContent) {
+          // Trigger a refresh of the analysis content
+          const event = new CustomEvent('refreshAnalysisView', { 
+            detail: { text: request.text } 
+          });
+          document.dispatchEvent(event);
+        }
+      }, 300);
+      
+    } else {
+      console.error('❌ Could not find Analysis tab button');
+    }
+    
+    return;
+  }
 });
 
 // 儲存當前的查詢數據

@@ -433,7 +433,8 @@
     </div>
 
     <script src="lib/supabase-client.js"></script>
-    <script src="lib/stripe-client.js"></script>
+    <!-- Stripe client removed for Manifest V3 compliance -->
+    <!-- <script src="lib/stripe-client.js"></script> -->
     <script>
         class SubscriptionUI {
             constructor() {
@@ -668,7 +669,9 @@
                     button.innerHTML = '<span class="loading"></span>Processing...';
                     button.disabled = true;
 
-                    // Create checkout session
+                    // Stripe integration removed for Manifest V3 compliance
+                    // TODO: Implement alternative payment method
+                    /*
                     const result = await window.stripeClient.createCheckoutSession(priceId);
                     
                     if (result.success) {
@@ -676,6 +679,8 @@
                     } else {
                         throw new Error(result.error);
                     }
+                    */
+                    throw new Error('Payment functionality temporarily disabled');
                 } catch (error) {
                     console.error('Upgrade error:', error);
                     alert('Failed to start checkout process. Please try again.');
@@ -696,7 +701,9 @@
                     // Open customer portal to cancel subscription
                     const profile = await window.supabaseClient.getProfile();
                     if (profile?.stripe_customer_id) {
-                        await window.stripeClient.createPortalSession(profile.stripe_customer_id);
+                        // Stripe integration removed for Manifest V3 compliance
+                        // await window.stripeClient.createPortalSession(profile.stripe_customer_id);
+                        alert('Downgrade functionality temporarily disabled');
                     }
                 }
             }

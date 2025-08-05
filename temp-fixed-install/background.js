@@ -75,26 +75,52 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 });
 
-// 處理快捷鍵
+// Handle global keyboard shortcuts
 chrome.commands.onCommand.addListener(async (command, tab) => {
-  if (command === 'search-youglish') {
-    try {
-      // 從內容腳本獲取選取的文字
-      const response = await chrome.tabs.sendMessage(tab.id, { action: 'getSelection' });
-      if (response && response.text && response.text.trim()) {
-        searchYouGlish(response.text, tab.id);
-      } else {
-        // 沒有選取文字時，提示用戶
-        console.log('沒有選取文字');
+  console.log('⌨️ Global shortcut triggered:', command);
+  
+  switch (command) {
+    case 'quick-capture':
+      if (tab.url.includes('youtube.com')) {
+        // Send capture command to YouTube content script
+        try {
+          await chrome.tabs.sendMessage(tab.id, { action: 'captureCurrentSubtitle' });
+          console.log('⌨️ Quick capture executed on YouTube');
+        } catch (error) {
+          console.log('⌨️ Quick capture failed:', error);
+        }
       }
-    } catch (error) {
-      // 更好的錯誤處理，避免 "Receiving end does not exist" 錯誤
-      if (error.message.includes('Receiving end does not exist')) {
-        console.log('內容腳本尚未載入，無法獲取選取文字');
-      } else {
-        console.error('快捷鍵處理錯誤:', error);
+      break;
+      
+    case 'open-extension':
+      // Open the sidepanel
+      try {
+        await chrome.sidePanel.open({ tabId: tab.id });
+        console.log('⌨️ Extension opened');
+      } catch (error) {
+        console.log('⌨️ Failed to open extension:', error);
       }
-    }
+      break;
+      
+    case 'search-youglish':
+      try {
+        // 從內容腳本獲取選取的文字
+        const response = await chrome.tabs.sendMessage(tab.id, { action: 'getSelection' });
+        if (response && response.text && response.text.trim()) {
+          searchYouGlish(response.text, tab.id);
+        } else {
+          // 沒有選取文字時，提示用戶
+          console.log('沒有選取文字');
+        }
+      } catch (error) {
+        // 更好的錯誤處理，避免 "Receiving end does not exist" 錯誤
+        if (error.message.includes('Receiving end does not exist')) {
+          console.log('內容腳本尚未載入，無法獲取選取文字');
+        } else {
+          console.error('快捷鍵處理錯誤:', error);
+        }
+      }
+      break;
   }
 });
 
@@ -154,6 +180,33 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           sendResponse({ success: false, error: error.message });
         });
     }
+    
+    return true; // Keep the message channel open for async response
+  }
+
+  // Analyze text and switch to AI Analysis tab
+  if (request.action === 'analyzeTextAndSwitchTab') {
+    console.log('🎯 Processing analyze and switch tab for:', request.text);
+    
+    // First analyze the text
+    handleYouTubeTextAnalysis({ text: request.text, platform: 'youtube' }, request.tabId)
+      .then(() => {
+        // After analysis, switch to AI Analysis tab by sending message to sidepanel
+        chrome.tabs.sendMessage(request.tabId, {
+          action: 'switchToAIAnalysisTab',
+          text: request.text
+        }).then(() => {
+          console.log('✅ Successfully analyzed text and switched to AI Analysis tab');
+          sendResponse({ success: true, message: 'Text analyzed and switched to AI tab' });
+        }).catch((error) => {
+          console.error('❌ Error switching to AI tab:', error);
+          sendResponse({ success: false, error: 'Analysis completed but failed to switch tab: ' + error.message });
+        });
+      })
+      .catch((error) => {
+        console.error('❌ Error analyzing text:', error);
+        sendResponse({ success: false, error: error.message });
+      });
     
     return true; // Keep the message channel open for async response
   }

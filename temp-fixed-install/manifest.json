@@ -12,6 +12,8 @@
     "contextMenus", 
     "storage",
     "sidePanel",
+    "commands",
+    "tabs",
     "scripting",
     "notifications"
   ],
@@ -71,7 +73,29 @@
     "default_path": "sidepanel.html"
   },
   
-  
+  "commands": {
+    "search-youglish": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y",
+        "mac": "Command+Shift+Y"
+      },
+      "description": "__MSG_search_shortcut__"
+    },
+    "quick-capture": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+C",
+        "mac": "Command+Shift+C"
+      },
+      "description": "Quick capture current subtitle on YouTube"
+    },
+    "open-extension": {
+      "suggested_key": {
+        "default": "Alt+Shift+L",
+        "mac": "MacCtrl+Shift+L"
+      },
+      "description": "Open Language Learning Extension"
+    }
+  },
   
   "action": {
     "default_title": "__MSG_extensionName__"
