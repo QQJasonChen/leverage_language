@@ -219,6 +219,9 @@ class TranscriptRestructurer {
       clearAllBtn.addEventListener('click', () => this.clearAllCapturedSentences());
     }
     
+    // Keyboard shortcuts
+    this.setupKeyboardShortcuts();
+    
     // ✅ NEW: Add interactive card selection for subtitle modes
     this.setupSubtitleModeCards();
     
@@ -2161,13 +2164,18 @@ Sentence to fix: "${preCleanedText}"`;
     if (result.success) {
       // Add captured caption to the queue (like Netflix)
       if (result.text && result.text.trim()) {
+        const transcriptTypeIcon = result.transcriptType === 'automatic' ? '🤖' : '👤';
+        const transcriptTypeName = result.transcriptType === 'automatic' ? 'Auto' : 'Manual';
+        
         this.addCapturedSentence({
           text: result.text,
           timestamp: result.timestamp,
+          transcriptType: result.transcriptType,
+          transcriptInfo: result.transcriptInfo,
           videoInfo: result.videoInfo
         });
         
-        statusEl.textContent = `✅ Captured: "${result.text.substring(0, 50)}${result.text.length > 50 ? '...' : ''}"`;
+        statusEl.textContent = `✅ Captured ${transcriptTypeIcon} ${transcriptTypeName}: "${result.text.substring(0, 40)}${result.text.length > 40 ? '...' : ''}"`;
         statusEl.className = 'transcript-status success';
         
         // Reset button for next capture
@@ -2283,6 +2291,15 @@ Sentence to fix: "${preCleanedText}"`;
         this.analyzeCapture(captureData, analyzeBtn);
       });
       
+      // Edit button for manual text correction
+      const editBtn = document.createElement('button');
+      editBtn.className = 'edit-text-btn';
+      editBtn.innerHTML = '✏️';
+      editBtn.title = 'Edit captured text';
+      editBtn.addEventListener('click', () => {
+        this.editCapturedText(textSpan, captureData, editBtn);
+      });
+      
       // Delete row button
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'delete-row-btn';
@@ -2291,10 +2308,12 @@ Sentence to fix: "${preCleanedText}"`;
       deleteBtn.addEventListener('click', async () => {
         if (confirm('Are you sure you want to delete this sentence?')) {
           row.remove();
+          this.toggleClearAllButton(); // Update clear all button visibility
         }
       });
       
       actionsCell.appendChild(analyzeBtn);
+      actionsCell.appendChild(editBtn);
       actionsCell.appendChild(deleteBtn);
       
       // Add cells to row
@@ -2411,6 +2430,18 @@ Sentence to fix: "${preCleanedText}"`;
           .delete-row-btn:hover {
             background: #c82333;
           }
+          .edit-text-btn {
+            background: #17a2b8;
+            border: none;
+            padding: 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            color: white;
+            font-size: 14px;
+          }
+          .edit-text-btn:hover {
+            background: #138496;
+          }
         </style>
       `;
     }
@@ -2487,6 +2518,111 @@ Sentence to fix: "${preCleanedText}"`;
       const hasRows = tbody && tbody.children.length > 0;
       clearAllBtn.style.display = hasRows ? 'flex' : 'none';
     }
+  }
+
+  // Edit captured text inline
+  editCapturedText(textSpan, captureData, editBtn) {
+    const originalText = textSpan.textContent;
+    const originalHTML = editBtn.innerHTML;
+  
+    // Create input field
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = originalText;
+    input.style.width = '100%';
+    input.style.padding = '4px';
+    input.style.border = '1px solid #ccc';
+    input.style.borderRadius = '3px';
+    input.style.fontSize = '14px';
+    
+    // Replace text with input
+    textSpan.innerHTML = '';
+    textSpan.appendChild(input);
+    input.focus();
+    input.select();
+    
+    // Change edit button to save button
+    editBtn.innerHTML = '💾';
+    editBtn.title = 'Save changes';
+    
+    // Save function
+    const saveChanges = () => {
+      const newText = input.value.trim();
+      if (newText && newText !== originalText) {
+        // Update the text
+        textSpan.textContent = newText;
+        captureData.text = newText; // Update the data object
+        console.log('📝 Text updated:', newText);
+      } else {
+        // Restore original text
+        textSpan.textContent = originalText;
+      }
+      
+      // Restore edit button
+      editBtn.innerHTML = originalHTML;
+      editBtn.title = 'Edit captured text';
+    };
+    
+    // Cancel function
+    const cancelEdit = () => {
+      textSpan.textContent = originalText;
+      editBtn.innerHTML = originalHTML;
+      editBtn.title = 'Edit captured text';
+    };
+    
+    // Handle save on Enter key
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveChanges();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelEdit();
+      }
+    });
+    
+    // Handle save on blur (when input loses focus)
+    input.addEventListener('blur', saveChanges);
+    
+    // Update edit button click handler to save
+    const newClickHandler = (e) => {
+      e.preventDefault();
+      saveChanges();
+      // Remove this temporary handler and restore original
+      editBtn.removeEventListener('click', newClickHandler);
+      editBtn.addEventListener('click', () => {
+        this.editCapturedText(textSpan, captureData, editBtn);
+      });
+    };
+    
+    // Temporarily replace click handler
+    editBtn.removeEventListener('click', () => {
+      this.editCapturedText(textSpan, captureData, editBtn);
+    });
+    editBtn.addEventListener('click', newClickHandler);
+  }
+
+  // Setup keyboard shortcuts
+  setupKeyboardShortcuts() {
+    // Add global keyboard event listener
+    document.addEventListener('keydown', (e) => {
+      // Shift + C for collect
+      if (e.shiftKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        
+        // Only trigger if we're on a YouTube page
+        if (window.location.href.includes('youtube.com')) {
+          // Find the collect button and trigger it
+          const collectBtn = this.container.querySelector('.start-collection-btn');
+          if (collectBtn && collectBtn.style.display !== 'none') {
+            console.log('⌨️ Keyboard shortcut: Shift+C triggered collect');
+            collectBtn.click();
+          }
+        }
+      }
+    });
+    
+    console.log('⌨️ Keyboard shortcuts initialized: Shift+C for collect');
   }
 
   // ✅ NEW: Netflix-specific collection start

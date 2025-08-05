@@ -96,10 +96,78 @@
     };
   }
 
-  // EXACT COPY of Netflix's captureCurrentNetflixSubtitle function
+  // Detect if current captions are automatic vs manual
+  function detectTranscriptType() {
+    try {
+      // Method 1: Check ytInitialPlayerResponse for caption tracks
+      const scripts = document.querySelectorAll('script');
+      for (const script of scripts) {
+        if (script.textContent.includes('ytInitialPlayerResponse')) {
+          const patterns = [
+            /ytInitialPlayerResponse[^}]*"captionTracks":\s*(\[[^\]]*\])/,
+            /"captionTracks":\s*(\[[^\]]*\])/,
+            /"playerCaptionsTracklistRenderer":\s*{[^}]*"captionTracks":\s*(\[[^\]]*\])/
+          ];
+          
+          for (const pattern of patterns) {
+            const match = script.textContent.match(pattern);
+            if (match) {
+              try {
+                const tracks = JSON.parse(match[1]);
+                // Look for currently active track
+                for (const track of tracks) {
+                  if (track.vssId) {
+                    // Auto-generated tracks contain '.asr' in vssId
+                    if (track.vssId.includes('.asr')) {
+                      console.log('🤖 Detected automatic transcript:', track.vssId);
+                      return { type: 'automatic', vssId: track.vssId, name: track.name };
+                    }
+                  }
+                }
+                // If we found tracks but none were auto-generated
+                if (tracks.length > 0) {
+                  console.log('👤 Detected manual transcript');
+                  return { type: 'manual', vssId: tracks[0].vssId, name: tracks[0].name };
+                }
+              } catch (parseError) {
+                console.log('Failed to parse caption tracks:', parseError);
+              }
+            }
+          }
+        }
+      }
+      
+      // Method 2: Check DOM for auto-generated caption indicators
+      const autoSegments = document.querySelectorAll('.ytp-caption-segment');
+      if (autoSegments.length > 0) {
+        console.log('🤖 Detected automatic transcript (DOM method)');
+        return { type: 'automatic', method: 'dom' };
+      }
+      
+      // Method 3: Look for caption window containers
+      const captionContainers = document.querySelectorAll('.ytp-caption-window-container');
+      if (captionContainers.length > 0) {
+        console.log('👤 Detected manual transcript (DOM fallback)');
+        return { type: 'manual', method: 'dom' };
+      }
+      
+      // Default: assume manual if captions are present
+      console.log('❓ Unknown transcript type, defaulting to manual');
+      return { type: 'manual', method: 'default' };
+      
+    } catch (error) {
+      console.log('⚠️ Error detecting transcript type:', error);
+      return { type: 'manual', method: 'error' };
+    }
+  }
+
+  // Enhanced YouTube caption capture with transcript type detection
   function captureCurrentYouTubeCaption() {
     try {
-      console.log('🎬 Manual YouTube caption capture (Netflix-style)');
+      console.log('🎬 Manual YouTube caption capture with transcript type detection');
+      
+      // Detect transcript type first
+      const transcriptInfo = detectTranscriptType();
       
       // YouTube caption selectors (comprehensive list like Netflix)
       const captionSelectors = [
@@ -141,7 +209,14 @@
               !text.includes('分享') &&
               text.length > 3) {
             console.log('🎬 Captured YouTube caption:', text);
-            return text;
+            console.log('📋 Transcript type:', transcriptInfo.type);
+            
+            // Return enhanced data with transcript type
+            return {
+              text: text,
+              transcriptType: transcriptInfo.type,
+              transcriptInfo: transcriptInfo
+            };
           }
         }
       }
@@ -162,7 +237,14 @@
               !text.includes('搜尋') && !text.includes('分享') && 
               !text.includes('YouTube') && !text.includes('訂閱')) {
             console.log('🎬 Found potential YouTube caption:', text);
-            return text;
+            console.log('📋 Transcript type:', transcriptInfo.type);
+            
+            // Return enhanced data with transcript type
+            return {
+              text: text,
+              transcriptType: transcriptInfo.type,
+              transcriptInfo: transcriptInfo
+            };
           }
         }
       }
@@ -198,13 +280,25 @@
           break;
 
         case 'captureCurrentSubtitle':
-          console.log('🎬 Manual YouTube caption capture requested (Netflix-style)');
-          const capturedText = captureCurrentYouTubeCaption();
-          if (capturedText) {
+          console.log('🎬 Manual YouTube caption capture requested with transcript type detection');
+          const capturedData = captureCurrentYouTubeCaption();
+          if (capturedData) {
+            let timestamp = getCurrentTimestamp();
+            
+            // Apply -1 second correction for automatic transcripts
+            if (capturedData.transcriptType === 'automatic') {
+              timestamp = Math.max(0, timestamp - 1); // Ensure timestamp doesn't go negative
+              console.log('🤖 Applied -1 second correction for automatic transcript:', timestamp);
+            } else {
+              console.log('👤 No correction needed for manual transcript:', timestamp);
+            }
+            
             sendResponse({ 
               success: true, 
-              text: capturedText,
-              timestamp: getCurrentTimestamp(),
+              text: capturedData.text,
+              timestamp: timestamp,
+              transcriptType: capturedData.transcriptType,
+              transcriptInfo: capturedData.transcriptInfo,
               videoInfo: getVideoInfo()
             });
           } else {
