@@ -2167,9 +2167,17 @@ Sentence to fix: "${preCleanedText}"`;
         const transcriptTypeIcon = result.transcriptType === 'automatic' ? '🤖' : '👤';
         const transcriptTypeName = result.transcriptType === 'automatic' ? 'Auto' : 'Manual';
         
+        // Apply additional -1 second offset for better timing (user request)
+        let adjustedTimestamp = result.timestamp;
+        if (adjustedTimestamp > 0) {
+          adjustedTimestamp = Math.max(0, adjustedTimestamp - 1);
+          console.log(`⏰ Applied additional -1s offset: ${result.timestamp}s → ${adjustedTimestamp}s`);
+        }
+        
         this.addCapturedSentence({
           text: result.text,
-          timestamp: result.timestamp,
+          timestamp: adjustedTimestamp,
+          originalTimestamp: result.timestamp, // Keep original for reference
           transcriptType: result.transcriptType,
           transcriptInfo: result.transcriptInfo,
           videoInfo: result.videoInfo
@@ -2606,8 +2614,8 @@ Sentence to fix: "${preCleanedText}"`;
   setupKeyboardShortcuts() {
     // Add global keyboard event listener
     document.addEventListener('keydown', (e) => {
-      // Shift + C for collect
-      if (e.shiftKey && e.key.toLowerCase() === 'c') {
+      // Alt + C for collect (avoids YouTube's Shift+C transcript shortcut)
+      if (e.altKey && e.key.toLowerCase() === 'c') {
         e.preventDefault();
         
         // Only trigger if we're on a YouTube page
@@ -2615,14 +2623,14 @@ Sentence to fix: "${preCleanedText}"`;
           // Find the collect button and trigger it
           const collectBtn = this.container.querySelector('.start-collection-btn');
           if (collectBtn && collectBtn.style.display !== 'none') {
-            console.log('⌨️ Keyboard shortcut: Shift+C triggered collect');
+            console.log('⌨️ Keyboard shortcut: Alt+C triggered collect');
             collectBtn.click();
           }
         }
       }
     });
     
-    console.log('⌨️ Keyboard shortcuts initialized: Shift+C for collect');
+    console.log('⌨️ Keyboard shortcuts initialized: Alt+C for collect');
   }
 
   // ✅ NEW: Netflix-specific collection start
