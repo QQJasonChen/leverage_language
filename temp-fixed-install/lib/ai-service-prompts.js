@@ -48,9 +48,14 @@ class LanguageLearningPrompts {
            `- 提供正確版本時，解釋為什麼這樣更好\n\n`;
   }
 
-  // Core learning sections - pedagogically structured
+  // Core learning sections - pedagogically structured  
   buildCoreLearningPrompt(text, language, langName, isWord, features, level) {
     let prompt = `## 📚 深度學習分析\n\n`;
+    
+    // Special detailed treatment for Dutch
+    if (language === 'dutch') {
+      return this.buildDutchDetailedPrompt(text, isWord, features, level);
+    }
     
     // 1. Pronunciation - Make it practical
     if (features.pronunciationGuide) {
@@ -192,6 +197,70 @@ class LanguageLearningPrompts {
     prompt += `### 🌟 鼓勵的話\n`;
     prompt += `犯錯是學習的必經之路！您已經掌握了[指出做對的部分]，\n`;
     prompt += `只要注意[具體建議]，您的${langName}會越來越好！\n\n`;
+    
+    return prompt;
+  }
+
+  // Specialized Dutch analysis - comprehensive and detailed like English
+  buildDutchDetailedPrompt(text, isWord, features, level) {
+    let prompt = `📝 **中文翻譯**：[請提供準確的中文翻譯]\n\n`;
+    
+    prompt += `🧩 **逐詞解釋**：\n`;
+    if (isWord) {
+      prompt += `- **詞性**：[動詞/名詞/形容詞等]\n`;
+      prompt += `- **基本含義**：[核心意思]\n`;
+      prompt += `- **使用場合**：[什麼情況下使用]\n`;
+      prompt += `- **語言等級**：[正式/非正式/口語]\n\n`;
+    } else {
+      prompt += `請逐詞分析每個單詞的意思和功能，包括：\n`;
+      prompt += `- 每個單詞的基本含義\n`;
+      prompt += `- 在這個句子中的作用\n`;
+      prompt += `- 任何特殊的語法功能\n\n`;
+    }
+    
+    prompt += `📖 **荷蘭語語法結構分析**：\n`;
+    if (!isWord) {
+      prompt += `- **句型結構**：分析主語、謂語、賓語的位置和關係\n`;
+      prompt += `- **動詞變位**：解釋動詞的時態、人稱變化\n`;
+      prompt += `- **語序特點**：解釋荷蘭語的語序規則（SVO/SOV等）\n`;
+      prompt += `- **語法要點**：指出值得學習的語法重點\n`;
+      prompt += `- **常見陷阱**：提醒容易犯的語法錯誤\n\n`;
+    } else {
+      prompt += `- **詞形變化**：列出重要的詞形變化（複數、過去式等）\n`;
+      prompt += `- **語法功能**：說明這個詞在句中的語法作用\n`;
+      prompt += `- **固定搭配**：列出常用的詞彙搭配\n\n`;
+    }
+    
+    prompt += `🇳🇱 **荷蘭語語序和結構特點**：\n`;
+    prompt += `- **主要語序**：解釋荷蘭語的基本語序規則\n`;
+    prompt += `- **動詞位置**：說明主動詞和助動詞的位置規律\n`;
+    prompt += `- **疑問句變化**：如果改為疑問句，語序如何變化？\n`;
+    prompt += `- **否定句構造**：如何構成否定句？\n`;
+    prompt += `- **從句結構**：如果適用，解釋從句的語序特點\n\n`;
+    
+    prompt += `🗣️ **發音要點**：\n`;
+    prompt += `- **音標標記**：提供IPA音標\n`;
+    prompt += `- **發音難點**：指出中文使用者容易發錯的音\n`;
+    prompt += `- **語調特點**：解釋句子的語調模式\n`;
+    prompt += `- **荷蘭語發音技巧**：提供2-3個實用的發音建議\n\n`;
+    
+    prompt += `🎯 **類似例句 - 延伸練習**：\n`;
+    prompt += `請提供5-7個使用相同語法結構或詞彙的例句，每個例句都要：\n`;
+    prompt += `1. 提供荷蘭語原句\n`;
+    prompt += `2. 提供中文翻譯\n`;
+    prompt += `3. 簡短說明這個例句的特點或用法\n\n`;
+    
+    prompt += `💡 **使用場景和文化背景**：\n`;
+    prompt += `- **使用情境**：這個表達在什麼場合使用？\n`;
+    prompt += `- **正式程度**：正式場合還是日常對話？\n`;
+    prompt += `- **地區差異**：荷蘭vs比利時有什麼不同說法嗎？\n`;
+    prompt += `- **文化內涵**：這個表達反映了什麼荷蘭文化特點？\n\n`;
+    
+    prompt += `🌟 **學習要點總結**：\n`;
+    prompt += `- **記憶技巧**：提供一個幫助記憶的方法\n`;
+    prompt += `- **學習建議**：針對中文使用者的特別建議\n`;
+    prompt += `- **進階用法**：如何讓這個表達更地道？\n`;
+    prompt += `- **相關知識**：推薦1-2個相關的語法點或詞彙供進階學習\n\n`;
     
     return prompt;
   }
