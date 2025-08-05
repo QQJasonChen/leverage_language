@@ -157,6 +157,21 @@ class TranscriptRestructurer {
         
         <!-- YouTube gets simple UI like Netflix - no complex settings -->
         
+        <!-- Timing offset control for YouTube -->
+        ${this.currentPlatform === 'youtube' ? `
+        <div class="timing-offset-control" style="margin: 10px 0; padding: 10px; background: #f0f0f0; border-radius: 5px;">
+          <label style="display: flex; align-items: center; gap: 10px; font-size: 13px;">
+            <span>⏰ Timing Offset:</span>
+            <input type="range" class="timing-offset-slider" min="0" max="3" step="0.5" value="1" 
+                   style="flex: 1; margin: 0 5px;">
+            <span class="timing-offset-value" style="min-width: 40px; font-weight: bold;">1.0s</span>
+          </label>
+          <div style="font-size: 11px; color: #666; margin-top: 5px;">
+            Capture from <span class="timing-offset-desc">1.0</span> seconds before click (0-3s)
+          </div>
+        </div>
+        ` : ''}
+        
         <div class="transcript-status"></div>
         
         <!-- ✅ NEW: Real-time audio quality indicator during recording -->
@@ -221,6 +236,9 @@ class TranscriptRestructurer {
     
     // Keyboard shortcuts
     this.setupKeyboardShortcuts();
+    
+    // Timing offset controls
+    this.setupTimingOffsetControls();
     
     // ✅ NEW: Add interactive card selection for subtitle modes
     this.setupSubtitleModeCards();
@@ -2167,11 +2185,12 @@ Sentence to fix: "${preCleanedText}"`;
         const transcriptTypeIcon = result.transcriptType === 'automatic' ? '🤖' : '👤';
         const transcriptTypeName = result.transcriptType === 'automatic' ? 'Auto' : 'Manual';
         
-        // Apply additional -1 second offset for better timing (user request)
+        // Apply user-configurable timing offset (0-3s range)
+        const offsetAmount = this.timingOffset || 1.0; // Default to 1s if not set
         let adjustedTimestamp = result.timestamp;
-        if (adjustedTimestamp > 0) {
-          adjustedTimestamp = Math.max(0, adjustedTimestamp - 1);
-          console.log(`⏰ Applied additional -1s offset: ${result.timestamp}s → ${adjustedTimestamp}s`);
+        if (adjustedTimestamp > 0 && offsetAmount > 0) {
+          adjustedTimestamp = Math.max(0, adjustedTimestamp - offsetAmount);
+          console.log(`⏰ Applied user timing offset (-${offsetAmount}s): ${result.timestamp}s → ${adjustedTimestamp}s`);
         }
         
         this.addCapturedSentence({
@@ -2450,6 +2469,35 @@ Sentence to fix: "${preCleanedText}"`;
           .edit-text-btn:hover {
             background: #138496;
           }
+          
+          /* Timing offset slider styles */
+          .timing-offset-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 5px;
+            background: #ddd;
+            outline: none;
+            border-radius: 5px;
+          }
+          
+          .timing-offset-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 15px;
+            height: 15px;
+            background: #4CAF50;
+            cursor: pointer;
+            border-radius: 50%;
+          }
+          
+          .timing-offset-slider::-moz-range-thumb {
+            width: 15px;
+            height: 15px;
+            background: #4CAF50;
+            cursor: pointer;
+            border-radius: 50%;
+            border: none;
+          }
         </style>
       `;
     }
@@ -2631,6 +2679,41 @@ Sentence to fix: "${preCleanedText}"`;
     });
     
     console.log('⌨️ Keyboard shortcuts initialized: Alt+C for collect');
+  }
+
+  // Setup timing offset controls
+  setupTimingOffsetControls() {
+    const slider = this.container.querySelector('.timing-offset-slider');
+    const valueDisplay = this.container.querySelector('.timing-offset-value');
+    const descDisplay = this.container.querySelector('.timing-offset-desc');
+    
+    if (!slider || !valueDisplay || !descDisplay) return;
+    
+    // Load saved preference
+    chrome.storage.local.get(['youtubeTimingOffset'], (result) => {
+      const savedOffset = result.youtubeTimingOffset ?? 1.0; // Default to 1.0s
+      slider.value = savedOffset;
+      valueDisplay.textContent = `${savedOffset}s`;
+      descDisplay.textContent = savedOffset;
+      this.timingOffset = savedOffset;
+      console.log('⏰ Loaded timing offset:', savedOffset);
+    });
+    
+    // Handle slider changes
+    slider.addEventListener('input', (e) => {
+      const value = parseFloat(e.target.value);
+      valueDisplay.textContent = `${value}s`;
+      descDisplay.textContent = value;
+      this.timingOffset = value;
+      
+      // Save preference
+      chrome.storage.local.set({ youtubeTimingOffset: value }, () => {
+        console.log('⏰ Saved timing offset:', value);
+      });
+    });
+    
+    // Initialize default
+    this.timingOffset = parseFloat(slider.value);
   }
 
   // ✅ NEW: Netflix-specific collection start
