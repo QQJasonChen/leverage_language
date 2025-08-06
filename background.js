@@ -137,7 +137,16 @@ chrome.action.onClicked.addListener(async (tab) => {
 });
 
 // 處理來自內容腳本的訊息
-// Consolidated message handler for all actions
+// 🏗️ ARCHITECTURE: Central Message Router
+// This is the main message hub that routes all communications between content scripts,
+// side panel, and other extension components. When adding new platforms:
+//
+// 1. Add platform-specific message handlers (e.g., 'courseraTextAnalysis')
+// 2. Follow async/await pattern with proper error handling
+// 3. Use platform-specific handler functions (e.g., handleCourseraTextAnalysis)
+// 4. Maintain consistent response format: {success: boolean, data?: any, error?: string}
+//
+// 📝 PATTERN: Group related messages by functionality (search, analysis, capture, etc.)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('🔔 Background script received message:', request.action, 'from tab:', sender.tab?.id);
   
@@ -422,7 +431,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true; // Keep the message channel open for async response
   }
   
-  // Udemy-specific actions
+  // 📚 PLATFORM: Udemy-specific message handlers
+  // Each platform should have its own message handling section following this pattern:
+  // 1. Platform-specific message prefixes (e.g., 'udemy', 'coursera', 'khan')
+  // 2. Consistent handler function naming (e.g., handleUdemyTextAnalysis)  
+  // 3. Proper async error handling and response format
+  // 4. Platform-specific storage keys (e.g., 'udemyCurrentVideo')
+  //
+  // 🚀 FUTURE: Copy this pattern for new platforms (courseraSubtitleUpdate, etc.)
   if (request.action === 'udemySubtitleUpdate') {
     console.log('📚 Udemy subtitle update:', request.data.text?.substring(0, 50) + '...');
     

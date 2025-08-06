@@ -1115,31 +1115,66 @@ class TranscriptViewer {
     console.log('🎯 Seeking to time:', seconds);
     
     try {
-      // ✅ FIX: Query for YouTube tabs specifically
-      chrome.tabs.query({ url: "https://*.youtube.com/*" }, (tabs) => {
-        if (tabs && tabs.length > 0) {
-          // Find the active YouTube tab or use the first one
-          const activeTab = tabs.find(tab => tab.active) || tabs[0];
-          
-          console.log('📺 Sending seek message to YouTube tab:', activeTab.id);
-          chrome.tabs.sendMessage(activeTab.id, {
-            action: 'seekToTime',
-            time: Math.floor(seconds) // Ensure integer seconds
-          }, (response) => {
+      // ✅ FIX: Query for all supported platform tabs
+      chrome.tabs.query({}, (allTabs) => {
+        // Find tabs for supported platforms
+        const youTubeTabs = allTabs.filter(tab => tab.url && tab.url.includes('youtube.com'));
+        const udemyTabs = allTabs.filter(tab => tab.url && tab.url.includes('udemy.com'));
+        const netflixTabs = allTabs.filter(tab => tab.url && tab.url.includes('netflix.com'));
+        
+        // Prioritize active tab, then any available platform tab
+        let targetTab = null;
+        let platform = '';
+        let seekAction = 'seekToTime';
+        
+        const activeTab = allTabs.find(tab => tab.active);
+        if (activeTab && activeTab.url.includes('youtube.com')) {
+          targetTab = activeTab;
+          platform = 'YouTube';
+          seekAction = 'seekToTime';
+        } else if (activeTab && activeTab.url.includes('udemy.com')) {
+          targetTab = activeTab;
+          platform = 'Udemy';
+          seekAction = 'seekUdemyVideo';
+        } else if (activeTab && activeTab.url.includes('netflix.com')) {
+          targetTab = activeTab;
+          platform = 'Netflix';
+          seekAction = 'seekToTime'; // Netflix uses same action
+        } else if (youTubeTabs.length > 0) {
+          targetTab = youTubeTabs[0];
+          platform = 'YouTube';
+          seekAction = 'seekToTime';
+        } else if (udemyTabs.length > 0) {
+          targetTab = udemyTabs[0];
+          platform = 'Udemy';
+          seekAction = 'seekUdemyVideo';
+        } else if (netflixTabs.length > 0) {
+          targetTab = netflixTabs[0];
+          platform = 'Netflix';
+          seekAction = 'seekToTime';
+        }
+        
+        if (targetTab) {
+          console.log(`📺 Sending seek message to ${platform} tab:`, targetTab.id);
+          const message = platform === 'Udemy' ? 
+            { action: seekAction, time: Math.floor(seconds) } :
+            { action: seekAction, time: Math.floor(seconds) };
+            
+          chrome.tabs.sendMessage(targetTab.id, message, (response) => {
             if (chrome.runtime.lastError) {
               console.error('❌ Seek message failed:', chrome.runtime.lastError);
-              this.showToast('❌ Failed to communicate with YouTube tab');
+              this.showToast(`❌ Failed to communicate with ${platform} tab`);
             } else if (response && response.success) {
-              console.log('✅ Seek successful to', response.time);
-              this.showToast(`✅ Jumped to ${this.formatTime(seconds)}`);
+              console.log('✅ Seek successful to', response.time || seconds);
+              this.showToast(`✅ Jumped to ${this.formatTime(seconds)} on ${platform}`);
             } else {
               console.error('❌ Seek failed - no response or failed response');
               this.showToast('❌ Seek failed');
             }
           });
         } else {
-          console.error('❌ No YouTube tabs found');
-          this.showToast('❌ No YouTube tab found - open video in YouTube first');
+          console.error('❌ No supported platform tabs found');
+          this.showToast('❌ Please open YouTube, Udemy, or Netflix first');
         }
       });
       

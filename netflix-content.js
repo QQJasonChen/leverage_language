@@ -10,6 +10,14 @@
   let lastKnownVideoId = null;
   let lastKnownTitle = null;
   let currentVideoInfo = null;
+  
+  // Collection state variables (similar to Udemy)
+  let isCollecting = false;
+  let collectedSegments = [];
+  let collectionStartTime = null;
+  let lastSubtitleText = '';
+  let lastSubtitleTime = 0;
+  let collectionMonitorInterval = null;
 
   // Netflix video ID patterns and extraction
   function extractNetflixVideoId() {
@@ -34,19 +42,27 @@
       '.episode-title'
     ];
 
+    console.log('🔍 Netflix title extraction - trying selectors...');
+    
     for (const selector of titleSelectors) {
       const element = document.querySelector(selector);
       if (element && element.textContent.trim()) {
-        return element.textContent.trim();
+        const title = element.textContent.trim();
+        console.log(`✅ Found Netflix title with selector "${selector}": "${title}"`);
+        return title;
       }
     }
 
     // Fallback to document title
     const title = document.title;
+    console.log(`🔄 Checking document title: "${title}"`);
     if (title && title !== 'Netflix') {
-      return title.replace(' - Netflix', '').trim();
+      const cleanTitle = title.replace(' - Netflix', '').trim();
+      console.log(`🔄 Using document title as fallback: "${cleanTitle}"`);
+      return cleanTitle;
     }
 
+    console.log('❌ No Netflix title found, using default fallback');
     return 'Netflix Video';
   }
 
@@ -60,13 +76,18 @@
         '.watch-video video'
       ];
 
+      console.log('🔍 Netflix timestamp extraction - trying selectors...');
+      
       for (const selector of playerSelectors) {
         const video = document.querySelector(selector);
         if (video && video.currentTime !== undefined) {
-          return Math.floor(video.currentTime);
+          const timestamp = Math.floor(video.currentTime);
+          console.log(`✅ Found Netflix video with selector "${selector}", timestamp: ${timestamp}s`);
+          return timestamp;
         }
       }
 
+      console.log('❌ No Netflix video element found, returning 0');
       return 0;
     } catch (error) {
       console.log('⚠️ Could not get Netflix timestamp:', error);
@@ -147,6 +168,78 @@
 
     // Default to movie
     return 'movie';
+  }
+
+  function extractTitle() {
+    // Extract content title from Netflix page with enhanced selectors
+    const titleSelectors = [
+      '[data-uia="video-title"]',
+      '.video-title h1',
+      '.video-title',
+      '.previewModal--player .previewModal--detailsMetadata h3',
+      '.title-logo img[alt]',
+      'h1.title',
+      '.watchVideo .title',
+      '[data-uia*="title"]',
+      // Additional Netflix-specific selectors for title extraction
+      '.watch-video--player-view .video-title',
+      '.watch-video--back-to-browsing .video-title', 
+      '.ltr-1bt0omd', // Netflix's current title class
+      '.watch-video--bottom-controls-container [data-uia*="title"]',
+      '.evidence-overlay .evidence-overlay-text .evidence-overlay-title',
+      // Series-specific selectors
+      '[data-uia="series-title"]',
+      '.series-title',
+      // Episode title selectors  
+      '[data-uia="episode-title"]',
+      '.episode-title'
+    ];
+
+    for (const selector of titleSelectors) {
+      const element = document.querySelector(selector);
+      if (element) {
+        let title;
+        if (element.tagName === 'IMG' && element.alt) {
+          title = element.alt;
+        } else {
+          title = element.textContent?.trim();
+        }
+        
+        if (title && title.length > 2 && !title.includes('Netflix') && !title.includes('Watch')) {
+          // Get episode info for better title formatting
+          const episodeInfo = extractEpisodeInfo();
+          if (episodeInfo && episodeInfo.episodeTitle) {
+            return `${title} - ${episodeInfo.episodeTitle}`;
+          }
+          return title;
+        }
+      }
+    }
+
+    // Fallback to document title with better parsing
+    let title = document.title;
+    if (title && title !== 'Netflix') {
+      // Clean up Netflix suffixes and extract meaningful title
+      title = title.replace(/\s*-\s*Netflix$/, '').trim();
+      
+      // If title contains "Watch", extract the show name
+      const watchMatch = title.match(/Watch\s+(.+)$/);
+      if (watchMatch) {
+        title = watchMatch[1].trim();
+      }
+      
+      if (title && title.length > 2) {
+        return title;
+      }
+    }
+
+    // Final fallback - try to get from URL
+    const urlMatch = window.location.href.match(/\/title\/(\d+)/);
+    if (urlMatch) {
+      return `Netflix Content (ID: ${urlMatch[1]})`;
+    }
+
+    return 'Netflix Content';
   }
 
   function extractEpisodeInfo() {
@@ -607,6 +700,8 @@
   // Capture current Netflix subtitle text manually
   function captureCurrentNetflixSubtitle() {
     try {
+      console.log('🔍 Starting Netflix subtitle capture...');
+      
       // Netflix subtitle selectors (multiple attempts)
       const subtitleSelectors = [
         '.player-timedtext-text-container',
@@ -620,17 +715,30 @@
         '[class*="timedtext"]'
       ];
 
+      console.log('🔍 Trying', subtitleSelectors.length, 'Netflix subtitle selectors...');
+      
       for (const selector of subtitleSelectors) {
         const subtitleElement = document.querySelector(selector);
-        if (subtitleElement && subtitleElement.textContent.trim()) {
-          const text = subtitleElement.textContent.trim();
-          console.log('🎭 Captured Netflix subtitle:', text);
-          return text;
+        console.log(`🔍 Selector "${selector}":`, subtitleElement ? 'Found element' : 'Not found');
+        
+        if (subtitleElement) {
+          const text = subtitleElement.textContent?.trim();
+          console.log(`📝 Text content: "${text || '(empty)'}"`);
+          
+          if (text) {
+            console.log('✅ Netflix subtitle captured:', text);
+            return text;
+          }
         }
       }
 
       // Also try to find any visible text elements that might be subtitles
+      console.log('🔍 Trying fallback method - scanning all text elements...');
       const allTextElements = document.querySelectorAll('div, span, p');
+      console.log(`🔍 Found ${allTextElements.length} text elements to check`);
+      
+      let potentialSubtitles = [];
+      
       for (const element of allTextElements) {
         if (element.textContent && element.textContent.trim()) {
           const text = element.textContent.trim();
@@ -641,13 +749,22 @@
           const isVisible = rect.width > 0 && rect.height > 0;
           
           if (isBottomPositioned && isReasonableLength && isVisible) {
-            console.log('🎭 Found potential Netflix subtitle:', text);
-            return text;
+            potentialSubtitles.push({text, element, rect});
+            console.log('🎯 Potential subtitle found:', text.substring(0, 50) + '...');
           }
         }
       }
+      
+      console.log(`🔍 Found ${potentialSubtitles.length} potential subtitles`);
+      
+      if (potentialSubtitles.length > 0) {
+        // Return the first potential subtitle
+        const subtitle = potentialSubtitles[0];
+        console.log('✅ Using fallback subtitle:', subtitle.text);
+        return subtitle.text;
+      }
 
-      console.log('⚠️ No Netflix subtitle text found');
+      console.log('❌ No Netflix subtitle text found with any method');
       return null;
     } catch (error) {
       console.log('⚠️ Error capturing Netflix subtitle:', error);
@@ -687,6 +804,88 @@
     }
   }
 
+  // Collection monitoring functions
+  function startSubtitleMonitoring() {
+    if (collectionMonitorInterval) {
+      clearInterval(collectionMonitorInterval);
+    }
+    
+    console.log('🎭 Starting Netflix subtitle monitoring for collection...');
+    
+    collectionMonitorInterval = setInterval(() => {
+      console.log('⏰ Collection monitor tick - isCollecting:', isCollecting);
+      
+      if (!isCollecting) {
+        stopSubtitleMonitoring();
+        return;
+      }
+      
+      const subtitleText = captureCurrentNetflixSubtitle();
+      console.log('📝 Monitor captured text:', subtitleText ? `"${subtitleText}"` : 'null');
+      
+      if (subtitleText && subtitleText.trim().length > 0) {
+        // Throttle subtitle changes to prevent duplicates
+        const now = Date.now();
+        if (subtitleText !== lastSubtitleText || (now - lastSubtitleTime) > 1000) {
+          lastSubtitleText = subtitleText;
+          lastSubtitleTime = now;
+          
+          const currentTime = getCurrentTimestamp();
+          const segment = {
+            text: subtitleText,
+            cleanText: subtitleText,
+            start: currentTime,
+            timestamp: formatTimestamp(currentTime),
+            timestampDisplay: formatTimestamp(currentTime),
+            timestampInSeconds: currentTime,
+            source: 'netflix-collection',
+            platform: 'netflix',
+            videoInfo: getVideoInfo(),
+            url: window.location.href,
+            segmentIndex: collectedSegments.length,
+            groupIndex: 0
+          };
+          
+          // Check for duplicates
+          const lastSegment = collectedSegments[collectedSegments.length - 1];
+          const isDuplicate = lastSegment && lastSegment.text === subtitleText && 
+            Math.abs(currentTime - lastSegment.timestampInSeconds) <= 2;
+          
+          if (!isDuplicate) {
+            collectedSegments.push(segment);
+            console.log(`🎭 ✅ Collected Netflix segment ${collectedSegments.length}: "${subtitleText}" at ${formatTimestamp(currentTime)}`);
+          } else {
+            console.log(`🎭 ⏭️ Skipping duplicate: "${subtitleText}"`);
+          }
+        }
+      }
+    }, 500); // Check every 500ms
+  }
+  
+  function stopSubtitleMonitoring() {
+    if (collectionMonitorInterval) {
+      console.log('🎭 Stopping Netflix subtitle monitoring');
+      clearInterval(collectionMonitorInterval);
+      collectionMonitorInterval = null;
+    }
+  }
+  
+  // Helper function to format timestamp (MM:SS)
+  function formatTimestamp(seconds) {
+    // Handle invalid input
+    if (typeof seconds !== 'number' || isNaN(seconds) || seconds < 0) {
+      console.log('⚠️ Invalid timestamp value:', seconds, 'using 0 as fallback');
+      seconds = 0;
+    }
+    
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    const result = `${mins}:${secs.toString().padStart(2, '0')}`;
+    
+    console.log(`⏰ Formatted timestamp: ${seconds}s → ${result}`);
+    return result;
+  }
+
   // Message handling
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (contextInvalidated) {
@@ -701,28 +900,15 @@
         case 'ping':
           console.log('🏓 Netflix ping received');
           
-          // Check if subtitle collection is in progress (async)
-          checkSubtitleCollectionStatus().then(isCollecting => {
-            sendResponse({ 
-              pong: true, 
-              platform: 'netflix',
-              isCollecting: isCollecting,
-              videoId: extractNetflixVideoId(),
-              title: extractVideoTitle(),
-              timestamp: getCurrentTimestamp(),
-              url: window.location.href
-            });
-          }).catch(error => {
-            console.log('⚠️ Error in ping handler:', error);
-            sendResponse({ 
-              pong: true, 
-              platform: 'netflix',
-              isCollecting: false,
-              videoId: extractNetflixVideoId(),
-              title: extractVideoTitle(),
-              timestamp: getCurrentTimestamp(),
-              url: window.location.href
-            });
+          // Return the current collection state from our new collection system
+          sendResponse({ 
+            pong: true, 
+            platform: 'netflix',
+            isCollecting: isCollecting, // Use our new collection state variable
+            videoId: extractNetflixVideoId(),
+            title: extractVideoTitle(),
+            timestamp: getCurrentTimestamp(),
+            url: window.location.href
           });
           return true; // Keep the message channel open for async response
           break;
@@ -739,10 +925,29 @@
 
         case 'getVideoInfo':
           const videoInfo = getVideoInfo();
-          console.log('📱 Netflix video info requested:', videoInfo);
+          const title = extractTitle();
+          const episodeInfo = extractEpisodeInfo();
+          console.log('📱 Netflix video info requested:', videoInfo, 'title:', title);
           sendResponse({
             success: !!videoInfo,
-            videoInfo
+            videoInfo: {
+              ...videoInfo,
+              title: title,
+              displayTitle: title,
+              episodeInfo: episodeInfo
+            }
+          });
+          break;
+
+        case 'getNetflixTitle':
+          console.log('🎭 Getting Netflix video title');
+          const netflixTitle = extractTitle();
+          const netflixEpisodeInfo = extractEpisodeInfo();
+          sendResponse({
+            success: true,
+            title: netflixTitle,
+            episodeInfo: netflixEpisodeInfo,
+            url: window.location.href
           });
           break;
 
@@ -812,6 +1017,49 @@
             timestamp: currentTime,
             url: window.location.href
           });
+          break;
+
+        case 'startNetflixSubtitleCollection':
+          console.log('🎭 Starting Netflix subtitle collection...');
+          console.log('🔍 Current collection state:', { isCollecting, collectedSegments: collectedSegments.length });
+          
+          if (!isCollecting) {
+            isCollecting = true;
+            // DON'T clear collectedSegments - preserve existing captures
+            // collectedSegments = []; // ← REMOVED: This was causing override behavior
+            if (collectedSegments.length === 0) {
+              collectionStartTime = Date.now(); // Only set start time if no existing segments
+            }
+            startSubtitleMonitoring(); // Start the monitoring
+            console.log('✅ Netflix collection started successfully');
+            sendResponse({ success: true, isCollecting: true, existingSegments: collectedSegments.length });
+          } else {
+            console.log('⚠️ Already collecting - returning current state');
+            sendResponse({ success: true, isCollecting: true, message: 'Already collecting', existingSegments: collectedSegments.length });
+          }
+          break;
+          
+        case 'stopNetflixSubtitleCollection':
+          console.log('🎭 Stopping Netflix subtitle collection...');
+          if (isCollecting) {
+            isCollecting = false;
+            stopSubtitleMonitoring(); // Stop the monitoring
+            const segments = [...collectedSegments]; // Copy array
+            console.log(`🎭 Collection stopped. Collected ${segments.length} segments`);
+            
+            sendResponse({ 
+              success: true, 
+              segments: segments,
+              isCollecting: false,
+              collectionTime: Date.now() - collectionStartTime
+            });
+            
+            // Reset collection data
+            collectedSegments = [];
+            collectionStartTime = null;
+          } else {
+            sendResponse({ success: true, isCollecting: false, segments: [] });
+          }
           break;
 
         default:
