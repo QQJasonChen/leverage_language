@@ -54,20 +54,60 @@
   
   // Capture current subtitle (with throttling to prevent crashes)
   function captureCurrentSubtitle() {
-    // Udemy subtitle selectors
+    // Updated Udemy subtitle selectors - more comprehensive
     const selectors = [
+      // Current Udemy subtitle selectors (2024)
       '[data-purpose="captions-display"]',
       '.captions-display',
-      '[class*="captions"]'
+      '.closed-captions',
+      '.video-captions',
+      '.captions-cue-text',
+      '.captionContainer',
+      '.ud-video-caption',
+      '.video-js .vjs-text-track-display',
+      '.vjs-text-track-cue',
+      '.vjs-text-track-cue-content',
+      // Generic subtitle/captions classes
+      '[class*="captions"]',
+      '[class*="caption"]',
+      '[class*="subtitle"]',
+      '[aria-live="polite"]',
+      // Video.js related selectors
+      '.video-js [role="button"][aria-live]',
+      '.video-viewer--content [data-testid*="caption"]',
+      // Generic text overlays that might contain subtitles
+      '[role="region"][aria-live]'
     ];
+    
+    console.log('🔍 Udemy subtitle capture - checking selectors...');
     
     for (const selector of selectors) {
       const element = document.querySelector(selector);
       if (element && element.textContent.trim()) {
         const text = element.textContent.trim();
         
+        console.log(`✅ Found subtitle with selector "${selector}": "${text}"`);
+        
         // Skip UI elements and navigation text
         if (text.includes('lecture') && text.includes('completed')) {
+          console.log('⏭️ Skipping UI element:', text);
+          continue;
+        }
+        
+        // Skip very short text (likely UI elements)
+        if (text.length < 3) {
+          console.log('⏭️ Skipping short text:', text);
+          continue;
+        }
+        
+        // Skip common UI text patterns
+        const skipPatterns = [
+          'play', 'pause', 'mute', 'unmute', 'settings', 'fullscreen',
+          'speed', 'quality', 'volume', 'closed captions', 'transcript'
+        ];
+        
+        if (skipPatterns.some(pattern => text.toLowerCase().includes(pattern))) {
+          console.log('⏭️ Skipping UI pattern:', text);
           continue;
         }
         
@@ -75,6 +115,7 @@
       }
     }
     
+    console.log('❌ No Udemy subtitle found with any selector');
     return null;
   }
   
