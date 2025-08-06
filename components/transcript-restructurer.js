@@ -37,6 +37,9 @@ class TranscriptRestructurer {
       } else if (this.currentPlatform === 'netflix') {
         console.log('🎭 Netflix platform - using subtitle extractor');
         this.transcriptFetcher = null; // Netflix uses different extraction method
+      } else if (this.currentPlatform === 'udemy') {
+        console.log('📚 Udemy platform - using subtitle capture');
+        this.transcriptFetcher = null; // Udemy uses content script subtitle capture
       }
       
       // Initialize UI
@@ -78,6 +81,9 @@ class TranscriptRestructurer {
         } else if (url.includes('netflix.com')) {
           console.log('✅ Detected Netflix platform');
           return 'netflix';
+        } else if (url.includes('udemy.com')) {
+          console.log('✅ Detected Udemy platform');
+          return 'udemy';
         }
       }
       

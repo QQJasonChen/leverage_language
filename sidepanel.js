@@ -178,6 +178,38 @@ async function checkForNetflixAnalysis() {
   }
 }
 
+// Check for Udemy analysis data when sidepanel opens
+async function checkForUdemyAnalysis() {
+  try {
+    const result = await chrome.storage.local.get('udemyAnalysis');
+    if (result.udemyAnalysis) {
+      const data = result.udemyAnalysis;
+      // Check if data is recent (within last 5 minutes)
+      if (Date.now() - data.timestamp < 5 * 60 * 1000) {
+        console.log('📚 Found recent Udemy analysis data:', data.text);
+        
+        // Switch to video tab
+        const videoBtn = document.getElementById('showVideoBtn');
+        if (videoBtn) {
+          videoBtn.click();
+        }
+        
+        // Process the Udemy data
+        setTimeout(() => {
+          recordLearningSearch(data.text, data.language, data.originalUrl, data.title);
+          updateLearningDashboard();
+          handleUdemyTextAnalysis(data.text, data.originalUrl, data.title, data.courseTitle, data.lectureTitle, data.videoId);
+        }, 500);
+        
+        // Clean up the stored data
+        chrome.storage.local.remove('udemyAnalysis');
+      }
+    }
+  } catch (error) {
+    console.error('Error checking Udemy analysis:', error);
+  }
+}
+
 // Check for article analysis data when sidepanel opens
 async function checkForArticleAnalysis() {
   try {
@@ -6660,6 +6692,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Check for YouTube analysis data
   checkForYouTubeAnalysis();
   
+  // Check for Netflix analysis data
+  checkForNetflixAnalysis();
+  
+  // Check for Udemy analysis data
+  checkForUdemyAnalysis();
+  
   // Check for article analysis data
   checkForArticleAnalysis();
   
@@ -13028,6 +13066,162 @@ function handleNetflixTextAnalysis(text, url, title, videoId, movieId, forceReAn
       if (analysisStatus) {
         analysisStatus.textContent = '❌ Netflix analysis failed';
       }
+    }
+  }, 300);
+}
+
+// Handle Udemy text analysis in sidepanel
+function handleUdemyTextAnalysis(text, url, title, courseTitle, lectureTitle, videoId, forceReAnalysis = false) {
+  console.log('📚 Handling Udemy text analysis:', text, {
+    url, title, courseTitle, lectureTitle, videoId
+  });
+  
+  const currentAnalysisSection = document.getElementById('currentAnalysisSection');
+  const waitingSection = document.getElementById('waitingForText');
+  const analysisTextDiv = document.getElementById('currentAnalysisText');
+  const analysisStatus = document.getElementById('analysisStatus');
+  const aiResultsDiv = document.getElementById('aiAnalysisResults');
+  
+  // Show analysis section
+  if (currentAnalysisSection && waitingSection) {
+    currentAnalysisSection.style.display = 'block';
+    waitingSection.style.display = 'none';
+  }
+  
+  // Update text display
+  if (analysisTextDiv) {
+    analysisTextDiv.innerHTML = `
+      <strong style="color: #a435f0; font-size: 14px;">📚 ${courseTitle}</strong><br>
+      <span style="color: #666; font-size: 12px;">${lectureTitle}</span><br><br>
+      <span style="font-size: 16px; font-weight: 500;">${text}</span>
+    `;
+  }
+  
+  // Create return button with course context
+  const returnButtonContainer = document.getElementById('returnToVideoBtn');
+  if (returnButtonContainer && url) {
+    const courseName = courseTitle || 'Udemy Course';
+    returnButtonContainer.innerHTML = `
+      <button onclick="window.open('${url}', '_blank')" style="
+        background: #a435f0; 
+        color: white; 
+        border: none; 
+        padding: 10px 16px; 
+        border-radius: 6px; 
+        cursor: pointer; 
+        font-size: 14px; 
+        display: flex; 
+        align-items: center; 
+        gap: 8px;
+      ">
+        📚 Return to ${courseName}
+      </button>
+    `;
+  }
+  
+  // Update with enhanced context for learning
+  const enhancedQuery = {
+    text: text,
+    language: 'english',
+    source: 'udemy-learning',
+    platform: 'udemy',
+    autoAnalysis: true,
+    timestamp: new Date().toISOString()
+  };
+  
+  // Check if auto-analysis is enabled (unless forced)
+  const autoAnalysisEnabled = forceReAnalysis || localStorage.getItem('youglish-auto-analysis') !== 'false';
+  
+  if (!autoAnalysisEnabled) {
+    console.log('⏸️ Auto AI Analysis is disabled, showing manual trigger option');
+    
+    if (analysisStatus) {
+      analysisStatus.innerHTML = `
+        📚 Udemy AI Analysis available 
+        <button class="manual-analysis-btn" data-text="${text.replace(/'/g, "\\\\'")}" data-url="${url}" data-title="${title}"
+                style="margin-left: 8px; padding: 4px 8px; background: #a435f0; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;">
+          ▶️ Analyze Now
+        </button>
+      `;
+    }
+    
+    if (aiResultsDiv) {
+      showManualAnalysisPrompt(text);
+    }
+    
+    return; // Skip automatic AI analysis
+  }
+  
+  // Update status to show AI processing
+  if (analysisStatus) {
+    analysisStatus.textContent = '📚 Udemy AI is analyzing... Please wait...';
+  }
+  
+  // Check multiple ways to access AI service and trigger analysis
+  let aiAnalysisCompleted = false;
+  
+  // Method 1: Direct AI service access
+  if (typeof window.aiService !== 'undefined' && window.aiService) {
+    console.log('🤖 Direct AI Service found, starting Udemy analysis...');
+    
+    try {
+      window.aiService.analyzeText(text, {
+        language: 'english',
+        complexity: 'enhanced',
+        source: 'udemy-learning',
+        platform: 'udemy'
+      }).then(analysis => {
+        if (analysis && analysis.content) {
+          console.log('✅ Direct Udemy AI analysis completed');
+          displayAIAnalysisResults(analysis, text);
+          aiAnalysisCompleted = true;
+          if (analysisStatus) {
+            analysisStatus.textContent = '✅ Udemy AI Analysis completed';
+          }
+        }
+      }).catch(error => {
+        console.error('❌ Direct Udemy AI analysis failed:', error);
+      });
+    } catch (error) {
+      console.error('❌ Error calling direct Udemy AI service:', error);
+    }
+  }
+  
+  // Method 2: Try message-based approach as fallback
+  if (!aiAnalysisCompleted) {
+    setTimeout(() => {
+      if (!aiAnalysisCompleted && currentQuery && currentQuery.text === text) {
+        console.log('📚 Direct AI failed, trying message-based approach for Udemy analysis...');
+        
+        try {
+          if (window.getCurrentQuery) {
+            const query = window.getCurrentQuery();
+            if (query && query.text === text) {
+              console.log('✅ Message-based Udemy AI analysis might be running');
+              setTimeout(() => {
+                if (analysisStatus && analysisStatus.textContent.includes('analyzing')) {
+                  analysisStatus.textContent = '✅ Udemy AI Analysis completed';
+                }
+              }, 3000);
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error with message-based Udemy analysis:', error);
+        }
+      }
+    }, 1000);
+  }
+  
+  // Update global query for other components to access
+  window.currentQuery = enhancedQuery;
+  if (typeof window.getCurrentQuery === 'function') {
+    window.currentQuery = enhancedQuery;
+  }
+  
+  // Trigger analysis update after a brief delay
+  setTimeout(() => {
+    if (typeof updateCurrentAnalysis === 'function') {
+      updateCurrentAnalysis();
     }
   }, 300);
 }

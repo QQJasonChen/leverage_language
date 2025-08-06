@@ -422,6 +422,54 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true; // Keep the message channel open for async response
   }
   
+  // Udemy-specific actions
+  if (request.action === 'udemySubtitleUpdate') {
+    console.log('📚 Udemy subtitle update:', request.data.text?.substring(0, 50) + '...');
+    
+    // Forward to sidepanel for analysis
+    handleUdemyTextAnalysis(request.data, sender.tab.id)
+      .then(() => {
+        sendResponse({ success: true, message: 'Udemy subtitle sent to sidepanel for analysis' });
+      })
+      .catch((error) => {
+        console.error('📚 Error processing Udemy subtitle:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    
+    return true; // Keep the message channel open for async response
+  }
+  
+  if (request.action === 'udemyVideoLoaded') {
+    console.log('📚 Udemy video loaded:', request.data.courseTitle);
+    
+    // Store video information
+    chrome.storage.local.set({
+      udemyCurrentVideo: request.data,
+      udemyLastSeen: Date.now()
+    }).catch(error => console.log('Failed to store Udemy video info:', error));
+    
+    sendResponse({ success: true });
+    return false;
+  }
+  
+  if (request.action === 'udemyCourseInfo') {
+    console.log('📚 Udemy course info:', request.data.courseTitle);
+    sendResponse({ success: true });
+    return false;
+  }
+  
+  if (request.action === 'udemyVideoPlay') {
+    console.log('▶️ Udemy video playing');
+    sendResponse({ success: true });
+    return false;
+  }
+  
+  if (request.action === 'udemyVideoPause') {
+    console.log('⏸️ Udemy video paused');
+    sendResponse({ success: true });
+    return false;
+  }
+  
   // Unknown action
   console.log('❓ Unknown action:', request.action);
   sendResponse({ success: false, error: 'Unknown action' });
@@ -1268,5 +1316,105 @@ async function handleNetflixTextAnalysis(request, tabId) {
     
   } catch (error) {
     console.error('❌ Error handling Netflix text analysis:', error);
+  }
+}
+
+// 處理 Udemy 學習文本分析
+async function handleUdemyTextAnalysis(request, tabId) {
+  try {
+    console.log('📚 Processing Udemy learning text:', request.text);
+    
+    const cleanText = request.text.trim();
+    if (!cleanText) return;
+    
+    // 獲取語言設定
+    const result = await chrome.storage.sync.get(['defaultLanguage', 'preferredLanguage']);
+    const defaultLang = result.defaultLanguage || 'auto';
+    const preferredLang = result.preferredLanguage || 'none';
+    
+    // 偵測語言
+    const detectionResult = detectLanguage(cleanText, preferredLang);
+    const language = typeof detectionResult === 'string' ? detectionResult : 
+                    (detectionResult.language !== 'uncertain' ? detectionResult.language : 'english');
+    
+    // 生成語言學習 URLs
+    const urls = generateLanguageUrls(cleanText, language);
+    
+    // 保存到歷史記錄（包含課程來源資訊）
+    try {
+      console.log('💾 Saving Udemy learning to history:', cleanText, language);
+      
+      // 創建課程來源資訊
+      const courseSource = {
+        url: request.url || null,
+        originalUrl: request.url || null,
+        title: `${request.videoInfo?.courseTitle || 'Unknown Course'} - ${request.videoInfo?.lectureTitle || 'Unknown Lecture'}`,
+        courseTitle: request.videoInfo?.courseTitle || 'Unknown Course',
+        lectureTitle: request.videoInfo?.lectureTitle || 'Unknown Lecture',
+        videoId: request.videoInfo?.videoId || null,
+        timestamp: request.timestamp || null,
+        platform: 'udemy'
+      };
+      
+      const historyItem = {
+        text: cleanText,
+        detectedLanguage: language,
+        timestamp: Date.now(),
+        source: 'udemy-subtitle',
+        platform: 'udemy',
+        confidence: typeof detectionResult === 'object' ? detectionResult.confidence : 0.8,
+        videoSource: courseSource,
+        ...urls
+      };
+      
+      await historyManager.saveHistory(historyItem);
+      console.log('✅ Udemy learning saved to history successfully');
+      
+    } catch (error) {
+      console.error('❌ Failed to save Udemy learning to history:', error);
+    }
+    
+    // 儲存到 local storage 供 sidepanel 使用
+    await chrome.storage.local.set({
+      udemyAnalysis: {
+        url: urls.primaryUrl, // YouGlish URL for search
+        text: cleanText,
+        language: language,
+        source: request.source || 'udemy-learning',
+        title: `${request.videoInfo?.courseTitle || 'Udemy Course'} - ${request.videoInfo?.lectureTitle || 'Lecture'}`,
+        originalUrl: request.url, // Udemy URL
+        udemyUrl: request.url, // Explicit Udemy URL field  
+        courseTitle: request.videoInfo?.courseTitle,
+        lectureTitle: request.videoInfo?.lectureTitle,
+        videoId: request.videoInfo?.videoId,
+        platform: 'udemy',
+        allUrls: urls.allUrls,
+        timestamp: Date.now(),
+        videoTimestamp: request.timestamp || null // Include video playback timestamp
+      }
+    });
+    
+    console.log('🔗 Udemy URL mapping debug:', {
+      youglishUrl: urls.primaryUrl,
+      udemyUrl: request.url,
+      courseTitle: request.videoInfo?.courseTitle,
+      lectureTitle: request.videoInfo?.lectureTitle,
+      timestamp: request.timestamp,
+      videoId: request.videoInfo?.videoId
+    });
+    
+    // 開啟 sidepanel (如果尚未開啟)
+    try {
+      await chrome.sidePanel.open({ tabId });
+      console.log('📱 Sidepanel opened for Udemy learning');
+    } catch (error) {
+      console.log('📱 Sidepanel might already be open:', error.message);
+    }
+
+    // Data saved to chrome.storage for sidepanel to pick up
+    console.log('💾 Udemy learning data saved to storage for sidepanel to automatically load');
+    
+  } catch (error) {
+    console.error('❌ Error handling Udemy text analysis:', error);
   }
 }

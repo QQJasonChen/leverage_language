@@ -20,7 +20,8 @@
   
   "host_permissions": [
     "https://*.youtube.com/*",
-    "https://*.netflix.com/*"
+    "https://*.netflix.com/*",
+    "https://*.udemy.com/*"
   ],
   
   "background": {
@@ -58,10 +59,16 @@
       "run_at": "document_end"
     },
     {
+      "matches": ["https://*.udemy.com/*"],
+      "js": ["udemy-content.js"],
+      "run_at": "document_start"
+    },
+    {
       "matches": ["<all_urls>"],
       "exclude_matches": [
         "https://*.youtube.com/*",
         "https://*.netflix.com/*",
+        "https://*.udemy.com/*",
         "https://youglish.com/*"
       ],
       "js": ["article-collector.js"],
