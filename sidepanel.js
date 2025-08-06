@@ -42,7 +42,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       
       // Handle the analysis in the video tab
       setTimeout(() => {
-        recordLearningSearch(request.text, request.language, request.url, request.title);
+        recordLearningSearch(request.text, request.language, request.url, request.title, request.platform, request.courseTitle);
         updateLearningDashboard();
         handleYouTubeTextAnalysis(request.text, request.url, request.title);
       }, 200);
@@ -161,7 +161,7 @@ async function checkForNetflixAnalysis() {
         
         // Process the Netflix data
         setTimeout(() => {
-          recordLearningSearch(data.text, data.language, data.originalUrl, data.title);
+          recordLearningSearch(data.text, data.language, data.originalUrl, data.title, 'netflix');
           updateLearningDashboard();
           handleNetflixTextAnalysis(data.text, data.originalUrl, data.title, data.videoId, data.movieId);
         }, 500);
@@ -196,7 +196,7 @@ async function checkForUdemyAnalysis() {
         
         // Process the Udemy data
         setTimeout(() => {
-          recordLearningSearch(data.text, data.language, data.originalUrl, data.title);
+          recordLearningSearch(data.text, data.language, data.originalUrl, data.title, 'udemy', data.courseTitle);
           updateLearningDashboard();
           handleUdemyTextAnalysis(data.text, data.originalUrl, data.title, data.courseTitle, data.lectureTitle, data.videoId);
         }, 500);
@@ -599,12 +599,28 @@ async function saveLearningStats() {
 }
 
 // Record learning search function
-function recordLearningSearch(text, language, url, title) {
+function recordLearningSearch(text, language, url, title, platform = null, courseTitle = null) {
+  // Detect platform from URL if not provided
+  let detectedPlatform = platform;
+  if (!detectedPlatform) {
+    if (url && url.includes('youtube.com')) {
+      detectedPlatform = 'youtube';
+    } else if (url && url.includes('netflix.com')) {
+      detectedPlatform = 'netflix';
+    } else if (url && url.includes('udemy.com')) {
+      detectedPlatform = 'udemy';
+    } else {
+      detectedPlatform = 'youtube'; // Default fallback
+    }
+  }
+
   const searchEntry = {
     text: text,
     language: language,
     url: url,
     title: title || '',
+    platform: detectedPlatform,
+    courseTitle: courseTitle || null,
     timestamp: new Date().toISOString(),
     date: new Date().toDateString()
   };
@@ -644,6 +660,15 @@ function recordLearningSearch(text, language, url, title) {
     const wordCount = text.split(/\s+/).length;
     const isSentence = wordCount > 3; // Consider 4+ words as a sentence
     addNetflixToQueue(url, videoTitle, channelName, isSentence);
+  }
+
+  // Add Udemy content to learning queue
+  if (url && url.includes('udemy.com')) {
+    const videoTitle = courseTitle || title || 'Udemy Course';
+    const channelName = 'Udemy';
+    const wordCount = text.split(/\s+/).length;
+    const isSentence = wordCount > 3; // Consider 4+ words as a sentence
+    addUdemyToQueue(url, videoTitle, channelName, isSentence, courseTitle);
   }
   
   // Save to storage
@@ -4286,7 +4311,7 @@ async function populateQuickSearchResults(text, language) {
 let currentAnalysisController = null;
 
 // 帶超時保護的非阻塞 AI 分析
-async function generateAnalysisWithTimeout(aiService, text, language, timeoutMs = 20000) {
+async function generateAnalysisWithTimeout(aiService, text, language, timeoutMs = 45000) {
   // 取消之前的請求
   if (currentAnalysisController) {
     currentAnalysisController.abort();
@@ -7578,6 +7603,73 @@ async function addNetflixToQueue(netflixUrl, contentTitle, channel, isSentence =
   } catch (error) {
     console.error('❌ Failed to add Netflix content to queue:', error);
   }
+}
+
+// Add Udemy content to learning queue
+async function addUdemyToQueue(udemyUrl, contentTitle, channel, isSentence = false, courseTitle = null) {
+  try {
+    const result = await chrome.storage.local.get(['udemyLearningQueue']);
+    const queue = result.udemyLearningQueue || [];
+    
+    // Check if Udemy content already exists
+    const existingIndex = queue.findIndex(v => v.url === udemyUrl);
+    
+    if (existingIndex >= 0) {
+      // Update existing entry with enhanced tracking
+      queue[existingIndex].timestamp = Date.now();
+      if (isSentence) {
+        queue[existingIndex].sentencesLearned = (queue[existingIndex].sentencesLearned || 0) + 1;
+      } else {
+        queue[existingIndex].wordsLearned = (queue[existingIndex].wordsLearned || 0) + 1;
+      }
+      queue[existingIndex].sessionsCount = (queue[existingIndex].sessionsCount || 1) + 1;
+      queue[existingIndex].lastActivity = new Date().toISOString();
+      // Update course title if provided and different
+      if (courseTitle && courseTitle !== 'Udemy Course') {
+        queue[existingIndex].courseTitle = courseTitle;
+      }
+    } else {
+      // Add new Udemy content with enhanced data tracking
+      queue.unshift({
+        url: udemyUrl,
+        title: contentTitle || 'Udemy Course',
+        courseTitle: courseTitle || contentTitle || 'Udemy Course',
+        channel: channel || 'Udemy',
+        platform: 'udemy',
+        timestamp: Date.now(),
+        firstLearned: new Date().toISOString(),
+        lastActivity: new Date().toISOString(),
+        wordsLearned: isSentence ? 0 : 1,
+        sentencesLearned: isSentence ? 1 : 0,
+        sessionsCount: 1,
+        totalTimeSpent: 0,
+        contentType: 'course',
+        videoId: extractUdemyVideoId(udemyUrl)
+      });
+    }
+    
+    // Keep only latest 10 Udemy contents
+    if (queue.length > 10) {
+      queue.splice(10);
+    }
+    
+    await chrome.storage.local.set({ udemyLearningQueue: queue });
+    refreshUdemyQueue();
+  } catch (error) {
+    console.error('❌ Failed to add Udemy content to queue:', error);
+  }
+}
+
+// Helper function to extract Udemy video ID
+function extractUdemyVideoId(url) {
+  const match = url.match(/lecture\/(\d+)/);
+  return match ? match[1] : null;
+}
+
+// Placeholder function for refreshing Udemy queue
+function refreshUdemyQueue() {
+  // This would refresh the UI to show updated Udemy queue
+  console.log('🔄 Udemy queue refreshed');
 }
 
 // Helper functions for Netflix content
@@ -13231,6 +13323,31 @@ function displayAIAnalysisResults(analysis, text) {
   const aiResultsDiv = document.getElementById('aiAnalysisResults');
   if (!aiResultsDiv) return;
   
+  // Clear any existing content to prevent transcript data from showing
+  aiResultsDiv.innerHTML = '';
+  
+  // Filter out analysis that contains transcript-like content
+  if (analysis && analysis.content && typeof analysis.content === 'string') {
+    // If analysis contains multiple segments or timestamp-like patterns, it might be transcript data
+    const suspiciousPatterns = [
+      /\d+:\d+/g, // Timestamp patterns like 5:23
+      /\d+\s+segments?/gi, // References to segments
+      /transcript|subtitle|caption/gi, // Direct references to transcript
+      /<tr|<td|<table/gi // HTML table elements that might be transcript viewer
+    ];
+    
+    const hasSuspiciousContent = suspiciousPatterns.some(pattern => 
+      pattern.test(analysis.content)
+    );
+    
+    if (hasSuspiciousContent || analysis.content.length > 2000) {
+      console.log('🚫 Filtering out suspected transcript data from AI analysis');
+      // Show a clean error message instead
+      showFallbackAnalysis(text);
+      return;
+    }
+  }
+  
   const isWord = text.split(' ').length === 1;
   
   let resultHTML = `
@@ -13242,14 +13359,18 @@ function displayAIAnalysisResults(analysis, text) {
         <div style="font-weight: bold; color: #333; margin-bottom: 8px;">"${text}"</div>
   `;
   
-  // Add definitions if available
+  // Add definitions if available (filter out transcript-like content)
   if (analysis.definitions && analysis.definitions.length > 0) {
-    resultHTML += `
-      <div style="margin-bottom: 12px;">
-        <strong>📚 Definition:</strong>
-        <div style="color: #666; margin-top: 4px;">${analysis.definitions[0]}</div>
-      </div>
-    `;
+    // Filter out definitions that look like transcript segments
+    const cleanDefinition = analysis.definitions[0];
+    if (cleanDefinition && !cleanDefinition.includes('timestamp') && cleanDefinition.length < 500) {
+      resultHTML += `
+        <div style="margin-bottom: 12px;">
+          <strong>📚 Definition:</strong>
+          <div style="color: #666; margin-top: 4px;">${cleanDefinition}</div>
+        </div>
+      `;
+    }
   }
   
   // Add pronunciation if available
@@ -13263,14 +13384,18 @@ function displayAIAnalysisResults(analysis, text) {
     `;
   }
   
-  // Add examples if available
+  // Add examples if available (filter out transcript-like content)
   if (analysis.examples && analysis.examples.length > 0) {
-    resultHTML += `
-      <div style="margin-bottom: 12px;">
-        <strong>💡 Example:</strong>
-        <div style="color: #666; font-style: italic; margin-top: 4px;">"${analysis.examples[0]}"</div>
-      </div>
-    `;
+    // Filter out examples that look like transcript segments
+    const cleanExample = analysis.examples[0];
+    if (cleanExample && !cleanExample.includes('timestamp') && cleanExample.length < 300) {
+      resultHTML += `
+        <div style="margin-bottom: 12px;">
+          <strong>💡 Example:</strong>
+          <div style="color: #666; font-style: italic; margin-top: 4px;">"${cleanExample}"</div>
+        </div>
+      `;
+    }
   }
   
   resultHTML += `

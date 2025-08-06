@@ -22,25 +22,12 @@
     "https://*.youtube.com/*",
     "https://*.netflix.com/*",
     "https://*.udemy.com/*"
-    // 🚀 FUTURE: Add new platform domains here:
-    // "https://*.coursera.org/*",
-    // "https://*.khanacademy.org/*", 
-    // "https://*.edx.org/*"
   ],
   
   "background": {
     "service_worker": "background.js"
   },
   
-  // 🏗️ ARCHITECTURE: Content Script Registration Pattern
-  // Each platform needs content scripts registered here. When adding new platforms:
-  // 
-  // 1. Add URL matches for the platform domain
-  // 2. Register main content script (platform-content.js) at "document_start"  
-  // 3. Add optional specialized scripts (subtitle-extractor.js) at "document_end"
-  // 4. Update exclude_matches in article-collector to avoid conflicts
-  // 
-  // 📝 PATTERN: One main content script per platform + optional specialized scripts
   "content_scripts": [
     {
       "matches": [
@@ -51,7 +38,6 @@
       ],
       "js": ["content.js"]
     },
-    // 📺 PLATFORM: YouTube content scripts  
     {
       "matches": ["https://*.youtube.com/*"],
       "js": ["youtube-content.js"],
@@ -62,7 +48,6 @@
       "js": ["youtube-transcript-content.js"],
       "run_at": "document_end"
     },
-    // 🎭 PLATFORM: Netflix content scripts
     {
       "matches": ["https://*.netflix.com/*"],
       "js": ["netflix-content.js"],
@@ -73,24 +58,11 @@
       "js": ["netflix-subtitle-extractor.js"],
       "run_at": "document_end"
     },
-    // 📚 PLATFORM: Udemy content scripts
     {
       "matches": ["https://*.udemy.com/*"],
-      "js": ["udemy-content.js"],
+      "js": ["udemy-simple.js"],
       "run_at": "document_start"
     },
-    // 🚀 FUTURE: Add new platform content scripts here:
-    // {
-    //   "matches": ["https://*.coursera.org/*"],
-    //   "js": ["coursera-content.js"],
-    //   "run_at": "document_start"
-    // },
-    // {
-    //   "matches": ["https://*.khanacademy.org/*"],
-    //   "js": ["khan-content.js"], 
-    //   "run_at": "document_start"
-    // },
-    // Generic article collector (runs on all other sites)
     {
       "matches": ["<all_urls>"],
       "exclude_matches": [
@@ -98,9 +70,6 @@
         "https://*.netflix.com/*",
         "https://*.udemy.com/*",
         "https://youglish.com/*"
-        // 🚀 FUTURE: Add new platforms to exclude_matches:
-        // "https://*.coursera.org/*",
-        // "https://*.khanacademy.org/*"
       ],
       "js": ["article-collector.js"],
       "run_at": "document_idle"

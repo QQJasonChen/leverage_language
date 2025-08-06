@@ -21,20 +21,108 @@
   
   // Get course title
   function getCourseTitle() {
+    console.log('🔍 Extracting Udemy course title...');
+    
     const selectors = [
       '[data-purpose="course-header-title"]',
       '.udlite-heading-xl',
-      'h1'
+      '.course-title',
+      '.course-header-title',
+      '[data-testid="course-title"]',
+      '.curriculum-item-title',
+      'h1[class*="course"]',
+      'h1',
+      'h2'
     ];
     
     for (const selector of selectors) {
       const element = document.querySelector(selector);
       if (element && element.textContent.trim()) {
-        return element.textContent.trim();
+        let title = element.textContent.trim();
+        console.log(`✅ Found course title with selector "${selector}": "${title}"`);
+        
+        // Clean up common prefixes/suffixes  
+        title = title.replace(/^Course:\s*/, '');
+        title = title.replace(/\s*-\s*Udemy.*$/, '');
+        title = title.replace(/\s*\|\s*Udemy.*$/, '');
+        
+        if (title.length > 3) {
+          return title;
+        }
       }
     }
     
+    // Fallback: Extract from document title
+    let docTitle = document.title;
+    if (docTitle && docTitle !== 'Udemy') {
+      console.log(`🔄 Using document title as course fallback: "${docTitle}"`);
+      // Clean document title
+      docTitle = docTitle.replace(/^Course:\s*/, '');
+      docTitle = docTitle.replace(/\s*\|\s*Udemy.*$/, '');
+      
+      // Extract course name before " - " if present
+      if (docTitle.includes(' - ')) {
+        docTitle = docTitle.split(' - ')[0].trim();
+      }
+      
+      if (docTitle.length > 5) {
+        return docTitle;
+      }
+    }
+    
+    console.log('❌ No course title found, using default');
     return 'Udemy Course';
+  }
+  
+  // Get lecture title
+  function extractLectureTitle() {
+    console.log('🔍 Extracting Udemy lecture title...');
+    
+    // Udemy lecture title selectors (in priority order)
+    const selectors = [
+      '[data-purpose="lecture-title"]',
+      '.lecture-title h1',
+      '.lecture-title',
+      '.curriculum-item--title--zI5QT span',
+      '.video-viewer--video-title--zEOyF',
+      'h1[data-purpose="video-title"]',
+      '.js-video-title',
+      // Fallback selectors
+      'h1',
+      'h2'
+    ];
+    
+    for (const selector of selectors) {
+      const element = document.querySelector(selector);
+      if (element && element.textContent.trim()) {
+        let title = element.textContent.trim();
+        console.log(`✅ Found lecture title with selector "${selector}": "${title}"`);
+        
+        // Clean up common prefixes/suffixes
+        title = title.replace(/^\d+\.\s*/, ''); // Remove numbering like "1. "
+        title = title.replace(/\s*-\s*Udemy.*$/, ''); // Remove "- Udemy" suffix
+        
+        if (title.length > 3) {
+          return title;
+        }
+      }
+    }
+    
+    // Fallback: Extract from document title
+    let docTitle = document.title;
+    if (docTitle && docTitle !== 'Udemy') {
+      // Clean document title
+      docTitle = docTitle.replace(/\s*\|\s*Udemy.*$/, '');
+      docTitle = docTitle.replace(/^Course:\s*/, '');
+      
+      if (docTitle.length > 5) {
+        console.log(`🔄 Using document title as lecture fallback: "${docTitle}"`);
+        return docTitle;
+      }
+    }
+    
+    console.log('❌ No lecture title found, using default');
+    return 'Current Lecture';
   }
   
   // Get current timestamp
@@ -54,6 +142,10 @@
   
   // Capture current subtitle (with throttling to prevent crashes)
   function captureCurrentSubtitle() {
+    console.log('🔍 Udemy subtitle capture - ENHANCED DEBUG MODE');
+    console.log('🔍 Current URL:', window.location.href);
+    console.log('🔍 Document title:', document.title);
+    
     // Updated Udemy subtitle selectors - more comprehensive
     const selectors = [
       // Current Udemy subtitle selectors (2024)
@@ -79,43 +171,85 @@
       '[role="region"][aria-live]'
     ];
     
-    console.log('🔍 Udemy subtitle capture - checking selectors...');
+    console.log('🔍 Udemy subtitle capture - checking', selectors.length, 'selectors...');
     
-    for (const selector of selectors) {
+    for (let i = 0; i < selectors.length; i++) {
+      const selector = selectors[i];
       const element = document.querySelector(selector);
-      if (element && element.textContent.trim()) {
-        const text = element.textContent.trim();
+      
+      console.log(`🔍 Selector ${i+1}/${selectors.length}: "${selector}"`, element ? '✅ FOUND' : '❌ NOT FOUND');
+      
+      if (element) {
+        const text = element.textContent?.trim() || '';
+        const isVisible = element.offsetParent !== null;
+        const computedStyle = window.getComputedStyle(element);
+        const isDisplayed = computedStyle.display !== 'none' && computedStyle.visibility !== 'hidden';
         
-        console.log(`✅ Found subtitle with selector "${selector}": "${text}"`);
+        console.log(`   📝 Text content: "${text}"`);
+        console.log(`   👁️ Visible: ${isVisible}, Displayed: ${isDisplayed}`);
+        console.log(`   🎯 Element:`, element);
         
-        // Skip UI elements and navigation text
-        if (text.includes('lecture') && text.includes('completed')) {
-          console.log('⏭️ Skipping UI element:', text);
-          continue;
+        if (text && text.length > 0) {
+          console.log(`✅ Found subtitle with selector "${selector}": "${text}"`);
+          
+          // Skip UI elements and navigation text
+          if (text.includes('lecture') && text.includes('completed')) {
+            console.log('⏭️ Skipping UI element:', text);
+            continue;
+          }
+          
+          // Skip very short text (likely UI elements)
+          if (text.length < 3) {
+            console.log('⏭️ Skipping short text:', text);
+            continue;
+          }
+          
+          // Skip common UI text patterns
+          const skipPatterns = [
+            'play', 'pause', 'mute', 'unmute', 'settings', 'fullscreen',
+            'speed', 'quality', 'volume', 'closed captions', 'transcript'
+          ];
+          
+          if (skipPatterns.some(pattern => text.toLowerCase().includes(pattern))) {
+            console.log('⏭️ Skipping UI pattern:', text);
+            continue;
+          }
+          
+          return text;
         }
-        
-        // Skip very short text (likely UI elements)
-        if (text.length < 3) {
-          console.log('⏭️ Skipping short text:', text);
-          continue;
-        }
-        
-        // Skip common UI text patterns
-        const skipPatterns = [
-          'play', 'pause', 'mute', 'unmute', 'settings', 'fullscreen',
-          'speed', 'quality', 'volume', 'closed captions', 'transcript'
-        ];
-        
-        if (skipPatterns.some(pattern => text.toLowerCase().includes(pattern))) {
-          console.log('⏭️ Skipping UI pattern:', text);
-          continue;
-        }
-        
-        return text;
       }
     }
     
-    console.log('❌ No Udemy subtitle found with any selector');
+    // Try a few more common selectors before giving up
+    console.log('🔍 Trying additional common subtitle selectors...');
+    
+    const additionalSelectors = [
+      '.vjs-text-track-display div',
+      '[class*="text-track"]',
+      '[class*="caption"] div',
+      '[data-testid*="caption"]',
+      '[role="region"] div',
+      '.shaka-text-container div'
+    ];
+    
+    for (let i = 0; i < additionalSelectors.length; i++) {
+      const selector = additionalSelectors[i];
+      const element = document.querySelector(selector);
+      
+      console.log(`🔍 Additional selector ${i+1}/${additionalSelectors.length}: "${selector}"`, element ? '✅ FOUND' : '❌ NOT FOUND');
+      
+      if (element) {
+        const text = element.textContent?.trim() || '';
+        console.log(`   📝 Text content: "${text}"`);
+        
+        if (text && text.length > 3) {
+          console.log(`✅ Found subtitle with additional selector "${selector}": "${text}"`);
+          return text;
+        }
+      }
+    }
+    
+    console.log('❌ No Udemy subtitle found with any method');
     return null;
   }
   
@@ -194,11 +328,13 @@
           });
           break;
           
+        case 'captureCurrentSubtitle':
         case 'captureUdemySubtitle':
+          console.log('🎯 UI BUTTON CAPTURE REQUEST - Enhanced Debug');
           const subtitle = captureCurrentSubtitle();
           const timestamp = getCurrentTimestamp();
           
-          sendResponse({
+          const response = {
             success: !!subtitle,
             data: {
               text: subtitle,
@@ -210,7 +346,14 @@
                 platform: 'udemy'
               }
             }
-          });
+          };
+          
+          console.log('📤 SENDING RESPONSE TO UI:');
+          console.log('  - success:', response.success);
+          console.log('  - data.text:', response.data.text);
+          console.log('  - full response:', JSON.stringify(response, null, 2));
+          
+          sendResponse(response);
           break;
           
         case 'startUdemySubtitleCollection':
@@ -230,6 +373,23 @@
         case 'seekUdemyVideo':
           // Simple tab switching instead of complex seeking
           sendResponse({ success: true, message: 'Udemy tab focused' });
+          break;
+          
+        case 'getUdemyVideoInfo':
+          const videoInfo = {
+            videoId: getUdemyVideoId(),
+            courseTitle: getCourseTitle(),
+            lectureTitle: extractLectureTitle(),
+            url: window.location.href,
+            platform: 'udemy'
+          };
+          
+          console.log('📚 Sending Udemy video info:', videoInfo);
+          
+          sendResponse({
+            success: true,
+            data: videoInfo
+          });
           break;
           
         default:

@@ -50,6 +50,11 @@ class TranscriptRestructurer {
       // Update video title after initialization
       this.updateVideoTitle();
       
+      // For Udemy, also try updating course info with retry
+      if (this.currentPlatform === 'udemy') {
+        this.retryUdemyInfoUpdate();
+      }
+      
     } catch (error) {
       console.error('❌ Failed to initialize TranscriptRestructurer:', error);
       // Fallback to YouTube mode
@@ -61,24 +66,278 @@ class TranscriptRestructurer {
     }
   }
 
-  // Update video title in platform note
+  // Update video title in platform note with retry and fallback
   async updateVideoTitle() {
-    if (this.currentPlatform !== 'netflix') return;
+    if (this.currentPlatform !== 'netflix' && this.currentPlatform !== 'udemy') return;
     
-    try {
-      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tabs[0]) {
-        const titleResult = await chrome.tabs.sendMessage(tabs[0].id, { action: 'getNetflixTitle' });
-        if (titleResult && titleResult.success) {
-          const platformNoteEl = this.container.querySelector('.platform-note');
-          if (platformNoteEl) {
-            platformNoteEl.innerHTML = `📹 ${titleResult.title} • 📝 Capture subtitles for vocabulary learning (click multiple times to collect more sentences)`;
+    // Add delay to allow content scripts to load
+    setTimeout(async () => {
+      try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs[0]) {
+          let titleResult;
+          
+          // Try to get title based on platform
+          try {
+            if (this.currentPlatform === 'netflix') {
+              titleResult = await chrome.tabs.sendMessage(tabs[0].id, { action: 'getNetflixTitle' });
+            } else if (this.currentPlatform === 'udemy') {
+              titleResult = await chrome.tabs.sendMessage(tabs[0].id, { action: 'getUdemyVideoInfo' });
+            }
+          } catch (connectionError) {
+            console.log('🔄 Content script not ready, extracting from page title...');
+            
+            // Fallback: Extract title from document.title
+            if (this.currentPlatform === 'netflix') {
+              let title = tabs[0].title;
+              if (title && title !== 'Netflix') {
+                title = title.replace(' - Netflix', '').replace('Watch ', '').trim();
+                if (title.length > 5) {
+                  titleResult = { success: true, title: title };
+                }
+              }
+            } else if (this.currentPlatform === 'udemy') {
+              let title = tabs[0].title;
+              if (title && title !== 'Udemy') {
+                // Extract course and lecture info from document title
+                title = title.replace(/^Course:\s*/, '').trim();
+                let courseTitle = title;
+                let lectureTitle = 'Current Lecture';
+                
+                // Try to split course and lecture if format is "Course - Lecture | Udemy"
+                const parts = title.split(/\s*-\s*/);
+                if (parts.length >= 2) {
+                  courseTitle = parts[0].trim();
+                  lectureTitle = parts[1].replace(/\s*\|\s*Udemy.*$/, '').trim();
+                } else {
+                  courseTitle = title.replace(/\s*\|\s*Udemy.*$/, '').trim();
+                }
+                
+                if (courseTitle.length > 3) {
+                  titleResult = { 
+                    success: true, 
+                    data: { 
+                      courseTitle: courseTitle, 
+                      lectureTitle: lectureTitle,
+                      url: tabs[0].url
+                    } 
+                  };
+                }
+              }
+            }
           }
-          console.log('🎬 Updated Netflix video title:', titleResult.title);
+          
+          if (titleResult && titleResult.success) {
+            const platformNoteEl = this.container.querySelector('.platform-note');
+            if (platformNoteEl && this.currentPlatform === 'netflix') {
+              platformNoteEl.innerHTML = `📹 ${titleResult.title} • 📝 Capture subtitles for vocabulary learning (click multiple times to collect more sentences)`;
+              console.log('🎬 Updated Netflix video title:', titleResult.title);
+            } else if (platformNoteEl && this.currentPlatform === 'udemy' && titleResult.data) {
+              platformNoteEl.innerHTML = `📚 ${titleResult.data.courseTitle} • Capture course subtitles with lecture context for learning`;
+              console.log('📚 Updated Udemy course title:', titleResult.data.courseTitle);
+              
+              // Update the course info section
+              this.updateUdemyCourseInfo(titleResult.data);
+            }
+          }
+        }
+      } catch (error) {
+        console.log('⚠️ Could not update video title:', error.message);
+      }
+    }, 2000); // Wait 2 seconds for content scripts to load
+  }
+
+  // Update Udemy course information in the UI
+  updateUdemyCourseInfo(courseInfo) {
+    console.log('📚 Updating Udemy course info:', courseInfo);
+    
+    const courseInfoEl = this.container.querySelector('#udemy-course-info');
+    if (courseInfoEl) {
+      const courseTitleEl = courseInfoEl.querySelector('.course-title');
+      const lectureTitleEl = courseInfoEl.querySelector('.lecture-title');
+      const courseUrlEl = courseInfoEl.querySelector('#udemy-url');
+      
+      // Only update if we have better data than "Loading..."
+      if (courseTitleEl) {
+        const currentText = courseTitleEl.textContent || '';
+        const newCourseTitle = courseInfo.courseTitle || 'Unknown Course';
+        
+        // Update if current is "Loading..." or we have better data
+        if (currentText.includes('Loading...') || 
+            (newCourseTitle !== 'Unknown Course' && newCourseTitle !== 'Udemy Course')) {
+          courseTitleEl.textContent = `📚 Course: ${newCourseTitle}`;
+          courseTitleEl.style.color = newCourseTitle === 'Unknown Course' ? '#666' : '#2563eb';
         }
       }
+      
+      if (lectureTitleEl) {
+        const currentText = lectureTitleEl.textContent || '';
+        const newLectureTitle = courseInfo.lectureTitle || 'Unknown Lecture';
+        
+        // Update if current is "Loading..." or we have better data
+        if (currentText.includes('Loading...') || 
+            (newLectureTitle !== 'Unknown Lecture' && newLectureTitle !== 'Current Lecture')) {
+          lectureTitleEl.textContent = `📝 Lecture: ${newLectureTitle}`;
+          lectureTitleEl.style.color = newLectureTitle === 'Unknown Lecture' ? '#666' : '#059669';
+        }
+      }
+      
+      if (courseUrlEl) {
+        const url = courseInfo.url || window.location.href;
+        courseUrlEl.innerHTML = `<a href="${url}" target="_blank" style="color: #007bff; text-decoration: none; font-size: 12px;">🔗 Open Course</a>`;
+      }
+      
+      // Add a manual refresh button for course info
+      const existingRefreshBtn = courseInfoEl.querySelector('.refresh-course-info');
+      if (!existingRefreshBtn) {
+        const refreshBtn = document.createElement('button');
+        refreshBtn.className = 'refresh-course-info';
+        refreshBtn.innerHTML = '🔄 Refresh Info';
+        refreshBtn.style.cssText = 'margin-left: 10px; padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 11px;';
+        refreshBtn.onclick = () => {
+          console.log('🔄 Manual refresh requested');
+          this.retryUdemyInfoUpdate();
+        };
+        courseInfoEl.appendChild(refreshBtn);
+      }
+      
+      console.log('✅ Udemy course info updated successfully');
+    } else {
+      console.log('❌ Udemy course info element not found');
+    }
+  }
+
+  // Retry mechanism for Udemy course info update
+  async retryUdemyInfoUpdate() {
+    console.log('🔄 Starting Udemy course info retry mechanism...');
+    
+    const maxRetries = 5; // Increased retries
+    const initialDelay = 1000; // Start with 1 second
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      console.log(`🔄 Udemy info update attempt ${attempt}/${maxRetries}`);
+      
+      try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tabs[0] || !tabs[0].url.includes('udemy.com')) {
+          console.log('❌ Not on Udemy page, stopping retry');
+          return;
+        }
+        
+        // First ping to check if content script is ready
+        try {
+          await chrome.tabs.sendMessage(tabs[0].id, { action: 'ping' });
+          console.log('✅ Content script is ready');
+        } catch (pingError) {
+          console.log('⚠️ Content script not ready, waiting...');
+          throw new Error('Content script not ready');
+        }
+        
+        const response = await chrome.tabs.sendMessage(tabs[0].id, { 
+          action: 'getUdemyVideoInfo' 
+        });
+        
+        console.log('📋 Raw response from content script:', response);
+        
+        if (response && response.success && response.data) {
+          console.log('✅ Udemy course info retrieved successfully:', response.data);
+          
+          // Validate that we have meaningful data
+          if (response.data.courseTitle && response.data.courseTitle !== 'Udemy Course' &&
+              response.data.lectureTitle && response.data.lectureTitle !== 'Current Lecture') {
+            this.updateUdemyCourseInfo(response.data);
+            return; // Success, stop retrying
+          } else {
+            console.log('⚠️ Received generic data, trying fallback extraction');
+            throw new Error('Generic course data received');
+          }
+        } else {
+          throw new Error(`Invalid response: ${JSON.stringify(response)}`);
+        }
+      } catch (error) {
+        console.log(`❌ Attempt ${attempt} failed:`, error.message);
+        
+        // If this is the last attempt, try immediate fallback
+        if (attempt === maxRetries) {
+          console.log('🔄 Trying immediate fallback extraction...');
+          await this.tryFallbackExtraction();
+          return;
+        }
+      }
+      
+      // Progressive delay - wait longer for later attempts
+      const delay = initialDelay * attempt;
+      console.log(`⏰ Waiting ${delay}ms before next attempt...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+    
+    console.log('⚠️ All Udemy course info update attempts failed');
+  }
+
+  // Enhanced fallback extraction
+  async tryFallbackExtraction() {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tabs[0] || !tabs[0].url.includes('udemy.com')) return;
+      
+      let title = tabs[0].title;
+      console.log('🔍 Fallback: Extracting from page title:', title);
+      
+      if (title && title !== 'Udemy') {
+        // Clean up the title
+        title = title.replace(/^Course:\s*/, '').trim();
+        title = title.replace(/\s*\|\s*Udemy.*$/, '').trim();
+        
+        let courseTitle = 'Unknown Course';
+        let lectureTitle = 'Current Lecture';
+        
+        // Try different parsing strategies
+        if (title.includes(' - ')) {
+          // Format: "Course Name - Lecture Name"
+          const parts = title.split(' - ');
+          courseTitle = parts[0].trim();
+          if (parts.length > 1) {
+            lectureTitle = parts[1].trim();
+          }
+        } else if (title.includes(': ')) {
+          // Format: "Course Name: Lecture Name"
+          const parts = title.split(': ');
+          courseTitle = parts[0].trim();
+          if (parts.length > 1) {
+            lectureTitle = parts[1].trim();
+          }
+        } else {
+          // Use entire title as course name
+          courseTitle = title;
+        }
+        
+        // Clean up extracted titles
+        courseTitle = courseTitle.replace(/^\d+\.\s*/, ''); // Remove numbering
+        lectureTitle = lectureTitle.replace(/^\d+\.\s*/, ''); // Remove numbering
+        
+        if (courseTitle && courseTitle.length > 3) {
+          const fallbackData = {
+            courseTitle: courseTitle,
+            lectureTitle: lectureTitle,
+            url: tabs[0].url,
+            platform: 'udemy'
+          };
+          
+          console.log('✅ Fallback extraction successful:', fallbackData);
+          this.updateUdemyCourseInfo(fallbackData);
+          return;
+        }
+      }
+      
+      console.log('❌ Fallback extraction failed, using generic info');
+      this.updateUdemyCourseInfo({
+        courseTitle: 'Udemy Course',
+        lectureTitle: 'Current Lecture',
+        url: tabs[0].url,
+        platform: 'udemy'
+      });
     } catch (error) {
-      console.log('⚠️ Could not update Netflix title:', error.message);
+      console.log('❌ Fallback extraction error:', error.message);
     }
   }
 
@@ -182,7 +441,7 @@ class TranscriptRestructurer {
       'Start caption collection (click stop when ready)'; // Default
       
     const platformNote = this.currentPlatform === 'netflix' ? 
-      '📹 Netflix Content • 📝 Capture subtitles for vocabulary learning (click multiple times to collect more sentences)' : 
+      '📹 Netflix Content • 📝 Capture subtitles for vocabulary learning' : 
       this.currentPlatform === 'udemy' ?
       '📚 Udemy Course • Capture course subtitles with lecture context for learning' :
       // 🚀 FUTURE: Add new platform notes:
@@ -222,16 +481,8 @@ class TranscriptRestructurer {
               </svg>
               Collect
             </button>` : ''}
-            ${this.currentPlatform === 'udemy' ? `
-            <button class="start-collection-btn" title="Start collecting Udemy course subtitles continuously">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <circle cx="12" cy="12" r="10"/>
-                <polygon points="10,8 16,12 10,16"/>
-              </svg>
-              Collect
-            </button>` : ''}
             ${this.currentPlatform === 'netflix' ? `
-            <button class="capture-subtitle-btn" title="Capture currently visible subtitle">
+            <button class="capture-subtitle-btn" title="Capture currently visible Netflix subtitle">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path d="M8 21h8"/>
                 <path d="M12 17v4"/>
@@ -267,7 +518,7 @@ class TranscriptRestructurer {
           </div>
         </div>
         
-        <div class="platform-note" style="background: ${this.currentPlatform === 'netflix' ? '#2a2a2a' : this.currentPlatform === 'udemy' ? '#2a1a3e' : '#1a1a2e'}; color: ${this.currentPlatform === 'netflix' ? '#e50914' : this.currentPlatform === 'udemy' ? '#a435f0' : '#4fc3f7'}; padding: 8px 12px; border-radius: 6px; font-size: 12px; margin: 10px 0; border-left: 3px solid ${this.currentPlatform === 'netflix' ? '#e50914' : this.currentPlatform === 'udemy' ? '#a435f0' : '#4fc3f7'};">
+        <div class="platform-note platform-${this.currentPlatform}">
           ${platformNote}
         </div>
         
@@ -291,7 +542,7 @@ class TranscriptRestructurer {
         <div class="keyboard-shortcuts-hint" style="margin: 5px 0; padding: 8px; background: #e3f2fd; border-radius: 4px; border-left: 3px solid #2196f3;">
           <div style="font-size: 12px; color: #1976d2; display: flex; align-items: center; gap: 5px;">
             ⌨️ <strong>Quick Keys:</strong> 
-            <span style="background: white; padding: 1px 4px; border-radius: 2px; margin: 0 2px;">C</span>Capture
+            <span style="background: white; padding: 1px 4px; border-radius: 2px; margin: 0 2px;">H</span>Capture
             <span style="background: white; padding: 1px 4px; border-radius: 2px; margin: 0 2px;">E</span>Edit
             <span style="background: white; padding: 1px 4px; border-radius: 2px; margin: 0 2px;">D</span>Delete
             <span style="background: white; padding: 1px 4px; border-radius: 2px; margin: 0 2px;">A</span>Analyze
@@ -349,8 +600,8 @@ class TranscriptRestructurer {
   attachEventListeners() {
     const collectBtn = this.container.querySelector('.start-collection-btn');
     
-    // Bind collect button for YouTube and Udemy
-    if (collectBtn && (this.currentPlatform === 'youtube' || this.currentPlatform === 'udemy')) {
+    // Bind collect button for YouTube only (Netflix and Udemy use single capture)
+    if (collectBtn && this.currentPlatform === 'youtube') {
       collectBtn.addEventListener('click', () => this.toggleCollection());
     }
     
@@ -359,7 +610,10 @@ class TranscriptRestructurer {
     if (captureBtn && this.currentPlatform === 'netflix') {
       captureBtn.addEventListener('click', () => this.captureCurrentSubtitle());
     } else if (captureBtn && this.currentPlatform === 'udemy') {
-      captureBtn.addEventListener('click', () => this.captureUdemySubtitle());
+      captureBtn.addEventListener('click', () => {
+        console.log('🎯 UDEMY CAPTURE BUTTON CLICKED - Platform:', this.currentPlatform);
+        this.captureCurrentSubtitle(); // Now works for both Netflix and Udemy
+      });
     }
     
     // Platform refresh button
@@ -2155,8 +2409,10 @@ Sentence to fix: "${preCleanedText}"`;
       
       if (response.isCollecting) {
         // Stop collection - platform-specific  
-        const stopAction = this.currentPlatform === 'udemy' ? 'stopUdemySubtitleCollection' : 'stopCaptionCollection';
-        const platformDesc = this.currentPlatform === 'udemy' ? 'Udemy subtitle' : 'real-time';
+        const stopAction = this.currentPlatform === 'udemy' ? 'stopUdemySubtitleCollection' : 
+                          this.currentPlatform === 'netflix' ? 'stopNetflixSubtitleCollection' : 'stopCaptionCollection';
+        const platformDesc = this.currentPlatform === 'udemy' ? 'Udemy subtitle' : 
+                            this.currentPlatform === 'netflix' ? 'Netflix subtitle' : 'real-time';
         statusEl.textContent = `Stopping ${platformDesc} collection...`;
         statusEl.className = 'transcript-status loading';
         
@@ -2176,6 +2432,8 @@ Sentence to fix: "${preCleanedText}"`;
         // Use the appropriate completion handler
         if (this.currentPlatform === 'udemy') {
           this.handleUdemyCollectionComplete(result, statusEl, collectBtn);
+        } else if (this.currentPlatform === 'netflix') {
+          this.handleNetflixCollectionComplete(result, statusEl, collectBtn);
         } else {
           this.handleCollectionComplete(result, statusEl, collectBtn);
         }
@@ -2184,6 +2442,8 @@ Sentence to fix: "${preCleanedText}"`;
         // Start collection - platform-specific
         if (this.currentPlatform === 'udemy') {
           await this.startUdemyCollection(collectBtn, statusEl, tab);
+        } else if (this.currentPlatform === 'netflix') {
+          await this.startNetflixCollection(collectBtn, statusEl, tab);
         } else {
           await this.startYouTubeCollection(collectBtn, statusEl, tab);
         }
@@ -2775,8 +3035,14 @@ Sentence to fix: "${preCleanedText}"`;
 
   // Format timestamp for display
   formatTimestamp(seconds) {
+    // Handle invalid input
+    if (typeof seconds !== 'number' || isNaN(seconds) || seconds < 0) {
+      console.log('⚠️ Invalid timestamp value:', seconds, 'using 0 as fallback');
+      seconds = 0;
+    }
+    
     const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   }
 
@@ -2812,9 +3078,9 @@ Sentence to fix: "${preCleanedText}"`;
       const statusEl = this.container.querySelector('.transcript-status');
       if (statusEl) {
         if (this.currentPlatform === 'netflix') {
-          statusEl.textContent = '📹 Netflix Content • Click "Capture" to collect subtitles';
+          statusEl.textContent = '📹 Netflix Content • Click "Capture" to capture subtitles';
         } else if (this.currentPlatform === 'udemy') {
-          statusEl.textContent = '📚 Udemy Course • Click "Capture" to collect subtitles';
+          statusEl.textContent = '📚 Udemy Course • Click "Capture" to capture subtitles';
         } else {
           statusEl.textContent = '🎬 Ready to collect content';
         }
@@ -2940,18 +3206,13 @@ Sentence to fix: "${preCleanedText}"`;
       if (e.key.toLowerCase() === 'a') {
         console.log('🎯 A KEY DETECTED! Target:', e.target.tagName, 'Class:', e.target.className);
       }
-      if (e.key.toLowerCase() === 'c') {
-        console.log('🎯 C KEY DETECTED! Target:', e.target.tagName, 'Class:', e.target.className);
-        console.log('🎯 Platform Detection:', {isYouTube, isUdemy, isNetflix, isSupportedPlatform});
-      }
-      
       // Skip if user is typing in an input/textarea
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.contentEditable === 'true') {
         console.log('🔍 Skipping keyboard shortcut - user is typing in input field');
         return;
       }
       
-      // Get current active tab to check platform
+      // Get current active tab to check platform FIRST
       const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
       const currentTab = tabs[0];
       const isYouTube = currentTab?.url?.includes('youtube.com');
@@ -2959,21 +3220,26 @@ Sentence to fix: "${preCleanedText}"`;
       const isNetflix = currentTab?.url?.includes('netflix.com');
       const isSupportedPlatform = isYouTube || isUdemy || isNetflix;
       
+      // No more problematic debug logging
+      
       // Single key shortcuts (no modifiers)
       if (!e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
         console.log('⌨️ Keyboard shortcut detected:', e.key, 'isYouTube:', isYouTube);
         switch(e.key.toLowerCase()) {
-          case 'c': // Capture/Collect - Restored from best_ever version
+          case 'h': // Capture/Collect - CHANGED FROM 'C' TO AVOID CONFLICTS
             e.preventDefault();
-            if (isYouTube && this.currentPlatform === 'youtube') {
-              this.captureCurrentSubtitle();
-            } else if (!isYouTube && this.currentPlatform === 'netflix') {
-              this.captureNetflixSubtitle();
-            } else if (!isYouTube && this.currentPlatform === 'udemy') {
-              this.captureUdemySubtitle();
-            } else {
-              console.log('⚠️ Unknown platform for capture:', this.currentPlatform);
+            console.log('⌨️ H key pressed - attempting capture for platform:', this.currentPlatform);
+            try {
+              if (this.currentPlatform === 'youtube') {
+                // YouTube: Trigger the same collection system that the "Collect" button uses
+                this.toggleCollection();
+              } else {
+                this.captureCurrentSubtitle(); // Now works for Netflix, Udemy, and others
+              }
+            } catch (error) {
+              console.error('❌ Capture error:', error);
             }
+            break;
             
           case 'e': // Edit last captured item
             e.preventDefault();
@@ -3059,7 +3325,7 @@ Sentence to fix: "${preCleanedText}"`;
     // Add debug test buttons
     // this.addDebugButtons();
     
-    console.log('⌨️ Keyboard shortcuts initialized: C=Capture, E=Edit, D=Delete, A=Analyze, X=Clear, H=Help');
+    console.log('⌨️ Keyboard shortcuts initialized: H=Capture, E=Edit, D=Delete, A=Analyze, X=Clear');
   }
   
   // Update course information display for Udemy
@@ -3248,7 +3514,7 @@ Sentence to fix: "${preCleanedText}"`;
     helpDialog.innerHTML = `
       <h3 style="margin: 0 0 15px 0;">⌨️ Keyboard Shortcuts</h3>
       <div style="font-size: 14px; line-height: 1.8;">
-        <div><kbd style="background: #eee; padding: 2px 6px; border-radius: 3px;">C</kbd> - Capture current subtitle</div>
+        <div><kbd style="background: #eee; padding: 2px 6px; border-radius: 3px;">H</kbd> - Capture current subtitle</div>
         <div><kbd style="background: #eee; padding: 2px 6px; border-radius: 3px;">E</kbd> - Edit last captured item</div>
         <div><kbd style="background: #eee; padding: 2px 6px; border-radius: 3px;">D</kbd> - Delete last captured item</div>
         <div><kbd style="background: #eee; padding: 2px 6px; border-radius: 3px;">A</kbd> - Analyze last captured item</div>
@@ -3806,8 +4072,13 @@ Sentence to fix: "${preCleanedText}"`;
       const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
       const tab = tabs[0];
       
-      if (!tab.url.includes('netflix.com')) {
-        statusEl.textContent = '❌ Please open Netflix first';
+      // Platform-aware validation instead of hardcoded Netflix
+      const isYoutube = tab.url.includes('youtube.com');
+      const isNetflix = tab.url.includes('netflix.com'); 
+      const isUdemy = tab.url.includes('udemy.com');
+      
+      if (!isYoutube && !isNetflix && !isUdemy) {
+        statusEl.textContent = '❌ Please open YouTube, Netflix, or Udemy first';
         statusEl.className = 'transcript-status error';
         return;
       }
@@ -3823,8 +4094,9 @@ Sentence to fix: "${preCleanedText}"`;
         if (connectionError.message.includes('Could not establish connection') || 
             connectionError.message.includes('Receiving end does not exist')) {
           // Content script may not be loaded, try refreshing and retry once
-          console.log('🔄 Connection failed, attempting to refresh Netflix content script...');
-          statusEl.textContent = '🔄 Reconnecting to Netflix page...';
+          const platformName = isNetflix ? 'Netflix' : isUdemy ? 'Udemy' : 'YouTube';
+          console.log(`🔄 Connection failed, attempting to refresh ${platformName} content script...`);
+          statusEl.textContent = `🔄 Reconnecting to ${platformName} page...`;
           
           // Wait a moment then retry
           await new Promise(resolve => setTimeout(resolve, 1000));
@@ -3835,65 +4107,80 @@ Sentence to fix: "${preCleanedText}"`;
             });
             console.log('✅ Retry successful after connection error');
           } catch (retryError) {
-            throw new Error('Connection failed. Please refresh the Netflix page and try again.');
+            throw new Error(`Connection failed. Please refresh the ${platformName} page and try again.`);
           }
         } else {
           throw connectionError;
         }
       }
       
-      if (result.success && result.text) {
-        console.log('🎭 Captured Netflix subtitle:', result.text);
+      // Handle both Netflix format (result.text) and Udemy format (result.data.text)
+      const subtitleText = result.text || (result.data && result.data.text);
+      const timestamp = result.timestamp || (result.data && result.data.timestamp) || 0;
+      
+      if (result.success && subtitleText) {
+        const platformName = isNetflix ? 'Netflix' : isUdemy ? 'Udemy' : 'YouTube';
+        console.log(`🎬 Captured ${platformName} subtitle:`, subtitleText);
         
-        statusEl.textContent = `✅ Captured: "${result.text}"`;
+        statusEl.textContent = `✅ Captured: "${subtitleText}"`;
         statusEl.className = 'transcript-status success';
         
-        // Send to sidepanel for Netflix-specific analysis
+        // Send to sidepanel for platform-specific analysis
+        const videoInfo = result.videoInfo || (result.data && result.data.videoInfo) || {};
+        const platform = isNetflix ? 'netflix' : isUdemy ? 'udemy' : 'youtube';
+        
+        console.log(`🎬 ${platformName} capture - videoInfo:`, videoInfo);
+        
         chrome.runtime.sendMessage({
           action: 'analyzeTextInSidepanel',
-          text: result.text,
-          url: result.videoInfo?.url || tab.url,
-          originalUrl: result.videoInfo?.url || tab.url,
-          title: result.videoInfo?.title || 'Netflix Content',
-          videoId: result.videoInfo?.videoId,
-          movieId: result.videoInfo?.movieId,
-          timestamp: result.timestamp || 0,
-          platform: 'netflix',
-          source: 'netflix-learning'
+          text: subtitleText,
+          url: videoInfo.url || tab.url,
+          originalUrl: videoInfo.url || tab.url,
+          title: videoInfo.title || videoInfo.courseTitle || `${platformName} Content`,
+          videoId: videoInfo.videoId,
+          movieId: videoInfo.movieId,
+          courseTitle: videoInfo.courseTitle,
+          timestamp: timestamp,
+          platform: platform,
+          source: `${platform}-learning`
         });
         
-        // Initialize segments array if it doesn't exist
-        if (!this.netflixSegments) {
-          this.netflixSegments = [];
+        // Initialize segments array based on platform
+        const segmentsArrayName = `${platform}Segments`;
+        if (!this[segmentsArrayName]) {
+          this[segmentsArrayName] = [];
         }
         
         // Create a new segment with proper indexing
         const segment = {
-          text: result.text,
-          cleanText: result.text,
-          start: result.timestamp || 0,
-          timestamp: this.formatTimestamp(result.timestamp || 0),
-          timestampDisplay: this.formatTimestamp(result.timestamp || 0),
-          timestampInSeconds: result.timestamp || 0,
+          text: subtitleText,
+          cleanText: subtitleText,
+          start: timestamp,
+          timestamp: this.formatTimestamp(timestamp),
+          timestampDisplay: this.formatTimestamp(timestamp),
+          timestampInSeconds: timestamp,
           source: 'manual-capture',
-          platform: 'netflix',
-          netflixUrl: result.videoInfo?.url || tab.url,
-          youtubeLink: result.videoInfo?.url || tab.url, // Use Netflix URL instead of YouGlish
-          videoId: result.videoInfo?.videoId,
-          movieId: result.videoInfo?.movieId,
-          segmentIndex: this.netflixSegments.length, // Proper indexing
-          groupIndex: this.netflixSegments.length
+          platform: platform,
+          originalUrl: videoInfo.url || tab.url,
+          youtubeLink: videoInfo.url || tab.url,
+          videoId: videoInfo.videoId,
+          movieId: videoInfo.movieId,
+          courseTitle: videoInfo.courseTitle,
+          videoTitle: videoInfo.title || videoInfo.courseTitle || `${platformName} Content`,
+          channelName: isNetflix ? 'Netflix' : isUdemy ? 'Udemy' : (videoInfo.channelName || 'Unknown Channel'),
+          segmentIndex: this[segmentsArrayName].length,
+          groupIndex: this[segmentsArrayName].length
         };
         
         // Add to accumulated segments
-        this.netflixSegments.push(segment);
-        console.log(`🎭 Added Netflix segment ${this.netflixSegments.length}: "${result.text}"`);
+        this[segmentsArrayName].push(segment);
+        console.log(`🎬 Added ${platformName} segment ${this[segmentsArrayName].length}: "${subtitleText}"`);
         
         // Update status to show accumulated count
-        statusEl.textContent = `✅ Captured ${this.netflixSegments.length} sentences: "${result.text}"`;
+        statusEl.textContent = `✅ Captured ${this[segmentsArrayName].length} sentences: "${subtitleText}"`;
         
         // Show ALL captured segments in the transcript viewer
-        this.displayTranscriptInReader([...this.netflixSegments]);
+        this.displayTranscriptInReader([...this[segmentsArrayName]]);
         
         // Add some visual feedback
         captureBtn.style.backgroundColor = '#4CAF50';
@@ -3933,12 +4220,39 @@ Sentence to fix: "${preCleanedText}"`;
         return;
       }
       
-      const result = await chrome.tabs.sendMessage(tab.id, { 
-        action: 'captureUdemySubtitle'
-      });
+      let result;
+      
+      // Try both action names for Udemy compatibility
+      try {
+        result = await chrome.tabs.sendMessage(tab.id, { 
+          action: 'captureCurrentSubtitle'  // Try standard action first
+        });
+      } catch (error1) {
+        try {
+          result = await chrome.tabs.sendMessage(tab.id, { 
+            action: 'captureUdemySubtitle'  // Fallback to platform-specific action
+          });
+        } catch (error2) {
+          if (error2.message.includes('Could not establish connection')) {
+            console.log('🔄 Udemy content script not ready, waiting and retrying...');
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            result = await chrome.tabs.sendMessage(tab.id, { action: 'captureCurrentSubtitle' });
+          } else {
+            throw error2;
+          }
+        }
+      }
+      
+      console.log('🎯 UI RECEIVED RESPONSE FROM UDEMY CONTENT SCRIPT:');
+      console.log('  - full result:', JSON.stringify(result, null, 2));
+      console.log('  - result.success:', result.success);
+      console.log('  - result.data:', result.data);
+      console.log('  - result.data.text:', result.data ? result.data.text : 'N/A');
+      console.log('  - condition (result.success && result.data && result.data.text):', 
+                  !!(result.success && result.data && result.data.text));
       
       if (result.success && result.data && result.data.text) {
-        console.log('📚 Captured Udemy subtitle:', result.data.text);
+        console.log('✅ UI SUCCESS PATH: Captured Udemy subtitle:', result.data.text);
         
         statusEl.textContent = `✅ Captured: "${result.data.text}"`;
         statusEl.className = 'transcript-status success';
@@ -4019,12 +4333,7 @@ Sentence to fix: "${preCleanedText}"`;
     }
   }
 
-  // Helper to format timestamp
-  formatTimestamp(seconds) {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  }
+  // Helper to format timestamp (duplicate removed)
 
   // ✅ NEW: Netflix collection completion handler
   handleNetflixCollectionComplete(result, statusEl, collectBtn) {
@@ -4396,10 +4705,12 @@ Sentence to fix: "${preCleanedText}"`;
     const style = document.createElement('style');
     style.textContent = `
       .transcript-restructurer {
-        padding: 15px;
-        background: transparent;
-        border-radius: 8px;
-        margin: 10px 0;
+        padding: 20px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border: 1px solid #dee2e6;
+        border-radius: 12px;
+        margin: 15px 0;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
       }
       
       .transcript-header {
@@ -4411,7 +4722,10 @@ Sentence to fix: "${preCleanedText}"`;
       
       .transcript-header h3 {
         margin: 0;
-        font-size: 18px;
+        font-size: 20px;
+        color: #2c3e50;
+        font-weight: 600;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.1);
       }
       
       .platform-indicator {
@@ -4419,6 +4733,44 @@ Sentence to fix: "${preCleanedText}"`;
         margin-right: 10px;
         display: flex;
         align-items: center;
+      }
+      
+      .platform-note {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border: 2px solid #e3f2fd;
+        border-radius: 10px;
+        padding: 16px;
+        margin: 15px 0;
+        font-size: 14px;
+        color: #2c3e50;
+        border-left: 5px solid #2196f3;
+        box-shadow: 0 2px 8px rgba(33, 150, 243, 0.1);
+        font-weight: 500;
+        line-height: 1.4;
+      }
+      
+      .platform-note.platform-netflix {
+        border: 2px solid #ffebee;
+        border-left: 5px solid #e50914;
+        background: linear-gradient(135deg, #ffffff 0%, #ffebee 100%);
+        color: #c62828;
+        box-shadow: 0 2px 8px rgba(229, 9, 20, 0.1);
+      }
+      
+      .platform-note.platform-udemy {
+        border: 2px solid #f3e5f5;
+        border-left: 5px solid #a435f0;
+        background: linear-gradient(135deg, #ffffff 0%, #f3e5f5 100%);
+        color: #6a1b9a;
+        box-shadow: 0 2px 8px rgba(164, 53, 240, 0.1);
+      }
+      
+      .platform-note.platform-youtube {
+        border: 2px solid #e3f2fd;
+        border-left: 5px solid #1976d2;
+        background: linear-gradient(135deg, #ffffff 0%, #e3f2fd 100%);
+        color: #1565c0;
+        box-shadow: 0 2px 8px rgba(25, 118, 210, 0.1);
       }
       
       .platform-badge {

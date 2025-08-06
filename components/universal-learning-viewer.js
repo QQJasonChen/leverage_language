@@ -258,6 +258,32 @@ class UniversalLearningViewer {
         </button>`;
         break;
         
+      case 'netflix':
+        icon = '🎭';
+        title = item.title || 'Netflix Content';
+        subtitle = `Netflix • ${item.originalTimestamp || '0:00'}`;
+        content = item.text || item.content || '';
+        actionButton = `<button class="return-btn netflix" data-index="${index}" data-type="netflix" title="Return to Netflix">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <polygon points="5 3 19 12 5 21"/>
+          </svg>
+          Watch
+        </button>`;
+        break;
+        
+      case 'udemy':
+        icon = '📚';
+        title = item.courseTitle || item.title || 'Udemy Course';
+        subtitle = `Udemy • ${item.originalTimestamp || '0:00'}`;
+        content = item.text || item.content || '';
+        actionButton = `<button class="return-btn udemy" data-index="${index}" data-type="udemy" title="Return to Udemy course">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <polygon points="5 3 19 12 5 21"/>
+          </svg>
+          Continue
+        </button>`;
+        break;
+        
       case 'highlight':
       default:
         icon = '⭐';
@@ -393,8 +419,22 @@ class UniversalLearningViewer {
   }
 
   detectItemType(item) {
+    // Check if platform is explicitly provided
+    if (item.platform) {
+      return item.platform;
+    }
+    
+    // Legacy detection based on URL patterns
+    if (item.url) {
+      if (item.url.includes('youtube.com')) return 'youtube';
+      if (item.url.includes('netflix.com')) return 'netflix';
+      if (item.url.includes('udemy.com')) return 'udemy';
+    }
+    
+    // Legacy detection based on properties
     if (item.youtubeLink || item.videoTitle) return 'youtube';
-    if (item.articleSource || item.url) return 'article';
+    if (item.articleSource) return 'article';
+    
     return 'highlight';
   }
 
@@ -462,8 +502,12 @@ class UniversalLearningViewer {
                    type === 'article' ? item.articleSource?.url : '';
       
       markdown += `## ${index + 1}. ${this.escapeHtml(title)}\n\n`;
-      markdown += `**Type**: ${type === 'youtube' ? '🎥 YouTube Video' : 
-                                type === 'article' ? '📰 Article' : '⭐ Highlight'}\n`;
+      markdown += `**Type**: ${
+        type === 'youtube' ? '🎥 YouTube Video' : 
+        type === 'netflix' ? '🎭 Netflix Content' :
+        type === 'udemy' ? '📚 Udemy Course' :
+        type === 'article' ? '📰 Article' : '⭐ Highlight'
+      }\n`;
       if (source) markdown += `**Source**: ${source}\n`;
       markdown += `**Content**: ${this.escapeHtml(text)}\n\n`;
       if (item.notes) markdown += `**Notes**: ${this.escapeHtml(item.notes)}\n\n`;

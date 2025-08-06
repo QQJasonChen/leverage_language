@@ -243,7 +243,8 @@
                               window.location.hostname.includes('cnn.com') ||
                               window.location.hostname.includes('nhk.or.jp') ||
                               window.location.hostname.includes('bbc.com') ||
-                              window.location.hostname.includes('nytimes.com');
+                              window.location.hostname.includes('nytimes.com') ||
+                              window.location.hostname.includes('skool.com');
 
     let button;
     if (isProblematicSite) {
@@ -801,9 +802,25 @@
       console.log('📝 Applied magnetic attraction to left boundary');
     }
     
-    // Final bounds check
+    // Final bounds check with enhanced validation
     left = Math.max(margin, Math.min(left, window.innerWidth - buttonRect.width - margin));
     top = Math.max(margin, Math.min(top, window.innerHeight - buttonRect.height - margin));
+    
+    // Additional safety check for problematic sites like Skool.com
+    if (window.location.hostname.includes('skool.com')) {
+      // Force safe positioning for Skool.com
+      const safeTop = Math.min(top, window.innerHeight - 100);
+      const safeLeft = Math.min(left, window.innerWidth - 150);
+      
+      if (safeTop !== top || safeLeft !== left) {
+        console.log('📝 Skool.com: Adjusting position for safety', {
+          original: { top, left },
+          safe: { top: safeTop, left: safeLeft }
+        });
+        top = safeTop;
+        left = safeLeft;
+      }
+    }
     
     console.log('📝 Final position:', { top, left });
     
@@ -931,16 +948,36 @@
     
     // Test if button is truly clickable and fix if blocked
     setTimeout(() => {
-      const rect = button.getBoundingClientRect();
+      const actualButton = button.__isShadowButton ? button.shadowButton : button;
+      const rect = actualButton.getBoundingClientRect();
       
-      // Check if button is within viewport bounds
-      if (rect.width === 0 || rect.height === 0 || 
-          rect.right < 0 || rect.left > window.innerWidth ||
-          rect.bottom < 0 || rect.top > window.innerHeight) {
-        console.warn('📝 Button is outside viewport or has no dimensions:', rect);
-        // Force button back into viewport
-        button.style.top = '50px !important';
-        button.style.left = '50px !important';
+      // Enhanced validation for Skool.com and other problematic sites
+      const hasValidDimensions = rect.width > 0 && rect.height > 0;
+      const isWithinViewport = rect.right > 0 && rect.left < window.innerWidth && 
+                               rect.bottom > 0 && rect.top < window.innerHeight;
+      
+      if (!hasValidDimensions || !isWithinViewport) {
+        console.warn('📝 Button positioning issue detected:', {
+          rect: rect,
+          hasValidDimensions: hasValidDimensions,
+          isWithinViewport: isWithinViewport,
+          hostname: window.location.hostname
+        });
+        
+        // Skool.com specific fix - position button in a safe area
+        if (window.location.hostname.includes('skool.com')) {
+          console.log('📝 Applying Skool.com specific positioning fix');
+          actualButton.style.position = 'fixed !important';
+          actualButton.style.top = '20px !important';
+          actualButton.style.right = '20px !important';
+          actualButton.style.left = 'auto !important';
+          actualButton.style.zIndex = '2147483647 !important';
+          actualButton.style.transform = 'none !important';
+        } else {
+          // Generic fallback for other sites
+          actualButton.style.top = '50px !important';
+          actualButton.style.left = '50px !important';
+        }
         return;
       }
       

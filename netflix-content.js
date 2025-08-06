@@ -31,15 +31,90 @@
   function extractVideoTitle() {
     // Try multiple selectors for Netflix title
     const titleSelectors = [
-      'h1[data-uia="video-title"]',
+      // 2024+ Netflix selectors - most current
+      '[data-uia="video-title"]',
       '[data-uia="title-text"]',
-      '.video-title h1',
-      '.previewModal-info h1',
-      '.PlayerControlsNeo__layout .PlayerControlsNeo__button-control-row h4',
       '[data-uia="player-title"]',
+      '[data-uia="video-title-text"]',
+      '[data-uia="episode-title"]',
+      '[data-uia="series-title"]',
+      '[data-uia="title-card"] h1',
+      '[data-uia="title-card"] h2',
+      '[data-uia="title-card"] h3',
+      '[data-uia="title-card"] h4',
+      
+      // Video player area selectors
+      '.watch-video--player-view h1',
+      '.watch-video--player-view h2',
+      '.watch-video--player-view h3',
+      '.watch-video--player-view h4',
       '.watch-video h1',
+      '.watch-video h2',
+      '.watch-video h3',
+      '.watch-video h4',
+      
+      // Header and title area selectors
+      '.video-title h1',
+      '.video-title h2',
+      '.video-title',
+      '.title-card h1',
+      '.title-card h2',
+      '.title-card h3',
+      '.title-card h4',
+      
+      // Modern class-based selectors (Netflix uses randomized classes)
+      '.ltr-omkt8s',
+      '.ltr-1i33xgl', 
+      '.ltr-174wt15',
+      '.ltr-1eknrr',
+      '.ltr-1bt0omd',
+      '.ltr-79elbk',
+      '.ltr-1mhb5p2',
+      '.ltr-ymkwx6',
+      '.ltr-7vn5hm',
+      
+      // Metadata and episode info
+      '.video-metadata h1',
+      '.video-metadata h2',
+      '.video-metadata h3',
+      '.video-metadata h4',
+      '.video-metadata--player-title',
+      '.episode-title',
+      '.series-title',
+      
+      // Player controls area
+      '.PlayerControlsNeo__layout h1',
+      '.PlayerControlsNeo__layout h2',
+      '.PlayerControlsNeo__layout h3',
+      '.PlayerControlsNeo__layout h4',
+      '.PlayerControlsNeo__button-control-row h1',
+      '.PlayerControlsNeo__button-control-row h2',
+      '.PlayerControlsNeo__button-control-row h3',
+      '.PlayerControlsNeo__button-control-row h4',
+      
+      // Watch page specific
+      '.watch-video-container h1',
+      '.watch-video-container h2',
+      '.watch-video-container h3',
+      '.watch-video-container h4',
+      
+      // Generic but targeted
+      'main h1',
+      'main h2',
+      '[role="main"] h1',
+      '[role="main"] h2',
+      'article h1',
+      'article h2',
+      'section h1',
+      'section h2',
+      
+      // Very generic fallbacks (lowest priority)
+      'h1[class*="title"]',
+      'h2[class*="title"]',
+      'h3[class*="title"]',
+      'h4[class*="title"]',
       'h1',
-      '.episode-title'
+      'h2'
     ];
 
     console.log('🔍 Netflix title extraction - trying selectors...');
@@ -53,16 +128,79 @@
       }
     }
 
-    // Fallback to document title
+    // Enhanced fallback to document title with better parsing
     const title = document.title;
     console.log(`🔄 Checking document title: "${title}"`);
-    if (title && title !== 'Netflix') {
-      const cleanTitle = title.replace(' - Netflix', '').trim();
-      console.log(`🔄 Using document title as fallback: "${cleanTitle}"`);
-      return cleanTitle;
+    if (title && title !== 'Netflix' && title !== 'Watch TV Shows Online, Watch Movies Online') {
+      // Clean up common Netflix title patterns with more aggressive parsing
+      let cleanTitle = title
+        .replace(' - Netflix', '')
+        .replace('Watch ', '')
+        .replace(' | Netflix Official Site', '')
+        .replace(' | Netflix', '')
+        .replace(' Netflix', '')
+        .replace('Netflix - ', '')
+        .trim();
+      
+      // Handle different title formats
+      if (cleanTitle.includes(' | ')) {
+        // Format: "Show Name | Season 1 Episode 2" or "Movie Name | Year"
+        const parts = cleanTitle.split(' | ');
+        cleanTitle = parts[0].trim();
+      } else if (cleanTitle.includes(':')) {
+        // Format: "Show Name: Episode Name" or "Show: Season 1"
+        const parts = cleanTitle.split(':');
+        if (parts.length > 1) {
+          cleanTitle = parts[0].trim();
+        }
+      } else if (cleanTitle.includes(' - ') && !cleanTitle.includes('Season') && !cleanTitle.includes('Episode')) {
+        // Format: "Movie Name - Additional Info" (but not season/episode info)
+        const parts = cleanTitle.split(' - ');
+        cleanTitle = parts[0].trim();
+      }
+      
+      // Remove common prefixes/suffixes
+      cleanTitle = cleanTitle
+        .replace(/^(Watch\s+|Stream\s+|Netflix\s+)/, '')
+        .replace(/\s+(Online|Free|HD)$/, '')
+        .trim();
+      
+      if (cleanTitle && cleanTitle.length > 2) {
+        console.log(`🔄 Using cleaned document title: "${cleanTitle}"`);
+        return cleanTitle;
+      }
+    }
+    
+    // Additional fallback: try to extract from URL or meta tags
+    const metaTitle = document.querySelector('meta[property="og:title"]')?.content ||
+                     document.querySelector('meta[name="title"]')?.content;
+    
+    if (metaTitle && metaTitle !== 'Netflix') {
+      const cleanMetaTitle = metaTitle
+        .replace(' - Netflix', '')
+        .replace(' | Netflix', '')
+        .trim();
+      
+      if (cleanMetaTitle && cleanMetaTitle.length > 2) {
+        console.log(`🔄 Using meta title: "${cleanMetaTitle}"`);
+        return cleanMetaTitle;
+      }
+    }
+    
+    // Last resort: try to find ANY visible text that looks like a title
+    const possibleTitles = document.querySelectorAll('*');
+    for (const element of possibleTitles) {
+      const text = element.textContent?.trim();
+      if (text && text.length > 5 && text.length < 100 && 
+          !text.includes('Netflix') && !text.includes('Watch') &&
+          !text.includes('Sign') && !text.includes('Menu') &&
+          element.tagName?.match(/^H[1-6]$/)) {
+        console.log(`🔄 Found possible title in ${element.tagName}: "${text}"`);
+        return text;
+      }
     }
 
-    console.log('❌ No Netflix title found, using default fallback');
+    console.log('❌ No Netflix title found after exhaustive search, using default fallback');
     return 'Netflix Video';
   }
 
@@ -170,77 +308,6 @@
     return 'movie';
   }
 
-  function extractTitle() {
-    // Extract content title from Netflix page with enhanced selectors
-    const titleSelectors = [
-      '[data-uia="video-title"]',
-      '.video-title h1',
-      '.video-title',
-      '.previewModal--player .previewModal--detailsMetadata h3',
-      '.title-logo img[alt]',
-      'h1.title',
-      '.watchVideo .title',
-      '[data-uia*="title"]',
-      // Additional Netflix-specific selectors for title extraction
-      '.watch-video--player-view .video-title',
-      '.watch-video--back-to-browsing .video-title', 
-      '.ltr-1bt0omd', // Netflix's current title class
-      '.watch-video--bottom-controls-container [data-uia*="title"]',
-      '.evidence-overlay .evidence-overlay-text .evidence-overlay-title',
-      // Series-specific selectors
-      '[data-uia="series-title"]',
-      '.series-title',
-      // Episode title selectors  
-      '[data-uia="episode-title"]',
-      '.episode-title'
-    ];
-
-    for (const selector of titleSelectors) {
-      const element = document.querySelector(selector);
-      if (element) {
-        let title;
-        if (element.tagName === 'IMG' && element.alt) {
-          title = element.alt;
-        } else {
-          title = element.textContent?.trim();
-        }
-        
-        if (title && title.length > 2 && !title.includes('Netflix') && !title.includes('Watch')) {
-          // Get episode info for better title formatting
-          const episodeInfo = extractEpisodeInfo();
-          if (episodeInfo && episodeInfo.episodeTitle) {
-            return `${title} - ${episodeInfo.episodeTitle}`;
-          }
-          return title;
-        }
-      }
-    }
-
-    // Fallback to document title with better parsing
-    let title = document.title;
-    if (title && title !== 'Netflix') {
-      // Clean up Netflix suffixes and extract meaningful title
-      title = title.replace(/\s*-\s*Netflix$/, '').trim();
-      
-      // If title contains "Watch", extract the show name
-      const watchMatch = title.match(/Watch\s+(.+)$/);
-      if (watchMatch) {
-        title = watchMatch[1].trim();
-      }
-      
-      if (title && title.length > 2) {
-        return title;
-      }
-    }
-
-    // Final fallback - try to get from URL
-    const urlMatch = window.location.href.match(/\/title\/(\d+)/);
-    if (urlMatch) {
-      return `Netflix Content (ID: ${urlMatch[1]})`;
-    }
-
-    return 'Netflix Content';
-  }
 
   function extractEpisodeInfo() {
     try {
@@ -539,8 +606,22 @@
 
   function getVideoInfo() {
     const videoId = extractNetflixVideoId();
-    const title = extractVideoTitle();
+    let title = extractVideoTitle();
     const timestamp = getCurrentTimestamp();
+
+    // Enhanced title extraction with better fallback
+    if (!title || title === 'Netflix Video' || title === 'Netflix Content') {
+      // Try to extract from URL patterns
+      const urlMatch = window.location.href.match(/watch\/(\d+)/);
+      if (urlMatch) {
+        // For now, use a more generic but descriptive title
+        title = document.title && document.title !== 'Netflix' ? 
+          document.title.replace(' - Netflix', '').replace('Watch ', '').trim() : 
+          'Netflix Video';
+      }
+    }
+    
+    console.log('🎭 getVideoInfo - extracted title:', title);
 
     if (videoId) {
       return {
@@ -806,42 +887,54 @@
           return;
         }
         
-        // PERFORMANCE FIX: Batch DOM operations and use requestIdleCallback when available
+        // ULTRA PERFORMANCE FIX: Minimal processing to prevent any freezing
         const processSubtitle = () => {
-          const subtitleText = captureCurrentNetflixSubtitle();
-          
-          if (subtitleText && subtitleText.trim().length > 0) {
-            // Throttle subtitle changes to prevent duplicates
-            const now = Date.now();
-            if (subtitleText !== lastSubtitleText || (now - lastSubtitleTime) > 3000) {
-              lastSubtitleText = subtitleText;
-              lastSubtitleTime = now;
-              
-              const currentTime = getCurrentTimestamp();
-              const segment = {
-                text: subtitleText,
-                cleanText: subtitleText,
-                start: currentTime,
-                timestamp: formatTimestamp(currentTime),
-                timestampDisplay: formatTimestamp(currentTime),
-                timestampInSeconds: currentTime,
-                source: 'netflix-collection',
-                platform: 'netflix',
-                videoInfo: getVideoInfo(),
-                url: window.location.href,
-                segmentIndex: collectedSegments.length,
-                groupIndex: 0
-              };
-              
-              // Check for duplicates - simplified check to reduce processing
-              const lastSegment = collectedSegments[collectedSegments.length - 1];
-              const isDuplicate = lastSegment && lastSegment.text === subtitleText;
-              
-              if (!isDuplicate) {
-                collectedSegments.push(segment);
-                console.log(`🎭 ✅ Collected Netflix segment ${collectedSegments.length}: "${subtitleText}" at ${formatTimestamp(currentTime)}`);
+          try {
+            const subtitleText = captureCurrentNetflixSubtitle();
+            console.log('🎭 Netflix monitoring tick - subtitle found:', subtitleText ? `"${subtitleText}"` : 'null');
+            
+            if (subtitleText && subtitleText.trim().length > 0) {
+              // ULTRA-AGGRESSIVE throttling to prevent any browser freezing
+              const now = Date.now();
+              console.log('🎭 Throttle check:', {
+                subtitleText,
+                lastSubtitleText,
+                timeDiff: now - lastSubtitleTime,
+                willCapture: subtitleText !== lastSubtitleText && (now - lastSubtitleTime) > 1000
+              });
+              if (subtitleText !== lastSubtitleText && (now - lastSubtitleTime) > 1000) { // 1 second between captures - more reasonable for collection
+                lastSubtitleText = subtitleText;
+                lastSubtitleTime = now;
+                
+                // PERFORMANCE FIX: Cache expensive calls
+                const currentTime = getCurrentTimestamp() || 0;
+                const timestampStr = formatTimestamp(currentTime);
+                
+                const segment = {
+                  text: subtitleText,
+                  cleanText: subtitleText,
+                  start: currentTime,
+                  timestamp: timestampStr,
+                  timestampDisplay: timestampStr,
+                  timestampInSeconds: currentTime,
+                  source: 'netflix-collection',
+                  platform: 'netflix',
+                  videoInfo: null, // Skip expensive getVideoInfo() call during monitoring
+                  url: window.location.href,
+                  segmentIndex: collectedSegments.length,
+                  groupIndex: 0
+                };
+                
+                // ULTRA-SIMPLE duplicate check - text only
+                const lastSegment = collectedSegments[collectedSegments.length - 1];
+                if (!lastSegment || lastSegment.text !== subtitleText) {
+                  collectedSegments.push(segment);
+                  console.log(`🎭 ✅ Netflix segment ${collectedSegments.length}: "${subtitleText}"`);
+                }
               }
             }
+          } catch (error) {
+            console.log('⚠️ Netflix processing error:', error.message);
           }
         };
         
@@ -855,7 +948,7 @@
       } catch (error) {
         console.log('⚠️ Netflix subtitle monitoring error (non-critical):', error.message);
       }
-    }, 2000); // PERFORMANCE FIX: Increased from 1000ms to 2000ms to prevent freezing
+    }, 3000); // ULTRA PERFORMANCE FIX: Increased to 3000ms (3 seconds) to completely prevent freezing
   }
   
   function stopSubtitleMonitoring() {
@@ -937,7 +1030,7 @@
 
         case 'getNetflixTitle':
           console.log('🎭 Getting Netflix video title');
-          const netflixTitle = extractTitle();
+          const netflixTitle = extractVideoTitle();
           const netflixEpisodeInfo = extractEpisodeInfo();
           sendResponse({
             success: true,
@@ -989,12 +1082,15 @@
         case 'captureCurrentSubtitle':
           console.log('🎭 Manual Netflix subtitle capture requested');
           const capturedText = captureCurrentNetflixSubtitle();
+          const captureVideoInfo = getVideoInfo();
+          console.log('🎭 Netflix capture - videoInfo:', captureVideoInfo);
+          
           if (capturedText) {
             sendResponse({ 
               success: true, 
               text: capturedText,
               timestamp: getCurrentTimestamp(),
-              videoInfo: getVideoInfo()
+              videoInfo: captureVideoInfo
             });
           } else {
             sendResponse({ 

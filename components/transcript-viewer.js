@@ -991,13 +991,27 @@ class TranscriptViewer {
 
   updateStats() {
     const segmentCount = this.container.querySelector('.segment-count');
+    const highlightCount = this.container.querySelector('.highlight-count');
     const duration = this.container.querySelector('.duration');
     
+    if (!segmentCount || !highlightCount || !duration) return;
+    
     segmentCount.textContent = `${this.transcriptData.length} segments`;
+    highlightCount.textContent = `${this.highlights.length} highlights`;
     
     if (this.transcriptData.length > 0) {
+      // Calculate total duration from segments
       const lastSegment = this.transcriptData[this.transcriptData.length - 1];
-      duration.textContent = this.formatTime(lastSegment.end);
+      const totalSeconds = lastSegment.timestampInSeconds || lastSegment.start || 0;
+      
+      // Only show duration if we have valid timestamp data
+      if (totalSeconds > 0) {
+        duration.textContent = this.formatTime(totalSeconds);
+      } else {
+        duration.textContent = '0:00';
+      }
+    } else {
+      duration.textContent = '0:00';
     }
   }
 
