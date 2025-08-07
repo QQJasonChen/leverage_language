@@ -25,14 +25,27 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
   
   switch (command) {
     case 'quick-capture':
-      if (tab.url.includes('youtube.com')) {
-        // Send capture command to YouTube content script
+      // Universal capture - works on YouTube, Netflix, Udemy, and Coursera
+      if (tab.url.includes('youtube.com') || tab.url.includes('netflix.com') || tab.url.includes('udemy.com') || tab.url.includes('coursera.org')) {
+        const platform = tab.url.includes('youtube.com') ? 'YouTube' : 
+                        tab.url.includes('netflix.com') ? 'Netflix' : 
+                        tab.url.includes('udemy.com') ? 'Udemy' : 'Coursera';
         try {
           await chrome.tabs.sendMessage(tab.id, { action: 'captureCurrentSubtitle' });
-          console.log('⌨️ Quick capture executed on YouTube');
+          console.log(`⌨️ Quick capture executed on ${platform}`);
         } catch (error) {
-          console.log('⌨️ Quick capture failed:', error);
+          console.log(`⌨️ Quick capture failed on ${platform}:`, error);
         }
+      }
+      break;
+      
+    case 'quick-analyze':
+      // Quick analyze last captured content
+      try {
+        await chrome.tabs.sendMessage(tab.id, { action: 'quickAnalyzeLastCapture' });
+        console.log('⌨️ Quick analyze triggered');
+      } catch (error) {
+        console.log('⌨️ Quick analyze failed:', error);
       }
       break;
       
@@ -482,6 +495,36 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   
   if (request.action === 'udemyVideoPause') {
     console.log('⏸️ Udemy video paused');
+    sendResponse({ success: true });
+    return false;
+  }
+  
+  // 🎓 PLATFORM: Coursera-specific message handlers
+  if (request.action === 'recordCourseraLearning') {
+    console.log('🎓 Coursera learning recorded:', request.data.text?.substring(0, 50) + '...');
+    
+    // Forward to sidepanel for analysis
+    handleCourseraTextAnalysis(request.data, sender.tab.id)
+      .then(() => {
+        sendResponse({ success: true, message: 'Coursera subtitle sent to sidepanel for analysis' });
+      })
+      .catch((error) => {
+        console.error('🎓 Error processing Coursera subtitle:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    
+    return true; // Keep the message channel open for async response
+  }
+  
+  if (request.action === 'courseraCollectionComplete') {
+    console.log('🎓 Coursera collection complete:', request.data.segments?.length || 0, 'segments');
+    
+    // Store collection data
+    chrome.storage.local.set({
+      courseraLastCollection: request.data,
+      courseraLastSeen: Date.now()
+    }).catch(error => console.log('Failed to store Coursera collection:', error));
+    
     sendResponse({ success: true });
     return false;
   }
@@ -1432,5 +1475,102 @@ async function handleUdemyTextAnalysis(request, tabId) {
     
   } catch (error) {
     console.error('❌ Error handling Udemy text analysis:', error);
+  }
+}
+
+async function handleCourseraTextAnalysis(request, tabId) {
+  try {
+    console.log('🎓 Processing Coursera learning text:', request.text);
+    
+    const cleanText = request.text.trim();
+    if (!cleanText) return;
+    
+    // 獲取語言設定
+    const result = await chrome.storage.sync.get(['defaultLanguage', 'preferredLanguage']);
+    const defaultLang = result.defaultLanguage || 'auto';
+    const preferredLang = result.preferredLanguage || 'none';
+    
+    // 偵測語言
+    const detectionResult = detectLanguage(cleanText, preferredLang);
+    const language = typeof detectionResult === 'string' ? detectionResult : 
+                    (detectionResult.language !== 'uncertain' ? detectionResult.language : 'english');
+    
+    // 生成語言學習 URLs
+    const urls = generateLanguageUrls(cleanText, language);
+    
+    // 保存到歷史記錄（包含課程來源資訊）
+    try {
+      console.log('💾 Saving Coursera learning to history:', cleanText, language);
+      
+      // 創建課程來源資訊
+      const courseSource = {
+        url: request.url || null,
+        originalUrl: request.url || null,
+        title: request.title || `${request.courseTitle || 'Coursera Course'}`,
+        courseTitle: request.courseTitle || 'Unknown Course',
+        videoId: request.videoId || null,
+        timestamp: request.timestamp || null,
+        platform: 'coursera'
+      };
+      
+      const historyItem = {
+        text: cleanText,
+        detectedLanguage: language,
+        timestamp: Date.now(),
+        source: 'coursera-subtitle',
+        platform: 'coursera',
+        confidence: typeof detectionResult === 'object' ? detectionResult.confidence : 0.8,
+        videoSource: courseSource,
+        ...urls
+      };
+      
+      await historyManager.saveHistory(historyItem);
+      console.log('✅ Coursera learning saved to history successfully');
+      
+    } catch (error) {
+      console.error('❌ Failed to save Coursera learning to history:', error);
+    }
+    
+    // 儲存到 local storage 供 sidepanel 使用
+    await chrome.storage.local.set({
+      courseraAnalysis: {
+        url: urls.primaryUrl, // YouGlish URL for search
+        text: cleanText,
+        language: language,
+        source: request.source || 'coursera-learning',
+        title: request.title || `${request.courseTitle || 'Coursera Course'}`,
+        originalUrl: request.url, // Coursera URL
+        courseraUrl: request.url, // Explicit Coursera URL field  
+        courseTitle: request.courseTitle,
+        videoId: request.videoId,
+        platform: 'coursera',
+        allUrls: urls.allUrls,
+        timestamp: Date.now(),
+        videoTimestamp: request.timestamp || null // Include video playback timestamp
+      }
+    });
+    
+    console.log('🔗 Coursera URL mapping debug:', {
+      youglishUrl: urls.primaryUrl,
+      courseraUrl: request.url,
+      courseTitle: request.courseTitle,
+      title: request.title,
+      timestamp: request.timestamp,
+      videoId: request.videoId
+    });
+    
+    // 開啟 sidepanel (如果尚未開啟)
+    try {
+      await chrome.sidePanel.open({ tabId });
+      console.log('📱 Sidepanel opened for Coursera learning');
+    } catch (error) {
+      console.log('📱 Sidepanel might already be open:', error.message);
+    }
+
+    // Data saved to chrome.storage for sidepanel to pick up
+    console.log('💾 Coursera learning data saved to storage for sidepanel to automatically load');
+    
+  } catch (error) {
+    console.error('❌ Error handling Coursera text analysis:', error);
   }
 }
