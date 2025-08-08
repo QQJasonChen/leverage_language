@@ -592,18 +592,74 @@ class TranscriptRestructurer {
         <div class="transcript-content">
           <!-- ✅ SIMPLIFIED: Only reader mode container -->
           
-          <!-- Captured Sentences Table for Manual Captures (Netflix/Udemy) -->
-          <div class="captured-sentences-container" id="captured-sentences-container" style="margin: 20px 0;">
-            <table class="captured-sentences" style="width: 100%; border-collapse: collapse; display: none;">
-              <thead>
-                <tr>
-                  <th style="padding: 8px; border: 1px solid #ddd; background: #f5f5f5;">Time</th>
-                  <th style="padding: 8px; border: 1px solid #ddd; background: #f5f5f5;">Text</th>
-                  <th style="padding: 8px; border: 1px solid #ddd; background: #f5f5f5;">Actions</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
+          <!-- Captured Sentences Container - Unified for all platforms -->
+          <div class="captured-sentences-container" id="captured-sentences-container">
+            <!-- ✅ Enhanced Header with stats and actions -->
+            <div class="captured-viewer-header" style="display: none;">
+              <div class="captured-title-section">
+                <h3 class="captured-title">
+                  ${this.currentPlatform === 'youtube' ? '📖 Captured Segments' : 
+                    this.currentPlatform === 'netflix' ? '🎭 Netflix Subtitles' :
+                    this.currentPlatform === 'udemy' ? '📚 Course Subtitles' :
+                    this.currentPlatform === 'coursera' ? '🎓 Lecture Subtitles' : '📝 Captured Subtitles'}
+                </h3>
+                <div class="captured-stats">
+                  <span class="captured-count">0 items</span>
+                </div>
+              </div>
+              <div class="captured-actions">
+                <button class="export-captured-btn" title="Export all captured subtitles">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  Export
+                </button>
+              </div>
+            </div>
+            
+            <!-- ✅ Modern table with enhanced styling -->
+            <div class="captured-table-container" style="display: none;">
+              <table class="captured-sentences">
+                <thead>
+                  <tr>
+                    <th class="time-header">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12,6 12,12 16,14"/>
+                      </svg>
+                      Time
+                    </th>
+                    <th class="text-header">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14,2 14,8 20,8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                        <polyline points="10,9 9,9 8,9"/>
+                      </svg>
+                      Subtitle Text
+                    </th>
+                    <th class="actions-header">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"/>
+                      </svg>
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            
+            <!-- ✅ Empty state message -->
+            <div class="captured-empty-state" id="captured-empty-state">
+              <div class="empty-icon">${platformIcon}</div>
+              <p class="empty-message">No subtitles captured yet</p>
+              <p class="empty-hint">Use the ${this.currentPlatform === 'youtube' ? 'Collect' : 'Capture'} button above to start collecting subtitles</p>
+            </div>
           </div>
         </div>
       </div>
@@ -681,6 +737,12 @@ class TranscriptRestructurer {
     
     // ✅ NEW: Add event listeners for Whisper timing controls
     this.setupWhisperTimingControls();
+    
+    // Export captured sentences button
+    const exportBtn = this.container.querySelector('.export-captured-btn');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', () => this.exportCapturedSentences());
+    }
     
     // ✅ SIMPLIFIED: Reader mode handles its own interactions
     // No more classic view buttons to attach
@@ -2695,16 +2757,20 @@ Sentence to fix: "${preCleanedText}"`;
       console.log('🎯 Stored latest text for A shortcut:', this.lastCapturedText.substring(0, 50) + '...');
     }
     
-    // Find or create captured sentences table
-    let transcriptTable = document.querySelector('.captured-sentences');
-    if (!transcriptTable) {
-      transcriptTable = this.container.querySelector('.captured-sentences');
+    // Show header and table container when adding first item
+    const header = this.container.querySelector('.captured-viewer-header');
+    const tableContainer = this.container.querySelector('.captured-table-container');
+    const emptyState = this.container.querySelector('.captured-empty-state');
+    
+    if (header && tableContainer && emptyState) {
+      header.style.display = 'flex';
+      tableContainer.style.display = 'block';
+      emptyState.style.display = 'none';
     }
     
+    // Find captured sentences table
+    const transcriptTable = this.container.querySelector('.captured-sentences');
     if (transcriptTable) {
-      // Make table visible when we add the first row
-      transcriptTable.style.display = 'table';
-      
       const tbody = transcriptTable.querySelector('tbody');
       
       // Create row with Netflix-style format
@@ -2882,11 +2948,105 @@ Sentence to fix: "${preCleanedText}"`;
       // Show Clear All button now that we have content
       this.toggleClearAllButton();
       
+      // Update captured sentences count
+      this.updateCapturedSentencesCount();
+      
       // Scroll to show new sentence
       row.scrollIntoView({ behavior: 'smooth', block: 'end' });
     } else {
       console.log('⚠️ No transcript table found');
     }
+  }
+  
+  // Update captured sentences count in the header
+  updateCapturedSentencesCount() {
+    const countElement = this.container.querySelector('.captured-count');
+    if (countElement) {
+      const rows = this.container.querySelectorAll('.transcript-row');
+      const count = rows.length;
+      countElement.textContent = `${count} item${count !== 1 ? 's' : ''}`;
+    }
+  }
+  
+  // Export captured sentences to clipboard and file
+  exportCapturedSentences() {
+    const rows = this.container.querySelectorAll('.transcript-row');
+    if (rows.length === 0) {
+      alert('No captured sentences to export');
+      return;
+    }
+    
+    const platformName = this.currentPlatform === 'netflix' ? 'Netflix' :
+                         this.currentPlatform === 'udemy' ? 'Udemy' :
+                         this.currentPlatform === 'coursera' ? 'Coursera' : 'YouTube';
+    
+    let exportText = `# ${platformName} Captured Subtitles\\n\\n`;
+    exportText += `**Date**: ${new Date().toLocaleDateString()}\\n`;
+    exportText += `**Items**: ${rows.length} captured subtitles\\n\\n`;
+    
+    rows.forEach((row, index) => {
+      const timestamp = row.querySelector('.timestamp-btn')?.textContent || '';
+      const text = row.querySelector('.clean-text')?.textContent || '';
+      
+      exportText += `## ${index + 1}. [${timestamp}]\\n\\n`;
+      exportText += `${text}\\n\\n`;
+      exportText += `---\\n\\n`;
+    });
+    
+    // Copy to clipboard and download
+    navigator.clipboard.writeText(exportText).then(() => {
+      this.showToast(`✅ ${rows.length} subtitles copied to clipboard!`);
+      this.downloadFile(exportText, `${platformName.toLowerCase()}-subtitles-${new Date().toISOString().split('T')[0]}.md`);
+    }).catch(() => {
+      this.downloadFile(exportText, `${platformName.toLowerCase()}-subtitles-${new Date().toISOString().split('T')[0]}.md`);
+      this.showToast(`✅ ${rows.length} subtitles downloaded!`);
+    });
+  }
+  
+  // Download file helper
+  downloadFile(content, filename) {
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  
+  // Show toast notification
+  showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'export-toast';
+    toast.textContent = message;
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #333;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 4px;
+      font-size: 14px;
+      z-index: 10000;
+      transform: translateY(100px);
+      transition: transform 0.3s ease;
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Animate in
+    setTimeout(() => {
+      toast.style.transform = 'translateY(0)';
+    }, 10);
+    
+    // Remove after delay
+    setTimeout(() => {
+      toast.style.transform = 'translateY(100px)';
+      setTimeout(() => document.body.removeChild(toast), 300);
+    }, 3000);
   }
 
   // Create Netflix-style transcript table
@@ -3100,6 +3260,17 @@ Sentence to fix: "${preCleanedText}"`;
           tbody.innerHTML = '';
           this.toggleClearAllButton(); // Hide clear all button when table is empty
         }
+      }
+      
+      // Hide header and table, show empty state
+      const header = this.container.querySelector('.captured-viewer-header');
+      const tableContainer = this.container.querySelector('.captured-table-container');
+      const emptyState = this.container.querySelector('.captured-empty-state');
+      
+      if (header && tableContainer && emptyState) {
+        header.style.display = 'none';
+        tableContainer.style.display = 'none';
+        emptyState.style.display = 'block';
       }
       
       // Clear platform-specific segments arrays
@@ -5721,6 +5892,221 @@ Sentence to fix: "${preCleanedText}"`;
         display: flex;
         align-items: center;
         gap: 8px;
+      }
+      
+      /* ✅ NEW: Enhanced Captured Sentences Styling */
+      .captured-sentences-container {
+        margin: 20px 0;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        border: 1px solid #e9ecef;
+        overflow: hidden;
+      }
+      
+      .captured-viewer-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 16px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      
+      .captured-title-section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      
+      .captured-title {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+      }
+      
+      .captured-stats {
+        font-size: 12px;
+        opacity: 0.9;
+      }
+      
+      .captured-actions .export-captured-btn {
+        background: rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+      }
+      
+      .captured-actions .export-captured-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: translateY(-1px);
+      }
+      
+      .captured-table-container {
+        padding: 0;
+      }
+      
+      .captured-sentences {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      
+      .captured-sentences thead tr {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      }
+      
+      .captured-sentences th {
+        padding: 14px 16px;
+        font-weight: 600;
+        color: #495057;
+        text-align: left;
+        border-bottom: 2px solid #dee2e6;
+        font-size: 13px;
+        vertical-align: middle;
+      }
+      
+      .captured-sentences th svg {
+        margin-right: 6px;
+        vertical-align: text-bottom;
+      }
+      
+      .time-header {
+        width: 120px;
+      }
+      
+      .text-header {
+        width: auto;
+      }
+      
+      .actions-header {
+        width: 160px;
+      }
+      
+      .captured-sentences tbody tr {
+        border-bottom: 1px solid #e9ecef;
+        transition: all 0.2s ease;
+      }
+      
+      .captured-sentences tbody tr:hover {
+        background-color: #f8f9fa;
+      }
+      
+      .captured-sentences td {
+        padding: 12px 16px;
+        vertical-align: top;
+      }
+      
+      .timestamp-btn {
+        background: #e3f2fd;
+        border: 1px solid #2196f3;
+        color: #1976d2;
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-block;
+      }
+      
+      .timestamp-btn:hover {
+        background: #bbdefb;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
+      }
+      
+      .clean-text {
+        font-size: 14px;
+        line-height: 1.5;
+        color: #333;
+        margin: 0;
+      }
+      
+      .actions-cell {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      
+      .capture-sentence-btn,
+      .edit-text-btn,
+      .delete-row-btn {
+        border: none;
+        padding: 8px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .capture-sentence-btn {
+        background: #ff9800;
+        color: white;
+        title: "Analyze with AI";
+      }
+      
+      .capture-sentence-btn:hover {
+        background: #f57c00;
+        transform: translateY(-1px);
+      }
+      
+      .edit-text-btn {
+        background: #4caf50;
+        color: white;
+      }
+      
+      .edit-text-btn:hover {
+        background: #388e3c;
+        transform: translateY(-1px);
+      }
+      
+      .delete-row-btn {
+        background: #f44336;
+        color: white;
+      }
+      
+      .delete-row-btn:hover {
+        background: #d32f2f;
+        transform: translateY(-1px);
+      }
+      
+      .captured-empty-state {
+        padding: 60px 20px;
+        text-align: center;
+        color: #6c757d;
+      }
+      
+      .captured-empty-state .empty-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+      }
+      
+      .captured-empty-state .empty-message {
+        font-size: 18px;
+        font-weight: 500;
+        margin: 0 0 8px 0;
+        color: #495057;
+      }
+      
+      .captured-empty-state .empty-hint {
+        font-size: 14px;
+        margin: 0;
+        opacity: 0.8;
       }
     `;
     document.head.appendChild(style);

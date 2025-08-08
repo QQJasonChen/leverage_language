@@ -4,6 +4,14 @@
 (function() {
   'use strict';
 
+  // Silence verbose logs in production
+  try { if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest) {
+    const n = chrome.runtime.getManifest().name || '';
+    if (!n.toLowerCase().includes('dev')) {
+      console.log = function(){}; console.info = function(){}; console.debug = function(){}; console.warn = function(){};
+    }
+  } } catch (e) {}
+
   console.log('🎬 YouTube Netflix-style manual caption collection loaded');
 
   let contextInvalidated = false;
@@ -169,54 +177,106 @@
       // Detect transcript type first
       const transcriptInfo = detectTranscriptType();
       
-      // YouTube caption selectors (comprehensive list like Netflix)
+      // YouTube caption selectors (more specific to avoid UI elements)
       const captionSelectors = [
-        // Standard YouTube caption containers
-        '.caption-window .captions-text',
-        '.caption-window',
-        '.ytp-caption-window-container .captions-text', 
-        '.ytp-caption-window-container',
-        
-        // Auto-generated captions
+        // Most specific YouTube caption containers (prioritize these)
+        '.ytp-caption-window-container .captions-text',
         '.ytp-caption-segment',
         '.html5-captions-text',
+        
+        // Standard caption containers  
+        '.caption-window .captions-text',
+        '.ytp-caption-window-bottom .captions-text',
+        '.ytp-caption-window-rollup .captions-text',
         '.html5-captions-container .captions-text',
         
-        // Alternative selectors
-        '[class*="caption"] [class*="text"]',
-        '[class*="subtitle"] [class*="text"]',
+        // Fallback selectors (only if above don't work)
         '.captions-text',
         '.subtitle-text',
         
-        // Modern YouTube selectors
-        '.ytp-caption-window-bottom .captions-text',
-        '.ytp-caption-window-rollup .captions-text',
-        
-        // Generic caption containers
-        '[class*="caption"]',
-        '[class*="subtitle"]',
-        '[class*="captions"]'
+        // Last resort - but check these are actually caption containers
+        '.ytp-caption-window-container',
+        '.caption-window'
       ];
 
       for (const selector of captionSelectors) {
         const captionElement = document.querySelector(selector);
         if (captionElement && captionElement.textContent.trim()) {
           const text = captionElement.textContent.trim();
-          // Filter out extension UI elements
-          if (!text.includes('No captions visible') && 
-              !text.includes('Waiting for captions') &&
-              !text.includes('搜尋') && 
-              !text.includes('分享') &&
-              text.length > 3) {
-            console.log('🎬 Captured YouTube caption:', text);
-            console.log('📋 Transcript type:', transcriptInfo.type);
+          
+          // Debug logging to see what we're capturing
+          console.log(`🔍 Selector: ${selector}`);
+          console.log(`📝 Text found: "${text}"`);
+          console.log(`🎯 Element classes:`, captionElement.className);
+          console.log(`📍 Element position:`, captionElement.getBoundingClientRect());
+          
+          // Enhanced filtering - must be actual subtitle content
+          const isValidSubtitle = 
+            // Basic length check
+            text.length > 3 && text.length < 500 &&
             
-            // Return enhanced data with transcript type
-            return {
-              text: text,
-              transcriptType: transcriptInfo.type,
-              transcriptInfo: transcriptInfo
-            };
+            // Not UI elements (English)
+            !text.includes('No captions visible') && 
+            !text.includes('Waiting for captions') &&
+            !text.includes('Post comment') &&
+            !text.includes('Add a comment') &&
+            !text.includes('Comment') &&
+            !text.includes('Like') &&
+            !text.includes('Dislike') &&
+            !text.includes('Share') &&
+            !text.includes('Save') &&
+            !text.includes('Subscribe') &&
+            !text.includes('View replies') &&
+            !text.includes('Show more') &&
+            !text.includes('Show less') &&
+            
+            // Not UI elements (Chinese)
+            !text.includes('搜尋') && 
+            !text.includes('分享') &&
+            !text.includes('發表留言') &&
+            !text.includes('按讚') &&
+            !text.includes('不喜歡') &&
+            !text.includes('訂閱') &&
+            !text.includes('儲存') &&
+            !text.includes('查看回覆') &&
+            !text.includes('顯示更多') &&
+            !text.includes('顯示較少') &&
+            
+            // Not view counts or numbers
+            !text.match(/^\d+\s*(views?|次觀看|watching|人在觀看)/) &&
+            !text.match(/^\d+\s*(likes?|個讚|dislikes?|個不喜歡)/) &&
+            !text.match(/^[0-9,]+\s*(subscribers?|位訂閱者)/) &&
+            
+            // Not pure timestamps or formatting
+            !text.match(/^[0-9:]+$/) &&
+            !text.match(/^[\s\.\-_•]+$/) &&
+            
+            // Not empty or whitespace-only
+            text.trim().length > 0 &&
+            
+            // Should contain actual words (letters/characters)
+            text.match(/[a-zA-Z\u4e00-\u9fff\u0100-\u017f\u0180-\u024f]/);
+          
+          if (isValidSubtitle) {
+            // Additional check: make sure element is in the video area, not sidebar/comments
+            const rect = captionElement.getBoundingClientRect();
+            const isInMainVideoArea = rect.top > 0 && rect.top < window.innerHeight * 0.8;
+            
+            if (isInMainVideoArea) {
+              console.log('🎬 Captured YouTube caption:', text);
+              console.log('📋 Transcript type:', transcriptInfo.type);
+              
+              // Return enhanced data with transcript type
+              return {
+                text: text,
+                transcriptType: transcriptInfo.type,
+                transcriptInfo: transcriptInfo
+              };
+            } else {
+              console.log('❌ Element not in main video area, skipping');
+            }
+          } else {
+            console.log('❌ Text filtered out as UI element:', text);
           }
         }
       }
@@ -308,6 +368,17 @@
             });
           }
           break;
+
+        case 'quickAnalyzeLastCapture':
+          console.log('⌨️ Quick analyze triggered from global shortcut on YouTube');
+          // Forward to transcript restructurer if available
+          if (window.transcriptRestructurer && typeof window.transcriptRestructurer.analyzeLastAndSwitchTab === 'function') {
+            window.transcriptRestructurer.analyzeLastAndSwitchTab();
+            sendResponse({ success: true });
+          } else {
+            sendResponse({ success: false, error: 'Transcript restructurer not available' });
+          }
+          return true;
 
         case 'getCurrentVideoTime':
           console.log('🎬 Getting current YouTube video time');
