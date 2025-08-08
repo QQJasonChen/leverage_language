@@ -1385,6 +1385,10 @@ async function handleNetflixTextAnalysis(request, tabId) {
         platform: request.platform
       });
       
+      // Debug timestamp with params
+      console.log('🔍 DEBUG PARAMS:', request);
+      console.log('🔍 DEBUG TIMESTAMP:', request.timestamp);
+      
       const videoSource = {
         url: request.url || null,
         originalUrl: request.originalUrl || request.url || null,
@@ -1399,6 +1403,10 @@ async function handleNetflixTextAnalysis(request, tabId) {
       };
       
       console.log('🎭 Netflix source info:', videoSource);
+      
+      // Debug result before saving
+      console.log('🔍 DEBUG RESULT videoSource:', videoSource);
+      console.log('🔍 DEBUG RESULT videoTimestamp:', videoSource.videoTimestamp);
       
       const savedRecord = await historyManager.addRecord(cleanText, language, 'netflix-learning', [], videoSource);
       console.log('✅ Netflix learning saved to history with video source');

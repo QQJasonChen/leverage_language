@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Timestamp Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+        .log { background: #f5f5f5; padding: 10px; border-radius: 4px; margin: 10px 0; font-family: monospace; white-space: pre-wrap; }
+        .success { color: green; }
+        .error { color: red; }
+        .warning { color: orange; }
+        button { padding: 8px 16px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; background: #007bff; color: white; }
+        .secondary { background: #6c757d; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Timestamp Collection Debug</h1>
+    
+    <div class="test-section">
+        <h3>Test 1: Check Current Saved Reports</h3>
+        <button onclick="checkSavedReports()">Check Saved Reports for Timestamp Issues</button>
+        <div id="savedReportsResult" class="log" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 2: Create Test Report</h3>
+        <button onclick="createTestReport()">Create Test Report with Timestamp</button>
+        <div id="testReportResult" class="log" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 3: Format Functions Test</h3>
+        <button onclick="testFormatFunctions()">Test Format Functions</button>
+        <div id="formatFunctionsResult" class="log" style="display: none;"></div>
+    </div>
+
+    <script type="module">
+        // Import time utilities if available
+        let timeUtils = null;
+        try {
+            // This would normally import from the TypeScript file, but we'll simulate it
+            timeUtils = {
+                formatVideoTimestamp: function(seconds) {
+                    if (seconds === null || seconds === undefined || isNaN(seconds)) {
+                        return '';
+                    }
+                    
+                    const totalSecs = Math.floor(seconds);
+                    const hours = Math.floor(totalSecs / 3600);
+                    const minutes = Math.floor((totalSecs % 3600) / 60);
+                    const secs = totalSecs % 60;
+                    
+                    if (hours > 0) {
+                        return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                    } else {
+                        return `${minutes}:${secs.toString().padStart(2, '0')}`;
+                    }
+                },
+                getVideoButtonText: function(videoTimestamp) {
+                    const hasTimestamp = videoTimestamp !== null && videoTimestamp !== undefined && !isNaN(videoTimestamp);
+                    return hasTimestamp ? '⏰ 返回片段' : '📹 返回影片';
+                },
+                debugTimestamp: function(params, result) {
+                    console.log('🔍 Timestamp Debug - Params:', params);
+                    if (result) {
+                        console.log('🔍 Timestamp Debug - Result:', result);
+                    }
+                },
+                validateVideoSource: function(videoSource) {
+                    if (!videoSource) return false;
+                    
+                    const hasValidTimestamp = videoSource.videoTimestamp !== null && 
+                                             videoSource.videoTimestamp !== undefined && 
+                                             !isNaN(videoSource.videoTimestamp);
+                    
+                    if (!hasValidTimestamp) {
+                        console.warn('⚠️ Video source missing valid videoTimestamp:', videoSource);
+                        return false;
+                    }
+                    
+                    return true;
+                }
+            };
+        } catch (error) {
+            console.log('Could not import time utils, using inline functions');
+        }
+
+        window.checkSavedReports = async function() {
+            const resultDiv = document.getElementById('savedReportsResult');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = 'Checking saved reports...';
+            
+            try {
+                const result = await chrome.storage.local.get(['aiReports']);
+                const reports = result.aiReports || [];
+                
+                let logText = `Found ${reports.length} saved reports\n\n`;
+                
+                // Check first 10 reports for timestamp issues
+                const recentReports = reports.slice(0, 10);
+                let hasTimestampIssues = false;
+                
+                recentReports.forEach((report, index) => {
+                    logText += `Report ${index + 1}: "${report.searchText}"\n`;
+                    logText += `  Language: ${report.language}\n`;
+                    logText += `  Saved timestamp: ${new Date(report.timestamp).toLocaleString()}\n`;
+                    
+                    if (report.videoSource) {
+                        const videoTimestamp = report.videoSource.videoTimestamp;
+                        const isValid = timeUtils?.validateVideoSource(report.videoSource);
+                        
+                        logText += `  Video title: ${report.videoSource.title || 'Unknown'}\n`;
+                        logText += `  Video timestamp: ${videoTimestamp} seconds\n`;
+                        logText += `  Formatted timestamp: ${timeUtils?.formatVideoTimestamp(videoTimestamp)}\n`;
+                        logText += `  Button text: ${timeUtils?.getVideoButtonText(videoTimestamp)}\n`;
+                        logText += `  Is valid: ${isValid}\n`;
+                        
+                        if (!isValid) {
+                            hasTimestampIssues = true;
+                            logText += `  ❌ ISSUE: videoTimestamp is null/undefined/NaN!\n`;
+                        } else {
+                            logText += `  ✅ OK: videoTimestamp is valid\n`;
+                        }
+                    } else {
+                        logText += `  📝 No video source (regular search)\n`;
+                    }
+                    logText += '\n';
+                });
+                
+                if (hasTimestampIssues) {
+                    logText += '\n❌ FOUND TIMESTAMP ISSUES!\n';
+                    logText += 'Some reports have videoSource but videoTimestamp is null/undefined.\n';
+                    logText += 'This means the timestamp capture is not working properly.\n';
+                } else {
+                    logText += '\n✅ All video sources have valid timestamps!\n';
+                }
+                
+                resultDiv.textContent = logText;
+                
+                // Log debug info
+                timeUtils?.debugTimestamp({ reportsCount: reports.length, hasIssues: hasTimestampIssues }, recentReports);
+                
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}`;
+            }
+        };
+
+        window.createTestReport = async function() {
+            const resultDiv = document.getElementById('testReportResult');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = 'Creating test report...';
+            
+            try {
+                // Create a test video source with proper timestamp
+                const testVideoSource = {
+                    url: 'https://youtube.com/watch?v=test123&t=125s',
+                    title: 'Test Video for Timestamp Debug',
+                    channel: 'Test Channel',
+                    videoTimestamp: 125, // This should NOT be null
+                    timestamp: Date.now(),
+                    learnedAt: new Date().toISOString()
+                };
+                
+                // Validate the test video source
+                const isValid = timeUtils?.validateVideoSource(testVideoSource);
+                
+                let logText = 'Test Video Source:\n';
+                logText += JSON.stringify(testVideoSource, null, 2) + '\n\n';
+                logText += `Validation result: ${isValid ? '✅ Valid' : '❌ Invalid'}\n`;
+                logText += `Formatted timestamp: ${timeUtils?.formatVideoTimestamp(testVideoSource.videoTimestamp)}\n`;
+                logText += `Button text: ${timeUtils?.getVideoButtonText(testVideoSource.videoTimestamp)}\n\n`;
+                
+                // Test the current format function from transcript-viewer
+                const formatTime = function(seconds) {
+                    const mins = Math.floor(seconds / 60);
+                    const secs = Math.floor(seconds % 60);
+                    return `${mins}:${secs.toString().padStart(2, '0')}`;
+                };
+                
+                logText += 'Current formatTime function test:\n';
+                logText += `formatTime(125) = "${formatTime(125)}"\n`;
+                logText += `New formatVideoTimestamp(125) = "${timeUtils?.formatVideoTimestamp(125)}"\n\n`;
+                
+                // Test null handling
+                logText += 'Null handling test:\n';
+                logText += `formatTime(null) = "${formatTime(null)}" (might cause issues)\n`;
+                logText += `formatVideoTimestamp(null) = "${timeUtils?.formatVideoTimestamp(null)}" (should be empty)\n\n`;
+                
+                // Test button logic
+                logText += 'Button logic test:\n';
+                [null, undefined, 0, 125, NaN].forEach(value => {
+                    logText += `videoTimestamp=${value} → "${timeUtils?.getVideoButtonText(value)}"\n`;
+                });
+                
+                resultDiv.textContent = logText;
+                
+                // Debug log
+                timeUtils?.debugTimestamp({ testVideoSource }, { isValid, formatted: timeUtils?.formatVideoTimestamp(testVideoSource.videoTimestamp) });
+                
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}`;
+            }
+        };
+
+        window.testFormatFunctions = function() {
+            const resultDiv = document.getElementById('formatFunctionsResult');
+            resultDiv.style.display = 'block';
+            
+            let logText = 'Testing Format Functions:\n\n';
+            
+            // Test cases for formatVideoTimestamp
+            const testCases = [
+                { input: null, expected: '' },
+                { input: undefined, expected: '' },
+                { input: NaN, expected: '' },
+                { input: 0, expected: '0:00' },
+                { input: 45, expected: '0:45' },
+                { input: 125, expected: '2:05' },
+                { input: 3665, expected: '1:01:05' }
+            ];
+            
+            logText += 'formatVideoTimestamp tests:\n';
+            testCases.forEach(test => {
+                const result = timeUtils?.formatVideoTimestamp(test.input);
+                const passed = result === test.expected;
+                logText += `  ${passed ? '✅' : '❌'} formatVideoTimestamp(${test.input}) = "${result}" (expected: "${test.expected}")\n`;
+            });
+            
+            logText += '\ngetVideoButtonText tests:\n';
+            testCases.forEach(test => {
+                const result = timeUtils?.getVideoButtonText(test.input);
+                const expected = (test.input !== null && test.input !== undefined && !isNaN(test.input)) ? '⏰ 返回片段' : '📹 返回影片';
+                const passed = result === expected;
+                logText += `  ${passed ? '✅' : '❌'} getVideoButtonText(${test.input}) = "${result}" (expected: "${expected}")\n`;
+            });
+            
+            resultDiv.textContent = logText;
+        };
+    </script>
+</body>
+</html>
