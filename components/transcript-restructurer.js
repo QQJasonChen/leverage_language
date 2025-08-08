@@ -530,7 +530,7 @@ class TranscriptRestructurer {
           ${platformNote}
         </div>
         
-        <!-- YouTube gets simple UI like Netflix - no complex settings -->
+        <!-- Unified controls section for all platforms -->
         
         <!-- Timing offset control for YouTube -->
         ${this.currentPlatform === 'youtube' ? `
@@ -545,31 +545,38 @@ class TranscriptRestructurer {
             Capture from <span class="timing-offset-desc">1.0</span> seconds before click (0-3s)
           </div>
         </div>
+        ` : ''}
         
-        <!-- Platform-aware keyboard shortcuts hint -->
+        <!-- Platform-aware keyboard shortcuts hint for ALL platforms -->
         <div class="keyboard-shortcuts-hint" style="margin: 5px 0; padding: 8px; background: ${
           this.currentPlatform === 'netflix' ? '#fdf1f1' : 
-          this.currentPlatform === 'udemy' ? '#f0f2ff' : '#e3f2fd'
+          this.currentPlatform === 'udemy' ? '#f0f2ff' : 
+          this.currentPlatform === 'coursera' ? '#f5f0ff' :
+          '#e3f2fd'
         }; border-radius: 4px; border-left: 3px solid ${
           this.currentPlatform === 'netflix' ? '#e50914' : 
-          this.currentPlatform === 'udemy' ? '#a435f0' : '#2196f3'
+          this.currentPlatform === 'udemy' ? '#a435f0' : 
+          this.currentPlatform === 'coursera' ? '#5624d0' :
+          '#2196f3'
         };">
           <div style="font-size: 12px; color: ${
             this.currentPlatform === 'netflix' ? '#831a1a' : 
-            this.currentPlatform === 'udemy' ? '#6a1b5a' : '#1976d2'
+            this.currentPlatform === 'udemy' ? '#6a1b5a' : 
+            this.currentPlatform === 'coursera' ? '#3a1a5a' :
+            '#1976d2'
           }; display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
             ${platformIcon} <strong>Keys:</strong> 
-            <span style="background: white; padding: 1px 4px; border-radius: 2px; margin: 0 2px; font-weight: bold;">H</span>Capture
+            <span style="background: white; padding: 1px 4px; border-radius: 2px; margin: 0 2px; font-weight: bold;">H</span>${this.currentPlatform === 'youtube' ? 'Collect' : 'Capture'}
             ${this.currentPlatform === 'netflix' ? '<span style="background: #ffeaa7; padding: 1px 4px; border-radius: 2px; margin: 0 2px; font-weight: bold;">N</span>Netflix' : ''}
             ${this.currentPlatform === 'udemy' ? '<span style="background: #dda0dd; padding: 1px 4px; border-radius: 2px; margin: 0 2px; font-weight: bold;">U</span>Udemy' : ''}
+            ${this.currentPlatform === 'coursera' ? '<span style="background: #d8bfd8; padding: 1px 4px; border-radius: 2px; margin: 0 2px; font-weight: bold;">C</span>Coursera' : ''}
             <span style="background: white; padding: 1px 4px; border-radius: 2px; margin: 0 2px;">A</span>Analyze
             <span style="background: white; padding: 1px 4px; border-radius: 2px; margin: 0 2px;">B</span>Jump
             <br><strong>Global:</strong>
-            <span style="background: #e3f2fd; padding: 1px 4px; border-radius: 2px; margin: 0 2px; font-weight: bold;">Ctrl+Shift+C</span>Capture
+            <span style="background: #e3f2fd; padding: 1px 4px; border-radius: 2px; margin: 0 2px; font-weight: bold;">Ctrl+Shift+C</span>${this.currentPlatform === 'youtube' ? 'Collect' : 'Capture'}
             <span style="background: #e3f2fd; padding: 1px 4px; border-radius: 2px; margin: 0 2px;">Ctrl+Shift+A</span>Analyze
           </div>
         </div>
-        ` : ''}
         
         <div class="transcript-status"></div>
         
@@ -4983,6 +4990,14 @@ Sentence to fix: "${preCleanedText}"`;
         box-shadow: 0 2px 8px rgba(164, 53, 240, 0.1);
       }
       
+      .platform-note.platform-coursera {
+        border: 2px solid #e3f2fd;
+        border-left: 5px solid #0056d2;
+        background: linear-gradient(135deg, #ffffff 0%, #e8f1ff 100%);
+        color: #003d82;
+        box-shadow: 0 2px 8px rgba(0, 86, 210, 0.1);
+      }
+      
       .platform-note.platform-youtube {
         border: 2px solid #e3f2fd;
         border-left: 5px solid #1976d2;
@@ -5014,7 +5029,12 @@ Sentence to fix: "${preCleanedText}"`;
       }
       
       .platform-badge.platform-udemy {
-        background: linear-gradient(135deg, #7c4dff, #5e35b1);
+        background: linear-gradient(135deg, #a435f0, #8e24cc);
+        color: white;
+      }
+      
+      .platform-badge.platform-coursera {
+        background: linear-gradient(135deg, #0056d2, #0041a8);
         color: white;
       }
       
@@ -5159,22 +5179,44 @@ Sentence to fix: "${preCleanedText}"`;
         background: #3367d6;
       }
       
-      .start-collection-btn {
+      .start-collection-btn,
+      .capture-subtitle-btn {
         display: flex;
         align-items: center;
         gap: 5px;
-        padding: 6px 12px;
-        background: #ff5722;
+        padding: 8px 16px;
+        background: ${
+          this.currentPlatform === 'netflix' ? '#e50914' : 
+          this.currentPlatform === 'udemy' ? '#a435f0' : 
+          this.currentPlatform === 'coursera' ? '#5624d0' :
+          '#ff5722' // YouTube orange
+        };
         color: white;
         border: none;
-        border-radius: 4px;
+        border-radius: 6px;
         cursor: pointer;
-        font-size: 12px;
-        transition: background 0.2s;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       }
       
-      .start-collection-btn:hover {
-        background: #e64a19;
+      .start-collection-btn:hover,
+      .capture-subtitle-btn:hover {
+        background: ${
+          this.currentPlatform === 'netflix' ? '#d40812' : 
+          this.currentPlatform === 'udemy' ? '#9422e0' : 
+          this.currentPlatform === 'coursera' ? '#4615b0' :
+          '#e64a19' // YouTube orange darker
+        };
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+      }
+      
+      .start-collection-btn:active,
+      .capture-subtitle-btn:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       }
       
       .clear-all-btn {
@@ -5193,29 +5235,6 @@ Sentence to fix: "${preCleanedText}"`;
       
       .clear-all-btn:hover {
         background: #c82333;
-      }
-      
-      .capture-subtitle-btn {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        padding: 6px 12px;
-        background: #e50914;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 12px;
-        transition: all 0.3s;
-      }
-      
-      .capture-subtitle-btn:hover {
-        background: #d40812;
-        transform: translateY(-1px);
-      }
-      
-      .capture-subtitle-btn:active {
-        transform: translateY(0);
       }
       
       .transcript-options {
