@@ -37,9 +37,19 @@
   }
 
   function extractVideoTitle(retryCount = 0, maxRetries = 3) {
+    console.log(`🔍 Netflix title extraction attempt ${retryCount + 1}/${maxRetries + 1}`);
+    console.log(`🔍 Current URL: ${window.location.href}`);
+    console.log(`🔍 Document title: "${document.title}"`);
+    
+    // Check for manual title first (for debugging)
+    if (window.manualNetflixTitle) {
+      console.log(`🔧 Using manual title: "${window.manualNetflixTitle}"`);
+      return window.manualNetflixTitle;
+    }
+    
     // Try multiple selectors for Netflix title
     const titleSelectors = [
-      // 2024+ Netflix selectors - most current
+      // 2025+ Netflix selectors - most current (added more modern selectors)
       '[data-uia="video-title"]',
       '[data-uia="title-text"]',
       '[data-uia="player-title"]',
@@ -47,6 +57,16 @@
       '[data-uia="episode-title"]',
       '[data-uia="series-title"]',
       '[data-uia="title-card"] h1',
+      '[data-uia="title-card"] [class*="title"]',
+      
+      // New Netflix 2025 selectors (common patterns)
+      'h1[data-uia*="title"]',
+      'h2[data-uia*="title"]',
+      'h3[data-uia*="title"]',
+      '[class*="title"][class*="player"]',
+      '[class*="video"][class*="title"]',
+      '[class*="episode"][class*="title"]',
+      '[class*="series"][class*="title"]',
       '[data-uia="title-card"] h2',
       '[data-uia="title-card"] h3',
       '[data-uia="title-card"] h4',
@@ -116,6 +136,21 @@
       'section h1',
       'section h2',
       
+      // Additional Netflix-specific patterns (2025)
+      '[class*="playback-video-player"] h1',
+      '[class*="playback-video-player"] h2',  
+      '[class*="watch-video"] h1',
+      '[class*="watch-video"] h2',
+      '[class*="title-treatment"]',
+      '[class*="preplay-title"]',
+      '[class*="episode-selector"] h1',
+      '[class*="episode-selector"] h2',
+      
+      // Fallback to any element with title-like attributes
+      '[title]:not([title=""])',
+      '[aria-label*="title"]',
+      '[aria-label*="Title"]',
+      
       // Very generic fallbacks (lowest priority)
       'h1[class*="title"]',
       'h2[class*="title"]',
@@ -125,12 +160,16 @@
       'h2'
     ];
 
-    console.log('🔍 Netflix title extraction - trying selectors...');
+    console.log(`🔍 Netflix title extraction - trying ${titleSelectors.length} selectors...`);
     
-    for (const selector of titleSelectors) {
+    for (let i = 0; i < titleSelectors.length; i++) {
+      const selector = titleSelectors[i];
       const element = document.querySelector(selector);
+      console.log(`🔍 Selector ${i + 1}/${titleSelectors.length}: "${selector}" → ${element ? `Found: "${element.textContent?.trim().substring(0, 50)}..."` : 'Not found'}`);
+      
       if (element && element.textContent.trim()) {
         const title = element.textContent.trim();
+        console.log(`🔍 Checking title: "${title}"`);
         
         // Filter out common Netflix UI elements and non-content titles
         const uiTexts = [
@@ -274,7 +313,44 @@
       }
     }
 
-    console.log('❌ No Netflix title found after exhaustive search, using default fallback');
+    // For now, keep synchronous but add better immediate detection
+    // (Async retry can be added later if needed)
+    
+    console.log('❌ No Netflix title found after exhaustive search');
+    
+    // Debug: List all available headings on the page
+    console.log('🔍 Debug: All headings found on page:');
+    const allHeadings = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
+    allHeadings.forEach((heading, index) => {
+      console.log(`  ${index + 1}. <${heading.tagName.toLowerCase()}> "${heading.textContent?.trim().substring(0, 50)}..." (classes: ${heading.className})`);
+    });
+    
+    // Debug: List all elements with data-uia attributes
+    console.log('🔍 Debug: All data-uia elements:');
+    const allDataUia = document.querySelectorAll('[data-uia]');
+    allDataUia.forEach((element, index) => {
+      if (index < 20) { // Limit to first 20 to avoid spam
+        console.log(`  ${index + 1}. data-uia="${element.getAttribute('data-uia')}" text="${element.textContent?.trim().substring(0, 30)}..."`);
+      }
+    });
+    
+    // Enhanced fallback: Try to extract from URL path or use more descriptive default
+    const urlPath = window.location.pathname;
+    const videoId = extractNetflixVideoId();
+    
+    if (videoId) {
+      const fallbackTitle = `Netflix Content (ID: ${videoId})`;
+      console.log(`🔄 Using video ID fallback: "${fallbackTitle}"`);
+      return fallbackTitle;
+    }
+    
+    if (urlPath && urlPath !== '/watch' && urlPath !== '/') {
+      const pathFallback = `Netflix Content (${urlPath.replace(/^\//, '').replace(/\/$/, '')})`;
+      console.log(`🔄 Using path fallback: "${pathFallback}"`);
+      return pathFallback;
+    }
+    
+    console.log('🔄 Using generic fallback');
     return 'Netflix Video';
   }
 
@@ -1135,6 +1211,58 @@
             episodeInfo: netflixEpisodeInfo,
             url: window.location.href
           });
+          break;
+
+        case 'debugTitleExtraction':
+          console.log('🔧 Debug title extraction requested');
+          const debugTitle = extractVideoTitle();
+          const videoId = extractNetflixVideoId();
+          const headings = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
+          const dataUiaElements = document.querySelectorAll('[data-uia]');
+          
+          // Test selectors for debugging
+          const testSelectors = [
+            '[data-uia="video-title"]',
+            '[data-uia="title-text"]',
+            '[data-uia="player-title"]',
+            'h1', 'h2',
+            '[class*="title"]'
+          ];
+          
+          const debugSelectors = testSelectors.map(selector => {
+            const element = document.querySelector(selector);
+            return {
+              selector: selector,
+              found: !!element,
+              text: element ? element.textContent.trim() : ''
+            };
+          });
+          
+          sendResponse({
+            success: true,
+            title: debugTitle,
+            videoId: videoId,
+            documentTitle: document.title,
+            headingsCount: headings.length,
+            dataUiaCount: dataUiaElements.length,
+            debugSelectors: debugSelectors
+          });
+          break;
+
+        case 'testSelector':
+          const element = document.querySelector(request.selector);
+          sendResponse({
+            found: !!element,
+            text: element ? element.textContent.trim() : '',
+            selector: request.selector
+          });
+          break;
+
+        case 'setManualTitle':
+          // Store manual title for testing
+          window.manualNetflixTitle = request.title;
+          console.log(`🔧 Manual title set: "${request.title}"`);
+          sendResponse({ success: true });
           break;
 
         case 'getComprehensiveVideoInfo':

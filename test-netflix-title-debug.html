@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Netflix Title Detection Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+        .log { background: #f5f5f5; padding: 10px; border-radius: 4px; margin: 10px 0; font-family: monospace; white-space: pre-wrap; }
+        button { padding: 8px 16px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; background: #007bff; color: white; }
+        .warning { background: #fff3cd; border: 1px solid #ffc107; color: #856404; }
+        .success { background: #d4edda; border: 1px solid #28a745; color: #155724; }
+        .error { background: #f8d7da; border: 1px solid #dc3545; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>🎭 Netflix Title Detection Debug Tool</h1>
+    
+    <div class="section warning">
+        <h3>⚠️ Instructions</h3>
+        <p>This debug tool helps identify why Netflix titles are not being detected correctly.</p>
+        <ol>
+            <li><strong>Open Netflix in another tab</strong> - Navigate to any video you're watching</li>
+            <li><strong>Come back to this tab</strong></li>
+            <li><strong>Click "Debug Netflix Title"</strong> to analyze the Netflix page</li>
+            <li><strong>Check the logs</strong> to see what titles and elements are found</li>
+        </ol>
+    </div>
+
+    <div class="section">
+        <h3>Current Issue Analysis</h3>
+        <p>The issue you described shows:</p>
+        <ul>
+            <li>🔴 <strong>Wrong title</strong>: "www.netflix.com" instead of actual content name</li>
+            <li>🔴 <strong>Generic message</strong>: "the video is gone again" suggesting detection failure</li>
+        </ul>
+        <p>This typically happens when:</p>
+        <ul>
+            <li>Netflix changes their HTML structure (common with updates)</li>
+            <li>Title elements load after our script runs</li>
+            <li>Regional differences in Netflix interface</li>
+            <li>Ad-blockers or extensions interfering</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h3>Netflix Page Analysis</h3>
+        <button onclick="debugNetflixTitle()">🔍 Debug Netflix Title Detection</button>
+        <button onclick="clearLog()">🗑️ Clear Log</button>
+        <div id="debugLog" class="log" style="display: none;"></div>
+    </div>
+
+    <div class="section">
+        <h3>Test Selectors</h3>
+        <p>Test individual CSS selectors that might contain the Netflix title:</p>
+        <button onclick="testCommonSelectors()">🧪 Test Common Selectors</button>
+        <button onclick="testDataUiaSelectors()">🧪 Test Data-UIA Selectors</button>
+        <div id="selectorLog" class="log" style="display: none;"></div>
+    </div>
+
+    <div class="section">
+        <h3>Manual Title Entry</h3>
+        <p>If detection fails, you can manually specify what the title should be:</p>
+        <input type="text" id="manualTitle" placeholder="Enter the correct Netflix title..." style="width: 300px; padding: 8px;">
+        <button onclick="testWithManualTitle()">📝 Test Manual Title</button>
+        <div id="manualLog" class="log" style="display: none;"></div>
+    </div>
+
+    <script>
+        function clearLog() {
+            document.getElementById('debugLog').style.display = 'none';
+            document.getElementById('selectorLog').style.display = 'none';
+            document.getElementById('manualLog').style.display = 'none';
+        }
+
+        async function debugNetflixTitle() {
+            const logDiv = document.getElementById('debugLog');
+            logDiv.style.display = 'block';
+            logDiv.textContent = 'Analyzing Netflix pages...\n\n';
+
+            try {
+                // Get all Netflix tabs
+                const tabs = await chrome.tabs.query({ url: '*://*.netflix.com/*' });
+                
+                if (tabs.length === 0) {
+                    logDiv.textContent += '❌ No Netflix tabs found. Please open Netflix first.\n';
+                    return;
+                }
+
+                logDiv.textContent += `✅ Found ${tabs.length} Netflix tab(s)\n\n`;
+
+                for (let i = 0; i < tabs.length; i++) {
+                    const tab = tabs[i];
+                    logDiv.textContent += `📺 Tab ${i + 1}: ${tab.title}\n`;
+                    logDiv.textContent += `   URL: ${tab.url}\n`;
+
+                    try {
+                        // Send message to Netflix content script to get debug info
+                        const response = await chrome.tabs.sendMessage(tab.id, { 
+                            action: 'debugTitleExtraction' 
+                        });
+
+                        if (response && response.success) {
+                            logDiv.textContent += `   ✅ Title extraction result: "${response.title}"\n`;
+                            logDiv.textContent += `   📊 Debug info:\n`;
+                            logDiv.textContent += `      - Video ID: ${response.videoId || 'Not found'}\n`;
+                            logDiv.textContent += `      - Document title: ${response.documentTitle}\n`;
+                            logDiv.textContent += `      - Headings found: ${response.headingsCount || 0}\n`;
+                            logDiv.textContent += `      - Data-UIA elements: ${response.dataUiaCount || 0}\n`;
+                            
+                            if (response.debugSelectors) {
+                                logDiv.textContent += `   🔍 Selector results (first 10):\n`;
+                                response.debugSelectors.slice(0, 10).forEach((result, index) => {
+                                    logDiv.textContent += `      ${index + 1}. "${result.selector}" → ${result.found ? `"${result.text.substring(0, 30)}..."` : 'Not found'}\n`;
+                                });
+                            }
+                        } else {
+                            logDiv.textContent += `   ❌ No response from content script\n`;
+                            logDiv.textContent += `   💡 Try refreshing the Netflix page and retry\n`;
+                        }
+                    } catch (error) {
+                        logDiv.textContent += `   ❌ Error communicating with tab: ${error.message}\n`;
+                    }
+                    
+                    logDiv.textContent += '\n';
+                }
+
+            } catch (error) {
+                logDiv.textContent += `❌ Error: ${error.message}\n`;
+            }
+        }
+
+        async function testCommonSelectors() {
+            const logDiv = document.getElementById('selectorLog');
+            logDiv.style.display = 'block';
+            logDiv.textContent = 'Testing common Netflix selectors...\n\n';
+
+            const commonSelectors = [
+                'h1',
+                'h2', 
+                '[data-uia*="title"]',
+                '[class*="title"]',
+                '.video-title',
+                '.episode-title',
+                '.series-title'
+            ];
+
+            try {
+                const tabs = await chrome.tabs.query({ url: '*://*.netflix.com/*' });
+                if (tabs.length === 0) {
+                    logDiv.textContent += '❌ No Netflix tabs found.\n';
+                    return;
+                }
+
+                const tab = tabs[0];
+                for (const selector of commonSelectors) {
+                    try {
+                        const result = await chrome.tabs.sendMessage(tab.id, {
+                            action: 'testSelector',
+                            selector: selector
+                        });
+                        
+                        logDiv.textContent += `"${selector}" → ${result.found ? `Found: "${result.text}"` : 'Not found'}\n`;
+                    } catch (error) {
+                        logDiv.textContent += `"${selector}" → Error: ${error.message}\n`;
+                    }
+                }
+            } catch (error) {
+                logDiv.textContent += `Error: ${error.message}\n`;
+            }
+        }
+
+        async function testDataUiaSelectors() {
+            const logDiv = document.getElementById('selectorLog');
+            logDiv.style.display = 'block';
+            logDiv.textContent = 'Testing Netflix data-uia selectors...\n\n';
+
+            const dataUiaSelectors = [
+                '[data-uia="video-title"]',
+                '[data-uia="title-text"]', 
+                '[data-uia="player-title"]',
+                '[data-uia="episode-title"]',
+                '[data-uia="series-title"]'
+            ];
+
+            try {
+                const tabs = await chrome.tabs.query({ url: '*://*.netflix.com/*' });
+                if (tabs.length === 0) {
+                    logDiv.textContent += '❌ No Netflix tabs found.\n';
+                    return;
+                }
+
+                const tab = tabs[0];
+                for (const selector of dataUiaSelectors) {
+                    try {
+                        const result = await chrome.tabs.sendMessage(tab.id, {
+                            action: 'testSelector',
+                            selector: selector
+                        });
+                        
+                        logDiv.textContent += `"${selector}" → ${result.found ? `Found: "${result.text}"` : 'Not found'}\n`;
+                    } catch (error) {
+                        logDiv.textContent += `"${selector}" → Error: ${error.message}\n`;
+                    }
+                }
+            } catch (error) {
+                logDiv.textContent += `Error: ${error.message}\n`;
+            }
+        }
+
+        async function testWithManualTitle() {
+            const manualTitle = document.getElementById('manualTitle').value;
+            const logDiv = document.getElementById('manualLog');
+            
+            if (!manualTitle.trim()) {
+                alert('Please enter a title to test with');
+                return;
+            }
+
+            logDiv.style.display = 'block';
+            logDiv.textContent = `Testing with manual title: "${manualTitle}"\n\n`;
+
+            try {
+                const tabs = await chrome.tabs.query({ url: '*://*.netflix.com/*' });
+                if (tabs.length === 0) {
+                    logDiv.textContent += '❌ No Netflix tabs found.\n';
+                    return;
+                }
+
+                const tab = tabs[0];
+                const result = await chrome.tabs.sendMessage(tab.id, {
+                    action: 'setManualTitle',
+                    title: manualTitle
+                });
+
+                if (result && result.success) {
+                    logDiv.textContent += `✅ Manual title set successfully\n`;
+                    logDiv.textContent += `📋 Title will now appear as: "${manualTitle}"\n`;
+                    logDiv.textContent += `💡 Try capturing subtitles now to test\n`;
+                } else {
+                    logDiv.textContent += `❌ Failed to set manual title\n`;
+                }
+
+            } catch (error) {
+                logDiv.textContent += `Error: ${error.message}\n`;
+            }
+        }
+    </script>
+</body>
+</html>
