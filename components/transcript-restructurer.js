@@ -2560,8 +2560,14 @@ Sentence to fix: "${preCleanedText}"`;
   // ✅ NEW: Show transcript in popup window
   showTranscriptPopup(segments) {
     const transcriptText = segments.map(segment => segment.text).join(' ');
-    const platformIcon = this.currentPlatform === 'netflix' ? '🎭' : '📺';
-    const platformName = this.currentPlatform === 'netflix' ? 'Netflix' : 'YouTube';
+    const platformIcon = this.currentPlatform === 'netflix' ? '🎭' : 
+                         this.currentPlatform === 'udemy' ? '📚' : 
+                         this.currentPlatform === 'coursera' ? '🎓' :
+                         '📺'; // Default: YouTube
+    const platformName = this.currentPlatform === 'netflix' ? 'Netflix' : 
+                         this.currentPlatform === 'udemy' ? 'Udemy' : 
+                         this.currentPlatform === 'coursera' ? 'Coursera' :
+                         'YouTube';
     
     // Create popup content
     const popupContent = `
