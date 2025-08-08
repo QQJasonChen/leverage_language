@@ -48,14 +48,7 @@ class TranscriptViewer {
               </svg>
               <span>Select & Export</span>
             </button>
-            <button class="multi-capture-btn" title="Select multiple sentences for AI analysis (max 5)">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M9 11l3 3L22 4"/>
-                <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-              <span>Multi-Capture</span>
-            </button>
+            
           </div>
         </div>
         
@@ -87,20 +80,7 @@ class TranscriptViewer {
           </div>
         </div>
         
-        <!-- ✅ NEW: Multi-capture controls -->
-        <div class="multi-capture-controls" style="display: none;">
-          <div class="capture-header">
-            <div class="select-controls">
-              <button class="select-all-capture-btn">Select All</button>
-              <button class="select-none-capture-btn">Select None</button>
-              <span class="capture-selected-count">0 selected (max 5)</span>
-            </div>
-            <div class="capture-actions">
-              <button class="capture-selected-btn" disabled>✨ Capture Selected for AI</button>
-              <button class="cancel-multi-capture-btn">Cancel</button>
-            </div>
-          </div>
-        </div>
+        
         
         <div class="transcript-content"></div>
         
@@ -484,7 +464,7 @@ class TranscriptViewer {
     const highlightBtn = this.container.querySelector('.highlight-btn');
     const exportBtn = this.container.querySelector('.export-highlights-btn');
     const bulkExportBtn = this.container.querySelector('.bulk-export-btn');
-    const multiCaptureBtn = this.container.querySelector('.multi-capture-btn');
+    const multiCaptureBtn = null;
     const editBtn = this.container.querySelector('.edit-mode-btn');
     
     // Edit mode toggle
@@ -554,22 +534,7 @@ class TranscriptViewer {
         return;
       }
       
-      // Handle multi-capture checkbox clicks
-      if (e.target.classList.contains('capture-checkbox')) {
-        const index = parseInt(e.target.dataset.index);
-        if (e.target.checked) {
-          if (this.selectedForCapture.size >= 5) {
-            e.target.checked = false;
-            this.showToast('❌ Maximum 5 sentences allowed for multi-capture');
-            return;
-          }
-          this.selectedForCapture.add(index);
-        } else {
-          this.selectedForCapture.delete(index);
-        }
-        this.updateCaptureCountDisplay();
-        return;
-      }
+      // Multi-capture removed
       
       // Handle capture sentence button clicks
       if (e.target.classList.contains('capture-sentence-btn')) {
@@ -711,18 +676,10 @@ class TranscriptViewer {
     if (cancelBulkBtn) cancelBulkBtn.addEventListener('click', () => this.toggleBulkExportMode());
     
     // ✅ NEW: Multi-capture mode
-    if (multiCaptureBtn) multiCaptureBtn.addEventListener('click', () => this.toggleMultiCaptureMode());
+    // Multi-capture feature removed
     
     // ✅ NEW: Multi-capture controls
-    const selectAllCaptureBtn = this.container.querySelector('.select-all-capture-btn');
-    const selectNoneCaptureBtn = this.container.querySelector('.select-none-capture-btn');
-    const captureSelectedBtn = this.container.querySelector('.capture-selected-btn');
-    const cancelMultiCaptureBtn = this.container.querySelector('.cancel-multi-capture-btn');
-    
-    if (selectAllCaptureBtn) selectAllCaptureBtn.addEventListener('click', () => this.selectAllForCapture());
-    if (selectNoneCaptureBtn) selectNoneCaptureBtn.addEventListener('click', () => this.selectNoneForCapture());
-    if (captureSelectedBtn) captureSelectedBtn.addEventListener('click', () => this.captureSelectedSentences());
-    if (cancelMultiCaptureBtn) cancelMultiCaptureBtn.addEventListener('click', () => this.toggleMultiCaptureMode());
+    // Multi-capture controls removed
     
     // Remove tooltip on click outside
     document.addEventListener('click', (e) => {
@@ -961,13 +918,9 @@ class TranscriptViewer {
                   ${this.editMode ? '<div class="edit-indicator">✏️ Click to edit</div>' : ''}
                 </td>
                 <td class="actions-cell">
-                  ${this.multiCaptureMode ? `
-                    <input type="checkbox" class="capture-checkbox" data-index="${arrayIndex}" ${this.selectedForCapture.has(arrayIndex) ? 'checked' : ''}>
-                  ` : `
-                    <button class="capture-sentence-btn" title="Capture for AI analysis" data-text="${this.escapeHtml(segment.cleanText)}" data-timestamp="${segment.timestampDisplay}" data-link="${this.platform === 'netflix' ? (segment.netflixUrl || segment.youtubeLink) : segment.youtubeLink}" data-start="${segment.timestampInSeconds}">
-                      ✨
-                    </button>
-                  `}
+                  <button class="capture-sentence-btn" title="Capture for AI analysis" data-text="${this.escapeHtml(segment.cleanText)}" data-timestamp="${segment.timestampDisplay}" data-link="${this.platform === 'netflix' ? (segment.netflixUrl || segment.youtubeLink) : segment.youtubeLink}" data-start="${segment.timestampInSeconds}">
+                    ✨
+                  </button>
                   <button class="save-sentence-btn" title="Save to learning history" data-text="${this.escapeHtml(segment.cleanText)}" data-timestamp="${segment.timestampDisplay}" data-link="${this.platform === 'netflix' ? (segment.netflixUrl || segment.youtubeLink) : segment.youtubeLink}">
                     💾
                   </button>
@@ -1135,6 +1088,7 @@ class TranscriptViewer {
         const youTubeTabs = allTabs.filter(tab => tab.url && tab.url.includes('youtube.com'));
         const udemyTabs = allTabs.filter(tab => tab.url && tab.url.includes('udemy.com'));
         const netflixTabs = allTabs.filter(tab => tab.url && tab.url.includes('netflix.com'));
+        const courseraTabs = allTabs.filter(tab => tab.url && tab.url.includes('coursera.org'));
         
         // Prioritize active tab, then any available platform tab
         let targetTab = null;
@@ -1154,6 +1108,10 @@ class TranscriptViewer {
           targetTab = activeTab;
           platform = 'Netflix';
           seekAction = 'seekToTime'; // Netflix uses same action
+        } else if (activeTab && activeTab.url.includes('coursera.org')) {
+          targetTab = activeTab;
+          platform = 'Coursera';
+          seekAction = 'seekCourseraVideo';
         } else if (youTubeTabs.length > 0) {
           targetTab = youTubeTabs[0];
           platform = 'YouTube';
@@ -1166,12 +1124,16 @@ class TranscriptViewer {
           targetTab = netflixTabs[0];
           platform = 'Netflix';
           seekAction = 'seekToTime';
+        } else if (courseraTabs.length > 0) {
+          targetTab = courseraTabs[0];
+          platform = 'Coursera';
+          seekAction = 'seekCourseraVideo';
         }
         
         if (targetTab) {
           console.log(`📺 Sending seek message to ${platform} tab:`, targetTab.id);
-          const message = platform === 'Udemy' ? 
-            { action: seekAction, time: Math.floor(seconds) } :
+          const message = platform === 'YouTube' ? 
+            { action: seekAction, timestamp: Math.floor(seconds) } :
             { action: seekAction, time: Math.floor(seconds) };
             
           chrome.tabs.sendMessage(targetTab.id, message, (response) => {
@@ -1188,7 +1150,7 @@ class TranscriptViewer {
           });
         } else {
           console.error('❌ No supported platform tabs found');
-          this.showToast('❌ Please open YouTube, Udemy, or Netflix first');
+          this.showToast('❌ Please open YouTube, Udemy, Netflix, or Coursera first');
         }
       });
       
@@ -1682,124 +1644,7 @@ class TranscriptViewer {
     return div.innerHTML;
   }
 
-  // ✅ NEW: Multi-capture functionality
-  toggleMultiCaptureMode() {
-    this.multiCaptureMode = !this.multiCaptureMode;
-    const controls = this.container.querySelector('.multi-capture-controls');
-    const button = this.container.querySelector('.multi-capture-btn');
-    
-    if (this.multiCaptureMode) {
-      controls.style.display = 'block';
-      button.style.background = '#FF9800';
-      button.querySelector('span').textContent = 'Cancel Multi-Capture';
-      this.selectedForCapture.clear();
-      this.updateCaptureCountDisplay();
-      this.renderTranscript(); // Re-render to show checkboxes
-    } else {
-      controls.style.display = 'none';
-      button.style.background = '';
-      button.querySelector('span').textContent = 'Multi-Capture';
-      this.selectedForCapture.clear();
-      this.renderTranscript(); // Re-render to hide checkboxes
-    }
-  }
-  
-  selectAllForCapture() {
-    // Limit to max 5 sentences
-    const segments = this.transcriptData.slice(0, 5);
-    this.selectedForCapture.clear();
-    
-    segments.forEach((segment, index) => {
-      this.selectedForCapture.add(index);
-    });
-    
-    this.updateCaptureCountDisplay();
-    this.updateCaptureCheckboxes();
-  }
-  
-  selectNoneForCapture() {
-    this.selectedForCapture.clear();
-    this.updateCaptureCountDisplay();
-    this.updateCaptureCheckboxes();
-  }
-  
-  updateCaptureCountDisplay() {
-    const countSpan = this.container.querySelector('.capture-selected-count');
-    const captureBtn = this.container.querySelector('.capture-selected-btn');
-    
-    if (countSpan) {
-      countSpan.textContent = `${this.selectedForCapture.size} selected (max 5)`;
-    }
-    
-    if (captureBtn) {
-      captureBtn.disabled = this.selectedForCapture.size === 0;
-    }
-  }
-  
-  updateCaptureCheckboxes() {
-    const checkboxes = this.container.querySelectorAll('.capture-checkbox');
-    checkboxes.forEach((checkbox, index) => {
-      checkbox.checked = this.selectedForCapture.has(index);
-    });
-  }
-  
-  async captureSelectedSentences() {
-    if (this.selectedForCapture.size === 0) {
-      this.showToast('❌ No sentences selected for capture');
-      return;
-    }
-    
-    if (this.selectedForCapture.size > 5) {
-      this.showToast('❌ Maximum 5 sentences allowed for multi-capture');
-      return;
-    }
-    
-    try {
-      console.log('✨ Starting multi-sentence capture for', this.selectedForCapture.size, 'sentences');
-      
-      // Collect selected sentences
-      const selectedSentences = [];
-      Array.from(this.selectedForCapture).forEach(index => {
-        if (this.transcriptData[index]) {
-          selectedSentences.push({
-            text: this.transcriptData[index].cleanText || this.transcriptData[index].text,
-            timestamp: this.transcriptData[index].timestampDisplay,
-            timestampInSeconds: this.transcriptData[index].start
-          });
-        }
-      });
-      
-      // Combine sentences with newlines for better AI analysis
-      const combinedText = selectedSentences.map(s => s.text).join('\n');
-      const firstTimestamp = selectedSentences[0].timestamp;
-      const firstTimestampSeconds = selectedSentences[0].timestampInSeconds;
-      
-      console.log('📝 Combined text for analysis:', combinedText);
-      
-      // Create YouTube link for first timestamp
-      const youtubeLink = this.platform === 'youtube' ? 
-        this.createYouTubeLink(firstTimestampSeconds) : 
-        window.location.href;
-      
-      // Use the existing captureSentenceForAnalysis but with combined text
-      await this.captureSentenceForAnalysis(
-        combinedText, 
-        firstTimestamp, 
-        youtubeLink, 
-        firstTimestampSeconds
-      );
-      
-      // Show success feedback
-      this.showToast(`✨ Captured ${selectedSentences.length} sentences for AI analysis!`);
-      
-      // Exit multi-capture mode
-      this.toggleMultiCaptureMode();
-      
-    } catch (error) {
-      console.error('❌ Failed to capture selected sentences:', error);
-      this.showToast('❌ Failed to capture sentences. Please try again.');
-    }
-  }
+  // Multi-capture feature removed
 
   addStyles() {
     const style = document.createElement('style');
