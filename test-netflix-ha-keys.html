@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Netflix H & A Keys Integration</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+        .log { background: #f5f5f5; padding: 10px; border-radius: 4px; margin: 10px 0; font-family: monospace; white-space: pre-wrap; }
+        button { padding: 8px 16px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; background: #007bff; color: white; }
+        .warning { background: #fff3cd; border: 1px solid #ffc107; color: #856404; }
+        .success { background: #d4edda; border: 1px solid #28a745; color: #155724; }
+        .error { background: #f8d7da; border: 1px solid #dc3545; color: #721c24; }
+        .key-demo { background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0; }
+        .step { margin: 10px 0; padding: 10px; background: #e9ecef; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>🎭 Netflix H & A Keys Integration Test</h1>
+    
+    <div class="section warning">
+        <h3>⚠️ How the Netflix Keys Should Work</h3>
+        <div class="key-demo">
+            <strong>H Key (Capture)</strong>: Captures current Netflix subtitle and stores it<br>
+            <strong>A Key (Analyze)</strong>: Analyzes the last captured sentence and switches to AI Analysis tab
+        </div>
+        <p><strong>Issue Fixed</strong>: The 'A' key was showing "❌ No sentences to analyze - capture some first" because captured text wasn't being stored properly for keyboard shortcuts.</p>
+    </div>
+
+    <div class="section">
+        <h3>🧪 Test Procedure</h3>
+        <div class="step"><strong>Step 1</strong>: Open Netflix and start playing any video with subtitles</div>
+        <div class="step"><strong>Step 2</strong>: Press <code>H</code> key to capture a subtitle</div>
+        <div class="step"><strong>Step 3</strong>: Press <code>A</code> key to analyze the captured subtitle</div>
+        <div class="step"><strong>Step 4</strong>: Verify that AI Analysis tab opens with the captured text</div>
+    </div>
+
+    <div class="section">
+        <h3>🔍 Debug Netflix Shortcuts</h3>
+        <button onclick="debugNetflixShortcuts()">Check Netflix Shortcut Storage</button>
+        <button onclick="testShortcutFlow()">Test H→A Flow Simulation</button>
+        <button onclick="clearLog()">Clear Log</button>
+        <div id="debugLog" class="log" style="display: none;"></div>
+    </div>
+
+    <div class="section">
+        <h3>📝 Expected Behavior After Fix</h3>
+        <ul>
+            <li>✅ <strong>H Key</strong>: Should capture subtitle AND store it for shortcuts</li>
+            <li>✅ <strong>A Key</strong>: Should find stored text and analyze it</li>
+            <li>✅ <strong>Integration</strong>: Should work seamlessly without "No sentences to analyze" error</li>
+        </ul>
+    </div>
+
+    <div class="section success">
+        <h3>✅ Fix Applied</h3>
+        <p>The <code>captureCurrentSubtitle</code> function now calls <code>addCapturedSentence()</code> which properly stores the captured text in <code>this.lastCapturedText</code> for the 'A' shortcut to use.</p>
+        <p><strong>Technical Details</strong>:</p>
+        <ul>
+            <li>Added call to <code>addCapturedSentence()</code> after successful Netflix subtitle capture</li>
+            <li>This ensures <code>this.lastCapturedText</code> is set for the 'A' key to find</li>
+            <li>Now both table display AND shortcut storage work correctly</li>
+        </ul>
+    </div>
+
+    <script>
+        function clearLog() {
+            document.getElementById('debugLog').style.display = 'none';
+        }
+
+        async function debugNetflixShortcuts() {
+            const logDiv = document.getElementById('debugLog');
+            logDiv.style.display = 'block';
+            logDiv.textContent = 'Debugging Netflix shortcut storage...\n\n';
+
+            try {
+                // Get Netflix tabs
+                const tabs = await chrome.tabs.query({ url: '*://*.netflix.com/*' });
+                
+                if (tabs.length === 0) {
+                    logDiv.textContent += '❌ No Netflix tabs found. Please open Netflix first.\n';
+                    return;
+                }
+
+                const tab = tabs[0];
+                logDiv.textContent += `📺 Found Netflix tab: ${tab.title}\n\n`;
+
+                // Send message to get stored shortcut data
+                try {
+                    const response = await chrome.tabs.sendMessage(tab.id, { 
+                        action: 'getShortcutDebugInfo' 
+                    });
+
+                    if (response && response.success) {
+                        logDiv.textContent += '📊 Transcript Restructurer State:\n';
+                        logDiv.textContent += `   - Has lastCapturedText: ${response.hasLastCapturedText}\n`;
+                        logDiv.textContent += `   - Has lastCapturedTimestamp: ${response.hasLastCapturedTimestamp}\n`;
+                        logDiv.textContent += `   - Current platform: ${response.currentPlatform}\n`;
+                        logDiv.textContent += `   - Table rows: ${response.tableRows}\n`;
+                        
+                        if (response.lastCapturedText) {
+                            logDiv.textContent += `   - Last captured text: "${response.lastCapturedText.substring(0, 50)}..."\n`;
+                        }
+                        
+                        if (response.hasLastCapturedText) {
+                            logDiv.textContent += '\n✅ A key should work - stored text available\n';
+                        } else {
+                            logDiv.textContent += '\n❌ A key will fail - no stored text available\n';
+                            logDiv.textContent += '💡 Try pressing H key first to capture a subtitle\n';
+                        }
+                    } else {
+                        logDiv.textContent += '❌ No response from transcript restructurer\n';
+                        logDiv.textContent += '💡 This might mean the sidepanel is not open\n';
+                    }
+                } catch (error) {
+                    logDiv.textContent += `❌ Error getting debug info: ${error.message}\n`;
+                }
+
+            } catch (error) {
+                logDiv.textContent += `❌ Error: ${error.message}\n`;
+            }
+        }
+
+        async function testShortcutFlow() {
+            const logDiv = document.getElementById('debugLog');
+            logDiv.style.display = 'block';
+            logDiv.textContent = 'Testing H→A shortcut flow...\n\n';
+
+            try {
+                const tabs = await chrome.tabs.query({ url: '*://*.netflix.com/*' });
+                
+                if (tabs.length === 0) {
+                    logDiv.textContent += '❌ No Netflix tabs found. Please open Netflix first.\n';
+                    return;
+                }
+
+                const tab = tabs[0];
+
+                // Step 1: Simulate H key press
+                logDiv.textContent += '1️⃣ Simulating H key (capture)...\n';
+                
+                try {
+                    const captureResponse = await chrome.tabs.sendMessage(tab.id, { 
+                        action: 'simulateHKey' 
+                    });
+                    
+                    if (captureResponse && captureResponse.success) {
+                        logDiv.textContent += `   ✅ Capture successful: "${captureResponse.capturedText}"\n`;
+                        logDiv.textContent += `   📊 Stored for A key: ${captureResponse.storedForShortcut ? 'Yes' : 'No'}\n\n`;
+                        
+                        // Step 2: Simulate A key press
+                        logDiv.textContent += '2️⃣ Simulating A key (analyze)...\n';
+                        
+                        const analyzeResponse = await chrome.tabs.sendMessage(tab.id, { 
+                            action: 'simulateAKey' 
+                        });
+                        
+                        if (analyzeResponse && analyzeResponse.success) {
+                            logDiv.textContent += `   ✅ Analysis successful!\n`;
+                            logDiv.textContent += `   📝 Analyzed text: "${analyzeResponse.analyzedText}"\n`;
+                            logDiv.textContent += `   🎯 Switched to AI tab: ${analyzeResponse.switchedTab ? 'Yes' : 'No'}\n\n`;
+                            logDiv.textContent += '🎉 H→A flow working correctly!\n';
+                        } else {
+                            logDiv.textContent += `   ❌ Analysis failed: ${analyzeResponse?.error || 'Unknown error'}\n`;
+                        }
+                        
+                    } else {
+                        logDiv.textContent += `   ❌ Capture failed: ${captureResponse?.error || 'Unknown error'}\n`;
+                    }
+                    
+                } catch (error) {
+                    logDiv.textContent += `❌ Error in shortcut flow: ${error.message}\n`;
+                    logDiv.textContent += '💡 This test requires the extension sidepanel to be open\n';
+                }
+
+            } catch (error) {
+                logDiv.textContent += `❌ Error: ${error.message}\n`;
+            }
+        }
+    </script>
+</body>
+</html>

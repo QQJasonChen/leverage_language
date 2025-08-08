@@ -4470,6 +4470,14 @@ Sentence to fix: "${preCleanedText}"`;
         // Show ALL captured segments in the transcript viewer
         this.displayTranscriptInReader([...this[segmentsArrayName]]);
         
+        // ✅ FIX: Also store for A shortcut - call addCapturedSentence to properly store text
+        this.addCapturedSentence({
+          text: subtitleText,
+          timestamp: timestamp,
+          videoInfo: videoInfo,
+          platform: platform
+        });
+        
         // Add some visual feedback
         captureBtn.style.backgroundColor = '#4CAF50';
         captureBtn.style.color = 'white';
