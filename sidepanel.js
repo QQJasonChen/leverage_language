@@ -6118,6 +6118,64 @@ function updateErrorDetectionButtonUI() {
   }
 }
 
+// Toggle between default and custom prompts
+async function togglePromptType() {
+  try {
+    // Get current setting
+    const result = await chrome.storage.sync.get(['useCustomPrompt']);
+    const currentIsCustom = result.useCustomPrompt === 'true';
+    const newIsCustom = !currentIsCustom;
+    
+    // Save new setting
+    await chrome.storage.sync.set({ useCustomPrompt: newIsCustom.toString() });
+    
+    // Update UI
+    updatePromptTypeIndicator();
+    
+    // Reinitialize AI service to pick up the new setting
+    if (window.aiService) {
+      await window.aiService.initialize();
+    }
+    
+    // Show feedback
+    const message = newIsCustom ? 'Switched to Custom prompt' : 'Switched to Default prompt';
+    console.log('🔄 Prompt type toggled:', message);
+    
+    // Visual feedback on the toggle button
+    const toggleBtn = document.getElementById('promptToggleBtn');
+    if (toggleBtn) {
+      const originalText = toggleBtn.textContent;
+      toggleBtn.textContent = '✓ Done';
+      toggleBtn.style.background = '#4caf50';
+      toggleBtn.style.color = 'white';
+      
+      setTimeout(() => {
+        toggleBtn.textContent = originalText;
+        toggleBtn.style.background = '#f1f3f4';
+        toggleBtn.style.color = '#5f6368';
+      }, 1000);
+    }
+    
+  } catch (error) {
+    console.error('Failed to toggle prompt type:', error);
+    
+    // Visual error feedback on the toggle button
+    const toggleBtn = document.getElementById('promptToggleBtn');
+    if (toggleBtn) {
+      const originalText = toggleBtn.textContent;
+      toggleBtn.textContent = '✗ Error';
+      toggleBtn.style.background = '#f44336';
+      toggleBtn.style.color = 'white';
+      
+      setTimeout(() => {
+        toggleBtn.textContent = originalText;
+        toggleBtn.style.background = '#f1f3f4';
+        toggleBtn.style.color = '#5f6368';
+      }, 1500);
+    }
+  }
+}
+
 // Show auto-save success feedback
 function showAutoSaveSuccess() {
   const autoSaveBtn = document.getElementById('autoSaveToggleBtn');
@@ -7090,6 +7148,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const a2TestUsageBtn = document.getElementById('a2TestUsageBtn');
   if (a2TestUsageBtn) {
     a2TestUsageBtn.addEventListener('click', () => generateA2TestUsage());
+  }
+  
+  // Prompt Toggle button
+  const promptToggleBtn = document.getElementById('promptToggleBtn');
+  if (promptToggleBtn) {
+    promptToggleBtn.addEventListener('click', () => togglePromptType());
   }
   
   // Save audio toggle button

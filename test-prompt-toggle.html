@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Prompt Toggle Feature</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+        .log { background: #f5f5f5; padding: 10px; border-radius: 4px; margin: 10px 0; font-family: monospace; white-space: pre-wrap; }
+        .success { color: green; }
+        .error { color: red; }
+        .warning { color: orange; }
+        button { padding: 8px 16px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; background: #007bff; color: white; }
+        .secondary { background: #6c757d; }
+        
+        /* Mock the toggle styles */
+        .prompt-toggle-demo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        
+        .prompt-type-text.custom {
+            color: #8e24aa;
+            font-weight: 600;
+        }
+        
+        .prompt-type-text.default {
+            color: #1976d2;
+            font-weight: 500;
+        }
+        
+        .demo-toggle-btn {
+            background: #f1f3f4;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 11px;
+            color: #5f6368;
+            transition: all 0.2s ease;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Prompt Toggle Feature Test</h1>
+    
+    <div class="test-section">
+        <h3>Feature Overview</h3>
+        <p>This feature adds a quick toggle switch in the AI Analysis tab to switch between:</p>
+        <ul>
+            <li><strong>⚙️ Default</strong> - Uses the built-in optimized prompts</li>
+            <li><strong>🎨 Custom</strong> - Uses the user-defined custom prompt template</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h3>Visual Demo</h3>
+        <div class="prompt-toggle-demo">
+            <span id="demoPromptText" class="prompt-type-text default">⚙️ Default</span>
+            <button id="demoToggleBtn" class="demo-toggle-btn" onclick="toggleDemo()">🔄 Switch</button>
+        </div>
+        <p><em>This is how the toggle will appear in the actual AI Analysis tab</em></p>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 1: Check Current Settings</h3>
+        <button onclick="checkCurrentSettings()">Check Current Prompt Settings</button>
+        <div id="settingsResult" class="log" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 2: Test Toggle Functionality</h3>
+        <button onclick="testToggle()">Test Toggle Function</button>
+        <div id="toggleResult" class="log" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 3: Integration Test</h3>
+        <p>Steps to test in actual extension:</p>
+        <ol>
+            <li>Open the YouGlish extension sidepanel</li>
+            <li>Go to the AI Analysis tab</li>
+            <li>Look for the prompt type indicator with toggle button</li>
+            <li>Click the "🔄 Switch" button to toggle between Default and Custom</li>
+            <li>Verify the indicator text changes color and text</li>
+            <li>Generate an AI analysis to confirm the correct prompt is used</li>
+        </ol>
+        <button onclick="openSidepanel()">Open Extension Sidepanel (if possible)</button>
+        <div id="integrationResult" class="log" style="display: none;"></div>
+    </div>
+
+    <script>
+        let demoIsCustom = false;
+
+        function toggleDemo() {
+            demoIsCustom = !demoIsCustom;
+            const textSpan = document.getElementById('demoPromptText');
+            const toggleBtn = document.getElementById('demoToggleBtn');
+            
+            if (demoIsCustom) {
+                textSpan.textContent = '🎨 Custom';
+                textSpan.className = 'prompt-type-text custom';
+            } else {
+                textSpan.textContent = '⚙️ Default';
+                textSpan.className = 'prompt-type-text default';
+            }
+            
+            // Demo feedback animation
+            const originalText = toggleBtn.textContent;
+            toggleBtn.textContent = '✓ Done';
+            toggleBtn.style.background = '#4caf50';
+            toggleBtn.style.color = 'white';
+            
+            setTimeout(() => {
+                toggleBtn.textContent = originalText;
+                toggleBtn.style.background = '#f1f3f4';
+                toggleBtn.style.color = '#5f6368';
+            }, 1000);
+        }
+
+        async function checkCurrentSettings() {
+            const resultDiv = document.getElementById('settingsResult');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = 'Checking current settings...';
+
+            try {
+                const result = await chrome.storage.sync.get(['useCustomPrompt', 'customPromptTemplate']);
+                
+                let logText = 'Current Prompt Settings:\n\n';
+                logText += `useCustomPrompt: ${result.useCustomPrompt || 'not set'}\n`;
+                logText += `Has custom template: ${result.customPromptTemplate ? 'Yes' : 'No'}\n`;
+                
+                if (result.customPromptTemplate) {
+                    const templateLength = result.customPromptTemplate.length;
+                    logText += `Template length: ${templateLength} characters\n`;
+                    logText += `Template preview: ${result.customPromptTemplate.substring(0, 100)}...`;
+                } else {
+                    logText += 'Template: (empty - will use default prompts)';
+                }
+                
+                resultDiv.textContent = logText;
+                
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        async function testToggle() {
+            const resultDiv = document.getElementById('toggleResult');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = 'Testing toggle functionality...';
+
+            try {
+                // Get current setting
+                const currentResult = await chrome.storage.sync.get(['useCustomPrompt']);
+                const currentIsCustom = currentResult.useCustomPrompt === 'true';
+                
+                let logText = `Current state: ${currentIsCustom ? 'Custom' : 'Default'}\n\n`;
+                
+                // Toggle the setting
+                const newIsCustom = !currentIsCustom;
+                await chrome.storage.sync.set({ useCustomPrompt: newIsCustom.toString() });
+                
+                logText += `Toggled to: ${newIsCustom ? 'Custom' : 'Default'}\n`;
+                
+                // Verify the change
+                const verifyResult = await chrome.storage.sync.get(['useCustomPrompt']);
+                const verifiedIsCustom = verifyResult.useCustomPrompt === 'true';
+                
+                logText += `Verified state: ${verifiedIsCustom ? 'Custom' : 'Default'}\n`;
+                
+                if (verifiedIsCustom === newIsCustom) {
+                    logText += '\n✅ Toggle test PASSED';
+                } else {
+                    logText += '\n❌ Toggle test FAILED - state not saved correctly';
+                }
+                
+                resultDiv.textContent = logText;
+                
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        async function openSidepanel() {
+            const resultDiv = document.getElementById('integrationResult');
+            resultDiv.style.display = 'block';
+            
+            try {
+                // Try to open the sidepanel (this may not work from test page)
+                if (chrome.sidePanel && chrome.sidePanel.open) {
+                    await chrome.sidePanel.open({ tabId: (await chrome.tabs.getCurrent()).id });
+                    resultDiv.textContent = '✅ Sidepanel opened successfully. Check for the prompt toggle in AI Analysis tab.';
+                } else {
+                    resultDiv.textContent = '⚠️ Cannot open sidepanel from test page. Please manually open the extension and test there.';
+                }
+            } catch (error) {
+                resultDiv.textContent = `❌ Error opening sidepanel: ${error.message}\n\nPlease manually open the extension sidepanel to test the toggle feature.`;
+            }
+        }
+    </script>
+</body>
+</html>
