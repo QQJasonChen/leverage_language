@@ -2713,14 +2713,16 @@ Sentence to fix: "${preCleanedText}"`;
                           captureData.videoInfo?.platform === 'netflix' ? 'Netflix' :
                           captureData.videoInfo?.platform === 'coursera' ? 'Coursera' : 'YouTube';
       
-      // Different title for Udemy since it just switches tabs instead of seeking
+      // Different titles based on platform capabilities
       if (captureData.videoInfo?.platform === 'udemy') {
         timestampBtn.title = `Switch to Udemy (timestamp: ${this.formatTimestamp(captureData.timestamp)})`;
+      } else if (captureData.videoInfo?.platform === 'coursera' || captureData.videoInfo?.platform === 'netflix') {
+        timestampBtn.title = `${platformName} timestamp: ${this.formatTimestamp(captureData.timestamp)} (navigation not available)`;
       } else {
         timestampBtn.title = `Jump to ${platformName} at ${this.formatTimestamp(captureData.timestamp)}`;
       }
       
-      // Make timestamp clickable for YouTube, Udemy, and Coursera
+      // Make timestamp clickable for YouTube and Udemy only
       console.log('🔍 Setting up timestamp click handler for:', {
         platform: captureData.videoInfo?.platform,
         platformName: platformName,
@@ -2791,23 +2793,11 @@ Sentence to fix: "${preCleanedText}"`;
             console.error('Failed to switch to Udemy tab:', error);
           }
         });
-      } else if (captureData.videoInfo && captureData.videoInfo.platform === 'coursera') {
-        timestampBtn.addEventListener('click', async () => {
-          try {
-            const tabs = await chrome.tabs.query({});
-            const courseraTab = tabs.find(tab => tab.url && tab.url.includes('coursera.org'));
-            if (courseraTab) {
-              await chrome.tabs.update(courseraTab.id, { active: true });
-              await chrome.tabs.sendMessage(courseraTab.id, { action: 'seekCourseraVideo', time: captureData.timestamp });
-            } else {
-              // Fallback: open current page with fragment
-              const url = `${captureData.videoInfo?.url || 'https://www.coursera.org'}#t=${Math.floor(captureData.timestamp)}s`;
-              chrome.tabs.create({ url });
-            }
-          } catch (error) {
-            console.error('Failed to seek Coursera video:', error);
-          }
-        });
+      } else if (captureData.videoInfo && (captureData.videoInfo.platform === 'coursera' || captureData.videoInfo.platform === 'netflix')) {
+        // For Coursera and Netflix, just show timestamp without navigation
+        timestampBtn.style.cursor = 'default';
+        timestampBtn.style.textDecoration = 'none';
+        timestampBtn.title = `${platformName} timestamp: ${this.formatTimestamp(captureData.timestamp)} (navigation not available)`;
       } else {
         console.log('⚠️ No platform-specific handler found, adding generic click handler');
         timestampBtn.addEventListener('click', () => {
