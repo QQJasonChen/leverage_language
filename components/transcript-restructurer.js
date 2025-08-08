@@ -654,12 +654,7 @@ class TranscriptRestructurer {
               </table>
             </div>
             
-            <!-- ✅ Empty state message -->
-            <div class="captured-empty-state" id="captured-empty-state">
-              <div class="empty-icon">${platformIcon}</div>
-              <p class="empty-message">No subtitles captured yet</p>
-              <p class="empty-hint">Use the ${this.currentPlatform === 'youtube' ? 'Collect' : 'Capture'} button above to start collecting subtitles</p>
-            </div>
+            <!-- Empty state removed as requested by user -->
           </div>
         </div>
       </div>
@@ -2760,12 +2755,10 @@ Sentence to fix: "${preCleanedText}"`;
     // Show header and table container when adding first item
     const header = this.container.querySelector('.captured-viewer-header');
     const tableContainer = this.container.querySelector('.captured-table-container');
-    const emptyState = this.container.querySelector('.captured-empty-state');
     
-    if (header && tableContainer && emptyState) {
+    if (header && tableContainer) {
       header.style.display = 'flex';
       tableContainer.style.display = 'block';
-      emptyState.style.display = 'none';
     }
     
     // Find captured sentences table
@@ -3262,15 +3255,13 @@ Sentence to fix: "${preCleanedText}"`;
         }
       }
       
-      // Hide header and table, show empty state
+      // Hide header and table
       const header = this.container.querySelector('.captured-viewer-header');
       const tableContainer = this.container.querySelector('.captured-table-container');
-      const emptyState = this.container.querySelector('.captured-empty-state');
       
-      if (header && tableContainer && emptyState) {
+      if (header && tableContainer) {
         header.style.display = 'none';
         tableContainer.style.display = 'none';
-        emptyState.style.display = 'block';
       }
       
       // Clear platform-specific segments arrays

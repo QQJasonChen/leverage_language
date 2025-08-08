@@ -260,7 +260,7 @@ class UniversalLearningViewer {
         
       case 'netflix':
         icon = '🎭';
-        title = item.title || 'Netflix Content';
+        title = item.videoTitle || item.title || 'Netflix Content';
         subtitle = `Netflix • ${item.originalTimestamp || '0:00'}`;
         content = item.text || item.content || '';
         actionButton = `<button class="return-btn netflix" data-index="${index}" data-type="netflix" title="Return to Netflix">
@@ -273,7 +273,7 @@ class UniversalLearningViewer {
         
       case 'udemy':
         icon = '📚';
-        title = item.courseTitle || item.title || 'Udemy Course';
+        title = item.videoTitle || item.courseTitle || item.title || 'Udemy Course';
         subtitle = `Udemy • ${item.originalTimestamp || '0:00'}`;
         content = item.text || item.content || '';
         actionButton = `<button class="return-btn udemy" data-index="${index}" data-type="udemy" title="Return to Udemy course">

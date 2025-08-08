@@ -258,21 +258,14 @@
         <div class="setting-group" id="openaiModelGroup" style="display: none;">
             <label for="openaiModel">OpenAI 模型選擇</label>
             <select id="openaiModel">
-                <option value="gpt-5-nano">🚀 GPT-5 Nano (推薦 - 最新最省錢)</option>
-                <option value="gpt-5-mini">🔥 GPT-5 Mini (平衡效能)</option>
-                <option value="gpt-5">💎 GPT-5 (頂級品質)</option>
-                <option value="gpt-4o-mini">GPT-4o Mini (舊版)</option>
-                <option value="gpt-4o">GPT-4o (舊版)</option>
+                <option value="gpt-4o-mini">GPT-4o Mini (推薦 - 最佳性價比)</option>
+                <option value="gpt-4o">GPT-4o (頂級品質)</option>
             </select>
             <div class="description">
-                <strong>🚀 最新 GPT-5 系列價格 (每1K tokens):</strong><br>
-                • <span style="color: #4CAF50; font-weight: bold;">GPT-5 Nano: $0.00005 輸入 + $0.0004 輸出 (比 GPT-4o Mini 便宜 40%！)</span><br>
-                • <span style="color: #FF9800; font-weight: bold;">GPT-5 Mini: $0.00025 輸入 + $0.002 輸出 (高效能平衡)</span><br>
-                • GPT-5: $0.00125 輸入 + $0.01 輸出 (最頂級品質)<br><br>
-                <strong>📊 舊版對比:</strong><br>
-                • GPT-4o Mini: $0.00015 輸入 + $0.0006 輸出<br>
-                • GPT-4o: $0.0025 輸入 + $0.01 輸出<br>
-                <em>💡 <strong>強烈推薦 GPT-5 Nano</strong> - 更好效能 + 省錢 40%</em>
+                <strong>💰 價格比較 (每1K tokens):</strong><br>
+                • <span style="color: #4CAF50; font-weight: bold;">GPT-4o Mini: $0.00015 輸入 + $0.0006 輸出 (極便宜且優質！)</span><br>
+                • GPT-4o: $0.0025 輸入 + $0.01 輸出 (最高品質，成本較高)<br>
+                <em>💡 GPT-4o Mini 提供 95% 的品質，但成本僅為 GPT-4o 的 1/10</em>
             </div>
         </div>
         
@@ -300,6 +293,70 @@
                 <strong>⚖️ 平衡模式：</strong> 語法分析 + 文化背景 + 詳細解釋 (5-15秒)<br>
                 <strong>📚 詳細分析：</strong> 完整教學級分析，包含所有功能 (15-45秒)<br>
                 <em>💡 提示：選擇詳細分析可獲得最完整的學習內容，但需要較長等待時間</em>
+            </div>
+        </div>
+
+        <div class="setting-group" id="customPromptGroup">
+            <label for="useCustomPrompt">🎨 自訂提示詞</label>
+            <select id="useCustomPrompt">
+                <option value="false">使用預設提示詞</option>
+                <option value="true">使用自訂提示詞</option>
+            </select>
+            <div class="description">
+                <strong>預設提示詞：</strong> 使用系統預設的專業語言學習提示詞<br>
+                <strong>自訂提示詞：</strong> 使用您自己設計的提示詞模板<br>
+                <em>💡 提示：會自動載入對話式教學範例模板，包含互動問答、實用場景對話、個人化學習建議等，讓 AI 像真人老師一樣和您對話學習！</em>
+            </div>
+        </div>
+
+        <div class="setting-group" id="customPromptEditor" style="display: none;">
+            <label for="customPromptTemplate">📝 自訂提示詞模板</label>
+            <div style="margin-bottom: 10px;">
+                <button type="button" onclick="loadDefaultTemplate()" style="background: #6c757d; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                    💬 載入對話式教學模板
+                </button>
+                <button type="button" onclick="clearTemplate()" style="background: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 5px;">
+                    🗑️ 清空
+                </button>
+            </div>
+            <textarea id="customPromptTemplate" rows="12" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: 'Monaco', 'Consolas', monospace; font-size: 13px; line-height: 1.4; resize: vertical;"></textarea>
+            
+            <div class="custom-prompt-help" style="margin-top: 10px; background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 4px; padding: 15px;">
+                <h4 style="margin: 0 0 10px 0; color: #495057;">📖 可用的模板變數：</h4>
+                <div style="font-family: 'Monaco', 'Consolas', monospace; font-size: 12px; line-height: 1.6;">
+                    <div><strong>{{text}}</strong> - 要分析的文本</div>
+                    <div><strong>{{language}}</strong> - 目標語言 (english, dutch, japanese, etc.)</div>
+                    <div><strong>{{languageName}}</strong> - 語言名稱 (English, Dutch, Japanese, etc.)</div>
+                    <div><strong>{{isWord}}</strong> - 是否為單詞 (true/false)</div>
+                    <div><strong>{{wordCount}}</strong> - 詞數</div>
+                </div>
+                
+                <h4 style="margin: 15px 0 10px 0; color: #495057;">💡 示例模板：</h4>
+                <div style="font-family: 'Monaco', 'Consolas', monospace; font-size: 12px; background: #fff; border: 1px solid #ddd; border-radius: 3px; padding: 10px;">
+You are a {{languageName}} teacher for Chinese speakers. Analyze: "{{text}}"
+
+## 🎯 Analysis
+**Translation:** [Provide Chinese translation]
+**Pronunciation:** [IPA and pronunciation guide]
+{{#isWord}}
+**Word Type:** [Noun/Verb/Adjective etc.]
+**Usage:** [How to use this word]
+{{/isWord}}
+{{^isWord}}
+**Grammar:** [Sentence structure analysis]
+**Key Points:** [Important grammar or vocabulary]
+{{/isWord}}
+
+Keep your response helpful and educational for Chinese speakers learning {{languageName}}.
+                </div>
+                
+                <div style="margin-top: 10px; color: #6c757d; font-size: 12px;">
+                    <strong>⚠️ 注意事項：</strong><br>
+                    • 提示詞過長可能增加 API 成本<br>
+                    • 使用模板變數讓提示詞更靈活<br>
+                    • 空白提示詞將回復到預設模式<br>
+                    • 建議在提示詞中指定回應語言（中文）
+                </div>
             </div>
         </div>
 

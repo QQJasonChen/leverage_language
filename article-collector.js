@@ -4,6 +4,14 @@
 (function() {
   'use strict';
 
+  // Silence verbose logs in production
+  try { if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest) {
+    const n = chrome.runtime.getManifest().name || '';
+    if (!n.toLowerCase().includes('dev')) {
+      console.log = function(){}; console.info = function(){}; console.debug = function(){}; console.warn = function(){};
+    }
+  } } catch (e) {}
+
   console.log('📰 Article collector content script loaded on:', window.location.hostname);
 
   // Check if we should run on this site

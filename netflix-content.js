@@ -4,6 +4,14 @@
 (function() {
   'use strict';
 
+  // Silence verbose logs in production
+  try { if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest) {
+    const n = chrome.runtime.getManifest().name || '';
+    if (!n.toLowerCase().includes('dev')) {
+      console.log = function(){}; console.info = function(){}; console.debug = function(){}; console.warn = function(){};
+    }
+  } } catch (e) {}
+
   console.log('🎬 Netflix Language Learning extension loaded');
 
   let contextInvalidated = false;
@@ -28,7 +36,7 @@
     return match ? match[1] : null;
   }
 
-  function extractVideoTitle() {
+  function extractVideoTitle(retryCount = 0, maxRetries = 3) {
     // Try multiple selectors for Netflix title
     const titleSelectors = [
       // 2024+ Netflix selectors - most current
@@ -123,17 +131,59 @@
       const element = document.querySelector(selector);
       if (element && element.textContent.trim()) {
         const title = element.textContent.trim();
-        console.log(`✅ Found Netflix title with selector "${selector}": "${title}"`);
-        return title;
+        
+        // Filter out common Netflix UI elements and non-content titles
+        const uiTexts = [
+          'Netflix', 'Privacy Preference Center', '隐私偏好中心', 'Privacy Settings',
+          'Account', 'Profile', 'Settings', 'My List', 'Browse', 'Search',
+          'Kids', 'Sign Out', 'Help', 'Manage Profiles', 'Transfer Profile',
+          'Who\'s watching', 'Choose Profile', 'Notifications', 'Loading',
+          'Error', 'Please wait', 'Buffering', 'Something went wrong',
+          'Watch TV Shows Online, Watch Movies Online', 'Terms of Use',
+          'Privacy Policy', 'Cookie Preferences', 'Corporate Information',
+          'Contact Us', 'Legal Notices', 'Only on Netflix', 'Originals',
+          'Recently Added', 'New & Popular', 'Trending Now', 'Top 10',
+          'Required Cookie', '必要 Cookie', 'Cookie Settings', 'Cookies',
+          'Accept Cookies', 'Manage Cookies', 'Cookie Policy'
+        ];
+        
+        // Skip if it matches common UI text (case insensitive)
+        const isUIText = uiTexts.some(uiText => 
+          title.toLowerCase().includes(uiText.toLowerCase()) ||
+          uiText.toLowerCase().includes(title.toLowerCase())
+        );
+        
+        if (!isUIText && title.length > 2 && title.length < 100) {
+          console.log(`✅ Found valid Netflix title with selector "${selector}": "${title}"`);
+          return title;
+        } else if (isUIText) {
+          console.log(`⏭️ Skipped UI text with selector "${selector}": "${title}"`);
+        }
       }
     }
 
     // Enhanced fallback to document title with better parsing
-    const title = document.title;
-    console.log(`🔄 Checking document title: "${title}"`);
-    if (title && title !== 'Netflix' && title !== 'Watch TV Shows Online, Watch Movies Online') {
+    const docTitle = document.title;
+    console.log(`🔄 Checking document title: "${docTitle}"`);
+    
+    // Define UI texts to filter (same as above)
+    const uiTexts = [
+      'Netflix', 'Privacy Preference Center', '隐私偏好中心', 'Privacy Settings',
+      'Account', 'Profile', 'Settings', 'My List', 'Browse', 'Search',
+      'Kids', 'Sign Out', 'Help', 'Manage Profiles', 'Transfer Profile',
+      'Who\'s watching', 'Choose Profile', 'Notifications', 'Loading',
+      'Error', 'Please wait', 'Buffering', 'Something went wrong',
+      'Watch TV Shows Online, Watch Movies Online', 'Terms of Use',
+      'Privacy Policy', 'Cookie Preferences', 'Corporate Information',
+      'Contact Us', 'Legal Notices', 'Only on Netflix', 'Originals',
+      'Recently Added', 'New & Popular', 'Trending Now', 'Top 10',
+      'Required Cookie', '必要 Cookie', 'Cookie Settings', 'Cookies',
+      'Accept Cookies', 'Manage Cookies', 'Cookie Policy'
+    ];
+    
+    if (docTitle && docTitle !== 'Netflix' && docTitle !== 'Watch TV Shows Online, Watch Movies Online') {
       // Clean up common Netflix title patterns with more aggressive parsing
-      let cleanTitle = title
+      let cleanTitle = docTitle
         .replace(' - Netflix', '')
         .replace('Watch ', '')
         .replace(' | Netflix Official Site', '')
@@ -165,9 +215,17 @@
         .replace(/\s+(Online|Free|HD)$/, '')
         .trim();
       
-      if (cleanTitle && cleanTitle.length > 2) {
+      // Filter out UI texts from document title too
+      const isUIText = uiTexts.some(uiText => 
+        cleanTitle.toLowerCase().includes(uiText.toLowerCase()) ||
+        uiText.toLowerCase().includes(cleanTitle.toLowerCase())
+      );
+      
+      if (cleanTitle && cleanTitle.length > 2 && !isUIText) {
         console.log(`🔄 Using cleaned document title: "${cleanTitle}"`);
         return cleanTitle;
+      } else if (isUIText) {
+        console.log(`⏭️ Skipped UI text in document title: "${cleanTitle}"`);
       }
     }
     
@@ -181,9 +239,17 @@
         .replace(' | Netflix', '')
         .trim();
       
-      if (cleanMetaTitle && cleanMetaTitle.length > 2) {
+      // Filter out UI texts from meta title too
+      const isUIText = uiTexts.some(uiText => 
+        cleanMetaTitle.toLowerCase().includes(uiText.toLowerCase()) ||
+        uiText.toLowerCase().includes(cleanMetaTitle.toLowerCase())
+      );
+      
+      if (cleanMetaTitle && cleanMetaTitle.length > 2 && !isUIText) {
         console.log(`🔄 Using meta title: "${cleanMetaTitle}"`);
         return cleanMetaTitle;
+      } else if (isUIText) {
+        console.log(`⏭️ Skipped UI text in meta title: "${cleanMetaTitle}"`);
       }
     }
     
@@ -191,12 +257,20 @@
     const possibleTitles = document.querySelectorAll('*');
     for (const element of possibleTitles) {
       const text = element.textContent?.trim();
-      if (text && text.length > 5 && text.length < 100 && 
-          !text.includes('Netflix') && !text.includes('Watch') &&
-          !text.includes('Sign') && !text.includes('Menu') &&
-          element.tagName?.match(/^H[1-6]$/)) {
-        console.log(`🔄 Found possible title in ${element.tagName}: "${text}"`);
-        return text;
+      if (text && text.length > 5 && text.length < 100 && element.tagName?.match(/^H[1-6]$/)) {
+        
+        // Filter out UI texts from last resort search too
+        const isUIText = uiTexts.some(uiText => 
+          text.toLowerCase().includes(uiText.toLowerCase()) ||
+          uiText.toLowerCase().includes(text.toLowerCase())
+        );
+        
+        if (!isUIText) {
+          console.log(`🔄 Found possible title in ${element.tagName}: "${text}"`);
+          return text;
+        } else {
+          console.log(`⏭️ Skipped UI text in ${element.tagName}: "${text}"`);
+        }
       }
     }
 
@@ -609,6 +683,14 @@
     let title = extractVideoTitle();
     const timestamp = getCurrentTimestamp();
 
+    console.log('🎭 getVideoInfo - Debug info:', {
+      videoId,
+      title,
+      timestamp,
+      url: window.location.href,
+      documentTitle: document.title
+    });
+
     // Enhanced title extraction with better fallback
     if (!title || title === 'Netflix Video' || title === 'Netflix Content') {
       // Try to extract from URL patterns
@@ -619,19 +701,34 @@
           document.title.replace(' - Netflix', '').replace('Watch ', '').trim() : 
           'Netflix Video';
       }
+      
+      // If still no good title, try a more aggressive approach
+      if (!title || title === 'Netflix Video') {
+        // Check if we're actually on a valid Netflix video page
+        const isVideoPage = window.location.href.includes('/watch/') && videoId;
+        if (isVideoPage) {
+          title = `Netflix Video ID: ${videoId}`;
+          console.log('🔧 Using video ID as title fallback');
+        }
+      }
     }
     
     console.log('🎭 getVideoInfo - extracted title:', title);
 
-    if (videoId) {
+    // Return video info even if we don't have a perfect title
+    // This ensures that timestamps and other data are still captured
+    if (videoId || window.location.href.includes('/watch/')) {
       return {
-        videoId,
-        title,
+        videoId: videoId || 'unknown',
+        title: title || 'Netflix Content',
         timestamp,
         url: createTimestampedUrl(timestamp),
-        platform: 'netflix'
+        platform: 'netflix',
+        reliability: videoId && title && title !== 'Netflix Video' ? 'high' : 'low'
       };
     }
+    
+    console.log('⚠️ Not on a Netflix video page, returning null');
     return null;
   }
 
@@ -1064,7 +1161,7 @@
               source: 'netflix-learning',
               platform: 'netflix',
               videoId: currentVideoInfo.videoId,
-              timestamp: currentVideoInfo.timestamp
+              timestamp: getCurrentTimestamp() // Get real-time timestamp
             }).then(() => {
               sendResponse({ success: true });
             }).catch(error => {
@@ -1111,6 +1208,17 @@
           });
           break;
 
+        case 'quickAnalyzeLastCapture':
+          console.log('⌨️ Quick analyze triggered from global shortcut');
+          // Forward to transcript restructurer if available
+          if (window.transcriptRestructurer && typeof window.transcriptRestructurer.analyzeLastAndSwitchTab === 'function') {
+            window.transcriptRestructurer.analyzeLastAndSwitchTab();
+            sendResponse({ success: true });
+          } else {
+            sendResponse({ success: false, error: 'Transcript restructurer not available' });
+          }
+          return true;
+
         case 'startNetflixSubtitleCollection':
           console.log('🎭 Starting Netflix subtitle collection...');
           console.log('🔍 Current collection state:', { isCollecting, collectedSegments: collectedSegments.length });
@@ -1139,9 +1247,14 @@
             const segments = [...collectedSegments]; // Copy array
             console.log(`🎭 Collection stopped. Collected ${segments.length} segments`);
             
+            // Get current video info for the completed collection
+            const completionVideoInfo = getVideoInfo();
+            console.log('🎭 Collection completed with videoInfo:', completionVideoInfo);
+            
             sendResponse({ 
               success: true, 
               segments: segments,
+              videoInfo: completionVideoInfo, // ✅ Include video info for proper title saving
               isCollecting: false,
               collectionTime: Date.now() - collectionStartTime
             });
@@ -1554,7 +1667,7 @@
         source: 'netflix-direct-capture',
         platform: 'netflix',
         videoId: currentVideoInfo.videoId,
-        timestamp: currentVideoInfo.timestamp
+        timestamp: getCurrentTimestamp() // Get real-time timestamp
       }).then(() => {
         console.log('✅ Direct capture successful - text sent to sidepanel');
         showCaptureSuccess();
@@ -1594,7 +1707,7 @@
             source: 'netflix-direct-capture-internal',
             platform: 'netflix',
             videoId: videoInfo.videoId,
-            timestamp: videoInfo.timestamp
+            timestamp: getCurrentTimestamp() // Get real-time timestamp
           }).then(() => {
             mockSendResponse({ success: true });
           }).catch(internalError => {

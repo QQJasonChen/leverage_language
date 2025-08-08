@@ -21,7 +21,8 @@
   "host_permissions": [
     "https://*.youtube.com/*",
     "https://*.netflix.com/*",
-    "https://*.udemy.com/*"
+    "https://*.udemy.com/*",
+    "https://*.coursera.org/*"
   ],
   
   "background": {
@@ -64,11 +65,17 @@
       "run_at": "document_start"
     },
     {
+      "matches": ["https://*.coursera.org/*"],
+      "js": ["coursera-content.js"],
+      "run_at": "document_start"
+    },
+    {
       "matches": ["<all_urls>"],
       "exclude_matches": [
         "https://*.youtube.com/*",
         "https://*.netflix.com/*",
         "https://*.udemy.com/*",
+        "https://*.coursera.org/*",
         "https://youglish.com/*"
       ],
       "js": ["article-collector.js"],
@@ -93,14 +100,21 @@
         "default": "Ctrl+Shift+C",
         "mac": "Command+Shift+C"
       },
-      "description": "Quick capture current subtitle on YouTube"
+      "description": "Quick capture current subtitle (YouTube/Netflix/Udemy)"
     },
     "open-extension": {
       "suggested_key": {
-        "default": "Alt+Shift+L",
-        "mac": "MacCtrl+Shift+L"
+        "default": "Alt+L",
+        "mac": "Alt+L"
       },
       "description": "Open Language Learning Extension"
+    },
+    "quick-analyze": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+A",
+        "mac": "Command+Shift+A"
+      },
+      "description": "Quick analyze last captured content"
     }
   },
   

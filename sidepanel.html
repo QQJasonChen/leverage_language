@@ -1980,6 +1980,27 @@
             font-weight: 500;
         }
         
+        .prompt-type-indicator {
+            margin-left: 10px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            border: 1px solid;
+        }
+        
+        .prompt-type-text.default {
+            background: #e8f5e8;
+            color: #2e7d32;
+            border-color: #c8e6c9;
+        }
+        
+        .prompt-type-text.custom {
+            background: #fff3e0;
+            color: #f57c00;
+            border-color: #ffcc02;
+        }
+        
         .ai-controls {
             display: flex;
             gap: 8px;
@@ -3738,6 +3759,9 @@
         }
     </style>
     
+    <!-- Production log gate to silence verbose logs in production builds -->
+    <script src="lib/perf-log-gate.js"></script>
+
     <!-- Subtle UI Improvements (Working version) -->
     <link rel="stylesheet" href="styles/subtle-improvements.css">
     
@@ -3825,7 +3849,6 @@
                     <button id="showSavedReportsBtn" class="view-button" data-i18n="saved_reports_view">💾 Saved Reports</button>
                     <button id="showFlashcardsBtn" class="view-button" data-i18n="flashcards_view">🃏 Flashcards</button>
                     <button id="showTranscriptBtn" class="view-button" data-i18n="transcript_view">📝 Transcript</button>
-                    <button id="openNewTabBtn" class="view-button" data-i18n="new_tab">🔗 New Tab</button>
                 </div>
             </div>
             
@@ -3921,6 +3944,9 @@
                 <div id="aiAnalysisSection" class="ai-analysis-section" style="display: none;">
                     <div class="section-header">
                         <h4 data-i18n="ai_analysis_title">🤖 AI Language Analysis</h4>
+                        <div id="promptTypeIndicator" class="prompt-type-indicator" style="display: none;">
+                            <span id="promptTypeText" class="prompt-type-text">⚙️ Default</span>
+                        </div>
                         <div class="ai-controls">
                             <button id="generateAiAnalysisBtn" class="ai-button primary" data-i18n="generate_analysis">
                                 ✨ Generate Analysis

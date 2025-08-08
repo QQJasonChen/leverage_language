@@ -1,4 +1,6 @@
 // 導入語言偵測功能、歷史管理和 AI 服務
+// Production log gate (must be first to silence logs in production builds)
+importScripts('lib/perf-log-gate.js');
 importScripts('lib/lang-detect.js');
 importScripts('lib/history-manager.js');
 importScripts('lib/ai-service.js');
@@ -200,6 +202,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           console.error('🎭 Error processing Netflix text analysis:', error);
           sendResponse({ success: false, error: error.message });
         });
+    } else if (request.platform === 'coursera') {
+      handleCourseraTextAnalysis(request, tabId)
+        .then(() => {
+          sendResponse({ success: true, message: 'Coursera text sent to sidepanel for analysis' });
+        })
+        .catch((error) => {
+          console.error('🎓 Error processing Coursera text analysis:', error);
+          sendResponse({ success: false, error: error.message });
+        });
     } else {
       // Default to YouTube analysis
       handleYouTubeTextAnalysis(request, tabId)
@@ -210,6 +221,40 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           console.error('📖 Error processing YouTube text analysis:', error);
           sendResponse({ success: false, error: error.message });
         });
+    }
+    
+    return true; // Keep the message channel open for async response
+  }
+
+  // Handle saving to history from storage manager
+  if (request.action === 'saveToHistory') {
+    console.log('💾 Saving AI analysis to history via storage manager:', request.data);
+    
+    if (!request.data) {
+      console.error('💾 No data provided for saveToHistory');
+      sendResponse({ success: false, error: 'No data provided' });
+      return true;
+    }
+    
+    try {
+      historyManager.addRecord(
+        request.data.text,
+        request.data.language,
+        request.data.detectionMethod || 'ai-analysis',
+        request.data.websitesUsed || [],
+        request.data.videoSource || null
+      )
+        .then(() => {
+          console.log('✅ Successfully saved AI analysis to history with video metadata');
+          sendResponse({ success: true });
+        })
+        .catch(error => {
+          console.error('❌ Failed to save AI analysis to history:', error);
+          sendResponse({ success: false, error: error.message });
+        });
+    } catch (error) {
+      console.error('❌ Error in saveToHistory handler:', error);
+      sendResponse({ success: false, error: error.message });
     }
     
     return true; // Keep the message channel open for async response
@@ -527,6 +572,32 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     
     sendResponse({ success: true });
     return false;
+  }
+  
+  // 🔧 NEW: Save AI analysis to history manager (called from storage-manager.js)
+  if (request.action === 'saveToHistory') {
+    console.log('💾 Saving AI analysis to history manager:', request.data);
+    
+    const { text, language, detectionMethod, websitesUsed, videoSource } = request.data;
+    
+    // Handle async operation properly
+    historyManager.addRecord(
+      text,
+      language,
+      detectionMethod,
+      websitesUsed || [],
+      videoSource
+    )
+    .then(() => {
+      console.log('✅ AI analysis successfully saved to history with video source');
+      sendResponse({ success: true, message: 'AI analysis saved to history' });
+    })
+    .catch(error => {
+      console.error('❌ Failed to save AI analysis to history:', error);
+      sendResponse({ success: false, error: error.message });
+    });
+    
+    return true; // Keep message channel open for async response
   }
   
   // Unknown action
@@ -1331,6 +1402,7 @@ async function handleNetflixTextAnalysis(request, tabId) {
       
       const savedRecord = await historyManager.addRecord(cleanText, language, 'netflix-learning', [], videoSource);
       console.log('✅ Netflix learning saved to history with video source');
+      console.log('💾 Netflix saved record details:', JSON.stringify(savedRecord, null, 2));
     } catch (error) {
       console.error('❌ Failed to save Netflix learning to history:', error);
     }

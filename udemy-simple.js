@@ -316,6 +316,18 @@
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log('📚 Udemy message:', request.action);
     
+    if (request.action === 'quickAnalyzeLastCapture') {
+      console.log('⌨️ Quick analyze triggered from global shortcut on Udemy');
+      // Forward to transcript restructurer if available
+      if (window.transcriptRestructurer && typeof window.transcriptRestructurer.analyzeLastAndSwitchTab === 'function') {
+        window.transcriptRestructurer.analyzeLastAndSwitchTab();
+        sendResponse({ success: true });
+      } else {
+        sendResponse({ success: false, error: 'Transcript restructurer not available' });
+      }
+      return true;
+    }
+    
     try {
       switch (request.action) {
         case 'ping':

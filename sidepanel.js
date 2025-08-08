@@ -10,7 +10,7 @@ const languageNames = {
 let securityUtils, performanceUtils, errorHandler;
 
 // Safe logging wrapper
-const log = (...args) => {
+const logSafely = (...args) => {
   if (typeof PerformanceUtils !== 'undefined') {
     PerformanceUtils.log(...args);
   }
@@ -28,6 +28,57 @@ const handleError = async (error, context = {}) => {
 // 監聽來自背景腳本的訊息
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('🔔 Sidepanel received message:', request.action, request.source);
+  
+  // Handle Netflix learning recording from transcript collection
+  if (request.action === 'recordNetflixLearning') {
+    console.log('🎭 Recording Netflix learning segment:', request.data);
+    const data = request.data;
+    recordLearningSearch(
+      data.text, 
+      data.language, 
+      data.url, 
+      data.title, 
+      'netflix', 
+      null // courseTitle not applicable for Netflix
+    );
+    updateLearningDashboard();
+    sendResponse({ success: true });
+    return;
+  }
+  
+  // Handle Udemy learning recording from transcript collection  
+  if (request.action === 'recordUdemyLearning') {
+    console.log('📚 Recording Udemy learning segment:', request.data);
+    const data = request.data;
+    recordLearningSearch(
+      data.text, 
+      data.language, 
+      data.url, 
+      data.title, 
+      'udemy', 
+      data.courseTitle // Udemy has course titles
+    );
+    updateLearningDashboard();
+    sendResponse({ success: true });
+    return;
+  }
+  
+  // Handle Coursera learning recording from transcript collection
+  if (request.action === 'recordCourseraLearning') {
+    console.log('🎓 Recording Coursera learning segment:', request.data);
+    const data = request.data;
+    recordLearningSearch(
+      data.text, 
+      data.language, 
+      data.url, 
+      data.title, 
+      'coursera', 
+      data.courseTitle // Coursera has course titles
+    );
+    updateLearningDashboard();
+    sendResponse({ success: true });
+    return;
+  }
   
   if (request.action === 'updateSidePanel') {
     // Check if this is from YouTube learning
@@ -619,6 +670,7 @@ function recordLearningSearch(text, language, url, title, platform = null, cours
     language: language,
     url: url,
     title: title || '',
+    videoTitle: title || '', // ✅ Add videoTitle for consistency with viewer
     platform: detectedPlatform,
     courseTitle: courseTitle || null,
     timestamp: new Date().toISOString(),
@@ -1305,6 +1357,8 @@ function showSearchResult(queryData) {
     const aiAnalysisSection = document.getElementById('aiAnalysisSection');
     if (aiAnalysisSection) {
       aiAnalysisSection.style.display = 'block';
+      // Update prompt type indicator when AI section is shown
+      updatePromptTypeIndicator();
     }
   }
   if (videoView) videoView.style.display = 'none';
@@ -2988,7 +3042,18 @@ function displayHistoryItems(queries) {
         title: query.videoSource.title,
         domain: query.videoSource.domain,
         author: query.videoSource.author,
-        channel: query.videoSource.channel
+        channel: query.videoSource.channel,
+        videoTimestamp: query.videoSource.videoTimestamp,
+        hasTimestamp: query.videoSource.videoTimestamp !== null && query.videoSource.videoTimestamp !== undefined
+      });
+      
+      // 🎯 DEBUG: Specific timestamp verification for user's question
+      console.log('⏰ TIMESTAMP DEBUG - Saved videoTimestamp value:', {
+        value: query.videoSource.videoTimestamp,
+        type: typeof query.videoSource.videoTimestamp,
+        isNull: query.videoSource.videoTimestamp === null,
+        isUndefined: query.videoSource.videoTimestamp === undefined,
+        formatted: formatVideoTimestamp(query.videoSource.videoTimestamp)
       });
     } else {
       console.log('⚠️ History record has NO videoSource - this will show as video by default');
@@ -3514,8 +3579,8 @@ async function generateAIAnalysis(forceRefresh = false) {
       throw new Error('AI 服務未配置或未啟用 - 請檢查設定頁面是否已正確配置 API 金鑰');
     }
 
-    // 生成分析（非阻塞，帶超時保護）
-    const analysis = await generateAnalysisWithTimeout(aiService, text, language, 20000);
+    // 生成分析（非阻塞，帶超時保護和重試機制）
+    const analysis = await generateAnalysisWithTimeout(aiService, text, language);
     currentAIAnalysis = analysis;
     
     // 顯示結果
@@ -3547,6 +3612,18 @@ async function generateAIAnalysis(forceRefresh = false) {
             // First check Netflix analysis
             if (result.netflixAnalysis) {
               const netflixData = result.netflixAnalysis;
+              console.log('🔍 Netflix analysis data found:', {
+                text: netflixData.text?.substring(0, 30) + '...',
+                title: netflixData.title,
+                videoTimestamp: netflixData.videoTimestamp,
+                originalUrl: netflixData.originalUrl,
+                url: netflixData.url,
+                timestamp: netflixData.timestamp,
+                dataAge: Math.round((Date.now() - netflixData.timestamp) / 1000) + 's ago',
+                textMatches: netflixData.text === text,
+                allFields: Object.keys(netflixData)
+              });
+              
               // Check if this is recent data (within last 2 minutes) and matches current text
               if (Date.now() - netflixData.timestamp < 2 * 60 * 1000 && netflixData.text === text) {
                 const netflixUrl = netflixData.originalUrl || netflixData.url; // Prefer original Netflix URL
@@ -3561,6 +3638,15 @@ async function generateAIAnalysis(forceRefresh = false) {
                   platform: 'netflix'
                 };
                 console.log('🎬 Found Netflix source data for auto-save:', videoSource);
+                console.log('💾 Netflix title being saved:', netflixData.title);
+                console.log('⏰ Netflix videoTimestamp being saved:', netflixData.videoTimestamp);
+              } else {
+                console.log('⚠️ Netflix data not used - reasons:', {
+                  isRecent: Date.now() - netflixData.timestamp < 2 * 60 * 1000,
+                  textMatches: netflixData.text === text,
+                  expectedText: text?.substring(0, 30) + '...',
+                  actualText: netflixData.text?.substring(0, 30) + '...'
+                });
               }
             }
             
@@ -4310,38 +4396,132 @@ async function populateQuickSearchResults(text, language) {
 // 全域 AI 分析取消控制器
 let currentAnalysisController = null;
 
-// 帶超時保護的非阻塞 AI 分析
+// 帶超時保護和重試機制的非阻塞 AI 分析
 async function generateAnalysisWithTimeout(aiService, text, language, timeoutMs = 45000) {
-  // 取消之前的請求
-  if (currentAnalysisController) {
-    currentAnalysisController.abort();
-  }
+  const maxRetries = 3;
+  const baseTimeout = Math.min(timeoutMs, 30000); // 基礎超時不超過30秒
   
-  // 創建新的控制器
-  currentAnalysisController = new AbortController();
-  
-  return new Promise((resolve, reject) => {
-    // 設置超時
-    const timeoutId = setTimeout(() => {
-      if (currentAnalysisController) {
-        currentAnalysisController.abort();
-      }
-      reject(new Error(`AI 分析超時 (${timeoutMs / 1000}秒) - 請檢查網路連線或稍後重試`));
-    }, timeoutMs);
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    // 取消之前的請求
+    if (currentAnalysisController) {
+      currentAnalysisController.abort();
+    }
     
-    // 執行 AI 分析（非阻塞）
-    aiService.generateAnalysis(text, language)
-      .then(result => {
-        clearTimeout(timeoutId);
-        currentAnalysisController = null;
-        resolve(result);
-      })
-      .catch(error => {
-        clearTimeout(timeoutId);
-        currentAnalysisController = null;
-        reject(error);
+    // 創建新的控制器
+    currentAnalysisController = new AbortController();
+    
+    // 漸進式超時：第一次30秒，第二次45秒，第三次60秒
+    const currentTimeout = baseTimeout + (attempt - 1) * 15000;
+    
+    console.log(`🔄 AI 分析嘗試 ${attempt}/${maxRetries}，超時設定: ${currentTimeout/1000}秒`);
+    
+    // 顯示重試狀態（如果不是第一次嘗試）
+    if (attempt > 1) {
+      const statusDiv = document.querySelector('.ai-analysis .status-message');
+      if (statusDiv) {
+        statusDiv.innerHTML = `🔄 重試中... (${attempt}/${maxRetries}) - 延長超時至 ${currentTimeout/1000}秒`;
+        statusDiv.className = 'status-message warning';
+      }
+    }
+    
+    try {
+      const result = await new Promise((resolve, reject) => {
+        // 設置超時
+        const timeoutId = setTimeout(() => {
+          if (currentAnalysisController) {
+            currentAnalysisController.abort();
+          }
+          
+          // 提供更詳細的錯誤信息
+          let errorMsg = `AI 分析超時 (${currentTimeout / 1000}秒)`;
+          if (attempt < maxRetries) {
+            errorMsg += ` - 準備重試 (${attempt}/${maxRetries})`;
+          } else {
+            errorMsg += `\n\n💡 建議:\n• 檢查網路連線是否穩定\n• 嘗試使用較短的文字\n• 等待片刻後重新分析\n• 如持續失敗，請重新載入頁面`;
+          }
+          
+          reject(new Error(errorMsg));
+        }, currentTimeout);
+        
+        // 執行 AI 分析（非阻塞）
+        aiService.generateAnalysis(text, language)
+          .then(result => {
+            clearTimeout(timeoutId);
+            currentAnalysisController = null;
+            console.log(`✅ AI 分析成功 (第 ${attempt} 次嘗試)`);
+            resolve(result);
+          })
+          .catch(error => {
+            clearTimeout(timeoutId);
+            currentAnalysisController = null;
+            reject(error);
+          });
       });
-  });
+      
+      return result; // 成功時返回結果
+      
+    } catch (error) {
+      console.warn(`⚠️ AI 分析第 ${attempt} 次嘗試失敗:`, error.message);
+      
+      // 如果是最後一次嘗試，拋出錯誤
+      if (attempt === maxRetries) {
+        // 檢測可能的連線問題
+        const connectionStatus = await checkConnectionQuality();
+        let enhancedError = error.message;
+        
+        if (!connectionStatus.isOnline) {
+          enhancedError += '\n\n🌐 網路連線問題：請檢查網路連線';
+        } else if (connectionStatus.isSlowConnection) {
+          enhancedError += '\n\n🐌 網路較慢：建議等待網路改善或使用較短文字';
+        } else if (error.message.includes('AbortError')) {
+          enhancedError = '請求被取消 - 請重新分析';
+        } else if (error.message.includes('429')) {
+          enhancedError = 'API 使用次數超限 - 請稍後5分鐘再試';
+        } else if (error.message.includes('500') || error.message.includes('502')) {
+          enhancedError += '\n\n🔧 伺服器暫時無法回應，請稍後重試';
+        }
+        
+        throw new Error(enhancedError);
+      }
+      
+      // 指數退避：等待時間隨嘗試次數增加
+      const delayMs = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // 1s, 2s, 4s (最多5s)
+      console.log(`⏳ 等待 ${delayMs}ms 後重試...`);
+      
+      const statusDiv = document.querySelector('.ai-analysis .status-message');
+      if (statusDiv) {
+        statusDiv.innerHTML = `⏳ 等待 ${delayMs/1000}秒後重試...`;
+        statusDiv.className = 'status-message warning';
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+}
+
+// 檢測網路連線品質
+async function checkConnectionQuality() {
+  try {
+    const start = Date.now();
+    const response = await fetch('https://www.google.com/favicon.ico', { 
+      mode: 'no-cors',
+      cache: 'no-cache'
+    });
+    const end = Date.now();
+    const latency = end - start;
+    
+    return {
+      isOnline: true,
+      isSlowConnection: latency > 3000, // 超過3秒視為慢速連線
+      latency: latency
+    };
+  } catch (error) {
+    return {
+      isOnline: false,
+      isSlowConnection: true,
+      latency: 9999
+    };
+  }
 }
 
 // 取消當前 AI 分析
@@ -6680,6 +6860,33 @@ function displayFilteredSavedReports(reports) {
       </div>
     `;
   }).join('');
+}
+
+// Update prompt type indicator
+async function updatePromptTypeIndicator() {
+  try {
+    const indicator = document.getElementById('promptTypeIndicator');
+    const textSpan = document.getElementById('promptTypeText');
+    
+    if (!indicator || !textSpan) return;
+    
+    // Get current settings
+    const result = await chrome.storage.sync.get(['useCustomPrompt']);
+    const isCustom = result.useCustomPrompt === 'true';
+    
+    // Update indicator
+    if (isCustom) {
+      textSpan.textContent = '🎨 Custom';
+      textSpan.className = 'prompt-type-text custom';
+    } else {
+      textSpan.textContent = '⚙️ Default';
+      textSpan.className = 'prompt-type-text default';
+    }
+    
+    indicator.style.display = 'block';
+  } catch (error) {
+    console.error('Failed to update prompt type indicator:', error);
+  }
 }
 
 // Initialize all buttons and features

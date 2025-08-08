@@ -1407,7 +1407,7 @@ class TranscriptViewer {
           originalUrl: youtubeLink,
           title: videoTitle,
           channel: channelName,
-          videoTimestamp: this.platform === 'youtube' ? timestampInSeconds : null, // Netflix timestamps don't work
+          videoTimestamp: timestampInSeconds, // Include timestamp for all platforms
           timestamp: Date.now(),
           learnedAt: new Date().toISOString(),
           platform: this.platform
