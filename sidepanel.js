@@ -7154,6 +7154,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const promptToggleBtn = document.getElementById('promptToggleBtn');
   if (promptToggleBtn) {
     promptToggleBtn.addEventListener('click', () => togglePromptType());
+    // Add hover effects
+    promptToggleBtn.addEventListener('mouseover', () => {
+      promptToggleBtn.style.background = '#e8eaed';
+    });
+    promptToggleBtn.addEventListener('mouseout', () => {
+      promptToggleBtn.style.background = '#f1f3f4';
+    });
   }
   
   // Save audio toggle button

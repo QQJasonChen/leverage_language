@@ -6,7 +6,17 @@
 (function() {
     'use strict';
     
-    // Simple keyboard shortcuts without complex observers
+    // Wait for DOM to be ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initKeyboardShortcuts);
+    } else {
+        initKeyboardShortcuts();
+    }
+    
+    function initKeyboardShortcuts() {
+        console.log('🎹 Initializing keyboard shortcuts...');
+        
+        // Simple keyboard shortcuts without complex observers
     let shortcuts = {
         'meta+1': () => clickTab(0), // Analysis
         'meta+2': () => clickTab(1), // Video
@@ -14,28 +24,36 @@
         'meta+4': () => clickTab(3), // History
         'meta+5': () => clickTab(4), // Saved Reports
         'meta+6': () => clickTab(5), // Flashcards
+        'meta+7': () => clickTab(6), // Transcript
         'ctrl+1': () => clickTab(0),
         'ctrl+2': () => clickTab(1),
         'ctrl+3': () => clickTab(2),
         'ctrl+4': () => clickTab(3),
         'ctrl+5': () => clickTab(4),
         'ctrl+6': () => clickTab(5),
+        'ctrl+7': () => clickTab(6),
         'meta+/': () => showShortcutsHelp(),
         'ctrl+/': () => showShortcutsHelp()
     };
     
-    function clickTab(index) {
-        const tabs = document.querySelectorAll('.view-button');
-        if (tabs[index]) {
-            tabs[index].click();
+        function clickTab(index) {
+            console.log(`🎹 Clicking tab ${index + 1}`);
+            const tabs = document.querySelectorAll('.view-button');
+            console.log(`🎹 Found ${tabs.length} tabs:`, Array.from(tabs).map(tab => tab.textContent));
+            
+            if (tabs[index]) {
+                tabs[index].click();
+                console.log(`🎹 Successfully clicked tab: ${tabs[index].textContent}`);
+            } else {
+                console.log(`🎹 Tab ${index + 1} not found`);
+            }
         }
-    }
-    
-    function showShortcutsHelp() {
-        const helpText = `
+        
+        function showShortcutsHelp() {
+            const helpText = `
 Keyboard Shortcuts:
 
-⌘/Ctrl + 1-6  Switch to tabs 1-6
+⌘/Ctrl + 1-7  Switch to tabs 1-7
 ⌘/Ctrl + /    Show this help
 
 Available tabs:
@@ -45,35 +63,43 @@ Available tabs:
 4. History
 5. Saved Reports
 6. Flashcards
-        `;
+7. Transcript
+            `;
+            
+            alert(helpText.trim());
+        }
         
-        alert(helpText.trim());
+        // Single keydown listener
+        document.addEventListener('keydown', function(e) {
+            // Don't interfere with input fields
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return;
+            }
+            
+            const key = [];
+            if (e.ctrlKey) key.push('ctrl');
+            if (e.metaKey) key.push('meta');
+            if (e.shiftKey) key.push('shift');
+            key.push(e.key.toLowerCase());
+            
+            const shortcut = key.join('+');
+            const handler = shortcuts[shortcut];
+            
+            console.log(`🎹 Key pressed: ${shortcut}, handler found: ${!!handler}`);
+            
+            if (handler) {
+                e.preventDefault();
+                e.stopPropagation();
+                handler();
+            }
+        });
+        
+        // Add subtle indicator
+        addShortcutIndicator();
+        
+        console.log('🎹 Keyboard shortcuts initialized successfully');
     }
     
-    // Single keydown listener
-    document.addEventListener('keydown', function(e) {
-        // Don't interfere with input fields
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-            return;
-        }
-        
-        const key = [];
-        if (e.ctrlKey) key.push('ctrl');
-        if (e.metaKey) key.push('meta');
-        if (e.shiftKey) key.push('shift');
-        key.push(e.key.toLowerCase());
-        
-        const shortcut = key.join('+');
-        const handler = shortcuts[shortcut];
-        
-        if (handler) {
-            e.preventDefault();
-            e.stopPropagation();
-            handler();
-        }
-    });
-    
-    // Add subtle indicator
     function addShortcutIndicator() {
         if (document.querySelector('.shortcut-indicator')) return;
         
@@ -102,16 +128,26 @@ Available tabs:
         
         indicator.addEventListener('mouseenter', () => indicator.style.opacity = '1');
         indicator.addEventListener('mouseleave', () => indicator.style.opacity = '0.7');
-        indicator.addEventListener('click', showShortcutsHelp);
+        indicator.addEventListener('click', () => {
+            const helpText = `
+Keyboard Shortcuts:
+
+⌘/Ctrl + 1-7  Switch to tabs 1-7
+⌘/Ctrl + /    Show this help
+
+Available tabs:
+1. Analysis
+2. Video  
+3. Websites
+4. History
+5. Saved Reports
+6. Flashcards
+7. Transcript
+            `;
+            alert(helpText.trim());
+        });
         
         document.body.appendChild(indicator);
-    }
-    
-    // Initialize when DOM is ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', addShortcutIndicator);
-    } else {
-        addShortcutIndicator();
     }
     
 })();
