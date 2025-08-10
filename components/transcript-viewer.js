@@ -1553,10 +1553,40 @@ class TranscriptViewer {
         }, 2000);
       }
 
-      // Switch to analysis view after a short delay
-      setTimeout(() => {
-        this.switchToAnalysisView(text);
-      }, 500);
+      // Send to background script for analysis (same as "A" shortcut)
+      try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        const tab = tabs[0];
+        
+        if (tab) {
+          // Send to background script for analysis
+          const response = await chrome.tabs.sendMessage(tab.id, {
+            action: 'analyzeTextInSidepanel',
+            text: text,
+            platform: this.platform
+          });
+          
+          console.log('🎯 ✨ button analysis response:', response);
+          
+          // Wait for analysis to process, then switch to Analysis tab
+          setTimeout(() => {
+            console.log('🎯 ✨ Switching to Analysis tab...');
+            const analysisBtn = document.querySelector('#showAnalysisBtn');
+            if (analysisBtn) {
+              analysisBtn.click();
+              console.log('✅ ✨ button successfully analyzed and switched to Analysis tab');
+            } else {
+              console.error('❌ Could not find Analysis tab button #showAnalysisBtn');
+            }
+          }, 1500); // Wait 1.5 seconds for analysis to process
+        }
+      } catch (error) {
+        console.error('❌ ✨ button analysis failed:', error);
+        // Fallback to old method
+        setTimeout(() => {
+          this.switchToAnalysisView(text);
+        }, 500);
+      }
       
     } catch (error) {
       console.error('❌ Failed to capture sentence:', error);

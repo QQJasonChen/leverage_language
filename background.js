@@ -425,8 +425,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     chrome.tabs.query({active: true, currentWindow: true})
       .then((tabs) => {
         if (tabs[0]) {
-          // Force analysis-only for manual searches to avoid intrusive tabs
-          return searchYouGlish(request.text, tabs[0].id, 'manual', 'analysis-only');
+          // Use the language from manual search if provided
+          if (request.language && request.language !== 'auto') {
+            console.log('🔍 Manual search with specific language:', request.language, 'for text:', request.text);
+            // For manual searches with specific language, use executeSearchWithLanguage
+            return executeSearchWithLanguage(request.text, tabs[0].id, request.language);
+          } else {
+            console.log('🔍 Manual search with auto language detection for text:', request.text);
+            // Force analysis-only for manual searches to avoid intrusive tabs
+            return searchYouGlish(request.text, tabs[0].id, 'manual', 'analysis-only');
+          }
         } else {
           throw new Error('No active tab found');
         }

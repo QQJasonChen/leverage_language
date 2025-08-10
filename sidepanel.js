@@ -9425,12 +9425,17 @@ function performManualSearch() {
     return;
   }
   
-  console.log('Performing manual search for:', text);
+  // Get selected language from dropdown
+  const manualLanguageSelect = document.getElementById('manualLanguageSelect');
+  const selectedLanguage = manualLanguageSelect ? manualLanguageSelect.value : 'english';
+  
+  console.log('Performing manual search for:', text, 'in language:', selectedLanguage);
   
   // Send message to background script
   chrome.runtime.sendMessage({
     action: 'manualSearch',
-    text: text
+    text: text,
+    language: selectedLanguage
   }, (response) => {
     if (response && response.success) {
       manualSearchInput.value = '';

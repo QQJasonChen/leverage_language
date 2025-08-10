@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test English AI Response</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        .test-section h3 {
+            color: #333;
+            margin-top: 0;
+        }
+        .prompt-output {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .controls {
+            margin-bottom: 20px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .language-select {
+            margin: 10px 0;
+        }
+        select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌐 Test English AI Response - Phase 1</h1>
+        <p>This page tests the new bilingual AI analysis feature.</p>
+        
+        <div class="controls">
+            <div class="language-select">
+                <label for="interfaceLanguage">Interface Language:</label>
+                <select id="interfaceLanguage">
+                    <option value="zh_TW">繁體中文 (Traditional Chinese)</option>
+                    <option value="en">English</option>
+                </select>
+            </div>
+            
+            <div class="language-select">
+                <label for="contentLanguage">Content Language:</label>
+                <select id="contentLanguage">
+                    <option value="dutch">Dutch</option>
+                    <option value="english">English</option>
+                    <option value="japanese">Japanese</option>
+                    <option value="korean">Korean</option>
+                </select>
+            </div>
+            
+            <div>
+                <label for="testText">Test Text:</label>
+                <input type="text" id="testText" value="Komt u uit het zuiden?" style="width: 300px; padding: 8px;">
+            </div>
+            
+            <button onclick="testSimplePrompt()">Test Simple Prompt</button>
+            <button onclick="testMediumPrompt()">Test Medium Prompt</button>
+            <button onclick="clearResults()">Clear Results</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>📝 Simple Prompt Result</h3>
+            <div id="simpleResult" class="prompt-output">Click "Test Simple Prompt" to see result...</div>
+        </div>
+        
+        <div class="test-section">
+            <h3>📊 Medium Prompt Result</h3>
+            <div id="mediumResult" class="prompt-output">Click "Test Medium Prompt" to see result...</div>
+        </div>
+    </div>
+
+    <!-- Load AI prompt templates -->
+    <script src="lib/ai-prompt-templates.js"></script>
+    
+    <script>
+        // Mock AI service for testing
+        class MockAIService {
+            constructor() {
+                this.interfaceLanguage = 'zh_TW';
+            }
+            
+            async getInterfaceLanguage() {
+                const interfaceLang = document.getElementById('interfaceLanguage').value;
+                this.interfaceLanguage = interfaceLang;
+                return interfaceLang;
+            }
+            
+            getLanguageName(language) {
+                if (typeof AIPromptTemplates !== 'undefined') {
+                    return AIPromptTemplates.getLanguageName(language, this.interfaceLanguage);
+                }
+                
+                // Fallback to Chinese names
+                const languageNames = {
+                    'english': '英語',
+                    'dutch': '荷蘭語', 
+                    'japanese': '日語',
+                    'korean': '韓語'
+                };
+                return languageNames[language] || '英語';
+            }
+            
+            buildEnglishSimplePrompt(text, language, langName, isWord) {
+                if (isWord) {
+                    if (language === 'dutch') {
+                        return `Hi! I'm excited to chat about the word "${text}" with you! Let's dive deep into it together! 😊
+
+💬 **Conversational Translation**: In Dutch, "${text}" means..., and it refers to... In everyday life, this word is also commonly used to...
+
+🎯 **Simple Pronunciation Tips**: This word can be broken down into... parts: [syllable breakdown]. Pay special attention to the... part, this sound in Dutch sounds like..., so overall it will have a... feeling.
+
+🏠 **Familiar Connection**: This word is like the English "...", and actually many languages have similar usage, such as... Imagine when..., that's the feeling of "${text}"!
+
+🫀 **Emotional Resonance**: Imagine you..., this feeling is what "${text}" brings, filled with the essence of...
+
+📝 **What Part of Speech**: This is a [part of speech], typically used to... However, in certain situations, it can also be used to..., such as "..."
+
+🌟 **Dutch Original Text Usage Method**:
+   **✍️ Original Example**: "[Complete Dutch sentence showing actual usage context]"
+   **🔤 Word-by-Word Analysis**: [break down each word, marking parts of speech and functions]
+   **📖 Practical Sentence Pattern**: "When you want to [specific context], you can say: '[practical Dutch sentence]'"
+   **💡 Memory Technique**: Suggest remembering it this way: [specific memory method, such as association, root word method, etc.]
+
+🎭 **Scene Recreation**: Next time when you..., feel the... sensation this word brings you, then naturally say "[Dutch application sentence]"!
+
+Please respond conversationally, like chatting with a friend naturally!`;
+                    } else {
+                        return `Hi! Let me help you analyze the ${langName} word "${text}" in a relaxed way!
+
+💬 **Conversational Translation**: This word means...
+🎯 **Simple Pronunciation Tips**: [pronunciation techniques]
+📝 **What Part of Speech**: [explain part of speech usage]
+🌟 **One Life Example**: [practical example]
+
+Please respond conversationally, like chatting with a friend naturally!`;
+                    }
+                } else {
+                    const structureGuide = 
+                        (language === 'dutch' ? '\\n🇳🇱 **Dutch Secret**: This sentence uses Dutch-specific word arrangement' :
+                         language === 'japanese' ? '\\n🇯🇵 **Japanese Tip**: Japanese word order is very different from Chinese, with verbs at the end' :
+                         '\\n💭 **Sentence Structure**: Let\\'s see how this sentence is organized');
+                    
+                    let simplePrompt = `Hi! Let me help you understand this ${langName} sentence "${text}" in a conversational way!
+
+💬 **Natural Translation**: In everyday language, this means...
+🔍 **Key Vocabulary**: [pick a few important words to explain]
+${structureGuide}
+🌍 **When You'd Hear This**: [usage context]
+
+`;
+                    
+                    // Add simplified examples and dialogue for Dutch
+                    if (language === 'dutch') {
+                        simplePrompt += `🎯 **Related Examples**:
+1. [Simple Dutch example] → [English translation]
+2. [Simple Dutch example] → [English translation] 
+3. [Simple Dutch example] → [English translation]
+
+💡 **Mini Dialogue**:
+A: [Dutch]
+B: [Dutch]
+
+`;
+                    }
+                    
+                    simplePrompt += `Please respond in a relaxed conversational tone, like teaching a friend!`;
+                    return simplePrompt;
+                }
+            }
+            
+            buildChineseSimplePrompt(text, language, langName, isWord) {
+                if (isWord) {
+                    if (language === 'dutch') {
+                        return `嗨！很高興能和你聊聊「${text}」這個詞！讓我們一起來深入了解吧！😊
+
+💬 **聊天式翻譯**：在荷蘭語中，「${text}」的意思是...，它指的是...。在日常生活中，這個詞也常用來...
+
+🎯 **簡單發音提示**：這個詞的發音可以分為...個部分：[音節劃分]。特別注意...的部分，這個音在荷蘭語中聽起來...，所以整體聽起來會有...的感覺。
+
+🏠 **已知連結**：這個詞就像中文的「...」，其實在許多語言中都有類似的用法，比如...。想像一下...，這就是「${text}」的感覺！
+
+🫀 **身體共鳴**：想像一下你...，這種感覺就是「${text}」所帶來的，充滿著...的氣息。
+
+📝 **它是什麼詞性**：這是一個[詞性]，通常用來...。不過在某些情況下，它也可以用來...，比如「...」。
+
+🌟 **荷蘭語原文使用方法**：
+   **✍️ 原文例句**：「[荷蘭語完整例句，展示實際使用情境]」
+   **🔤 逐詞解析**：[逐詞分解，標註詞性和功能]
+   **📖 實用句型**：「當你想要[具體情境]時，可以說：'[荷蘭語實用句子]'」
+   **💡 記憶技巧**：建議這樣記憶：[具體記憶方法，如聯想法、詞根法等]
+
+🎭 **場景重現**：下次當你...時，感受一下這個詞帶給你的...感覺，然後自然地說出「[荷蘭語應用句]」！
+
+請用對話的方式回答，就像朋友間聊天一樣自然！`;
+                    } else {
+                        return `嗨！讓我用輕鬆的方式來幫你分析${langName}單詞「${text}」吧！
+
+💬 **聊天式翻譯**：這個詞的意思是...
+🎯 **簡單發音提示**：[發音技巧]
+📝 **它是什麼詞性**：[說明詞性用途]
+🌟 **一個生活例句**：[實用例句]
+
+請用對話的方式回答，就像朋友間聊天一樣自然！`;
+                    }
+                }
+                } else {
+                    const structureGuide = 
+                        (language === 'dutch' ? '\\n🇳🇱 **荷蘭語小秘密**：這句話用了荷蘭語特有的排列方式' :
+                         language === 'japanese' ? '\\n🇯🇵 **日語小提示**：日語的語序和中文很不一樣，動詞在最後面' :
+                         '\\n💭 **句子結構**：讓我們看看這句話是怎麼組織的');
+                    
+                    let simplePrompt = `嗨！我來用聊天的方式幫你理解${langName}這句話「${text}」！
+
+💬 **自然翻譯**：用日常用語來說就是...
+🔍 **重點詞彙**：[挑幾個重要的詞解釋]
+${structureGuide}
+🌍 **什麼時候會聽到這句**：[使用情境]
+
+`;
+                    
+                    // 為荷蘭語添加簡化版的例句和對話
+                    if (language === 'dutch') {
+                        simplePrompt += `🎯 **相關例句**：
+1. [簡單的荷蘭語例句] → [中文翻譯]
+2. [簡單的荷蘭語例句] → [中文翻譯]
+3. [簡單的荷蘭語例句] → [中文翻譯]
+
+💡 **迷你對話**：
+A: [荷蘭語]
+B: [荷蘭語]
+
+`;
+                    }
+                    
+                    simplePrompt += `請用輕鬆對話的語調回答，像是在教朋友一樣！`;
+                    return simplePrompt;
+                }
+            }
+            
+            buildSimplePrompt(text, language) {
+                // Get language name based on interface language
+                const langName = this.getLanguageName(language);
+                const isWord = text.trim().split(/\\s+/).length === 1;
+                
+                // Use templates based on interface language
+                if (this.interfaceLanguage === 'en') {
+                    return this.buildEnglishSimplePrompt(text, language, langName, isWord);
+                } else {
+                    return this.buildChineseSimplePrompt(text, language, langName, isWord);
+                }
+            }
+            
+            buildEnglishMediumPrompt(text, language, langName, isWord) {
+                if (isWord) {
+                    return `Let's dive deep into the ${langName} word "${text}"!
+
+💬 **Translation & Meaning**: Let me tell you what this word means...
+🎵 **Pronunciation Tips**: [IPA phonetics] + pronunciation tricks
+📚 **Part of Speech Analysis**: This is a [part of speech], typically used like this...
+🌟 **Practical Examples**: [2 life-like examples]
+🔄 **Word Forms**: [important variations, explained conversationally]
+💼 **When to Use**: What occasions are suitable...
+
+Please explain in a friendly conversational tone, like a teacher chatting with a student!`;
+                } else {
+                    const structureGuide = 
+                        (language === 'dutch' ? '\\n🇳🇱 **Dutch Structure Chat**:\\n   💡 Verb Position: Dutch has an interesting rule - verbs like to stay in the second position\\n   🕐 Time Order: Notice how time, manner, place are arranged\\n   🔧 Separable Verbs: Some verbs split their prefixes apart, like disassembled building blocks' :
+                         language === 'japanese' ? '\\n🇯🇵 **Japanese Structure Chat**:\\n   🍜 SOV Order: Subject-Object-Verb, like "I ramen eat" feeling\\n   ⚡ Particle Magic: は, が, を - these small words are important, they mark word roles\\n   🎭 Politeness Levels: Japanese has several politeness levels, choose based on the audience' :
+                         '\\n💭 **Grammar Structure Dialogue**:\\n   📐 Sentence Analysis: The main structure of this sentence is...\\n   🔗 Word Relationships: How the parts connect to each other');
+                    
+                    let prompt = `Let's break down this ${langName} sentence "${text}" together!
+
+💬 **Overall Meaning**: In natural English, this means...
+🧩 **Key Vocabulary**: Let me explain the important words one by one...
+${structureGuide}
+🗣️ **Pronunciation Focus**: Pay attention to the tone in these places...
+🎯 **Usage Context**: When would you hear this sentence...
+🌏 **Cultural Knowledge**: About the background of this sentence...
+
+`;
+                    
+                    // Add similar examples and scenario dialogue for Dutch
+                    if (language === 'dutch') {
+                        prompt += `🎯 **Similar Examples - Practice Extension**:
+Please provide 5-7 practice sentences using the same grammar structure:
+
+1. [Dutch example] → [English translation]
+2. [Dutch example] → [English translation]
+3. [Dutch example] → [English translation]
+4. [Dutch example] → [English translation]
+5. [Dutch example] → [English translation]
+
+💡 **Scenario Dialogue**: Design a 4-6 sentence practical dialogue, naturally incorporating the learned content
+A: [Dutch dialogue]
+B: [Dutch dialogue]
+A: [Dutch dialogue]
+B: [Dutch dialogue]
+
+`;
+                    }
+                    
+                    prompt += `Please respond in a relaxed conversational way, like discussing language learning insights with a friend!`;
+                    return prompt;
+                }
+            }
+            
+            buildChineseMediumPrompt(text, language, langName, isWord) {
+                if (isWord) {
+                    return `來深入了解一下${langName}單詞「${text}」吧！
+
+💬 **翻譯與含意**：讓我告訴你這個詞的意思...
+🎵 **發音秘訣**：[IPA音標] + 發音小技巧
+📚 **詞性解析**：這是個[詞性]，通常這樣用...
+🌟 **實際例句**：[2個生活化例句]
+🔄 **詞形變化**：[重要變化，用對話方式說明]
+💼 **使用時機**：什麼場合用比較合適...
+
+請用友善對話的語調解釋，像老師和學生聊天一樣！`;
+                } else {
+                    const structureGuide = 
+                        (language === 'dutch' ? '\\n🇳🇱 **荷蘭語結構聊天**：\\n   💡 動詞位置：荷蘭語有個有趣的規則，動詞喜歡待在第二個位置\\n   🕐 時間順序：注意時間、方式、地點是怎麼排列的\\n   🔧 動詞分離：有些動詞會把前綴分開放，像拆開重組的積木' :
+                         language === 'japanese' ? '\\n🇯🇵 **日語結構聊天**：\\n   🍜 SOV順序：主語-賓語-動詞，就像「我拉麵吃」的感覺\\n   ⚡ 助詞魔法：は、が、を這些小字很重要，它們標示詞彙的角色\\n   🎭 敬語層次：日語有好幾種禮貌程度，要看對象選擇' :
+                         '\\n💭 **語法結構對話**：\\n   📐 句型分析：這句話的主要結構是...\\n   🔗 詞彙關係：各個部分是如何連接的');
+                    let prompt = `讓我們一起來拆解${langName}這句話「${text}」！
+
+💬 **整句意思**：用自然的中文來說...
+🧩 **關鍵詞彙**：讓我逐一解釋重要的詞...
+${structureGuide}
+🗣️ **發音重點**：注意這些地方的語調...
+🎯 **使用情境**：你會在什麼時候聽到這句話...
+🌏 **文化小知識**：關於這句話的背景...
+
+`;
+                    
+                    // 為荷蘭語添加類似例句和情境對話
+                    if (language === 'dutch') {
+                        prompt += `🎯 **類似例句 - 延伸練習**：
+請提供 5-7 個使用相同語法結構的練習句：
+
+1. [荷蘭語例句] → [中文翻譯]
+2. [荷蘭語例句] → [中文翻譯]
+3. [荷蘭語例句] → [中文翻譯]
+4. [荷蘭語例句] → [中文翻譯]
+5. [荷蘭語例句] → [中文翻譯]
+
+💡 **情境對話**：設計一個4-6句的實用對話，自然融入所學內容
+A: [荷蘭語對話]
+B: [荷蘭語對話]
+A: [荷蘭語對話]
+B: [荷蘭語對話]
+
+`;
+                    }
+                    
+                    prompt += `請用輕鬆對話的方式回答，就像在和朋友討論語言學習心得！`;
+                    return prompt;
+                }
+            }
+            
+            buildMediumPrompt(text, language) {
+                // Get language name based on interface language
+                const langName = this.getLanguageName(language);
+                const isWord = text.trim().split(/\\s+/).length === 1;
+                
+                // Use templates based on interface language
+                if (this.interfaceLanguage === 'en') {
+                    return this.buildEnglishMediumPrompt(text, language, langName, isWord);
+                } else {
+                    return this.buildChineseMediumPrompt(text, language, langName, isWord);
+                }
+            }
+        }
+        
+        const mockAI = new MockAIService();
+        
+        async function testSimplePrompt() {
+            await mockAI.getInterfaceLanguage();
+            const text = document.getElementById('testText').value;
+            const language = document.getElementById('contentLanguage').value;
+            
+            const result = mockAI.buildSimplePrompt(text, language);
+            document.getElementById('simpleResult').textContent = result;
+        }
+        
+        async function testMediumPrompt() {
+            await mockAI.getInterfaceLanguage();
+            const text = document.getElementById('testText').value;
+            const language = document.getElementById('contentLanguage').value;
+            
+            const result = mockAI.buildMediumPrompt(text, language);
+            document.getElementById('mediumResult').textContent = result;
+        }
+        
+        function clearResults() {
+            document.getElementById('simpleResult').textContent = 'Click "Test Simple Prompt" to see result...';
+            document.getElementById('mediumResult').textContent = 'Click "Test Medium Prompt" to see result...';
+        }
+        
+        // Initial test
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🧪 English AI Response Test Page Loaded');
+            console.log('📚 AIPromptTemplates available:', typeof AIPromptTemplates !== 'undefined');
+        });
+    </script>
+</body>
+</html>
