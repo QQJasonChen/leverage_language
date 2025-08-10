@@ -1492,6 +1492,7 @@ function initializeViewControls() {
   const showFlashcardsBtn = document.getElementById('showFlashcardsBtn');
   // Analytics button removed
   const showTranscriptBtn = document.getElementById('showTranscriptBtn');
+  const showImitationPracticeBtn = document.getElementById('showImitationPracticeBtn');
   const openNewTabBtn = document.getElementById('openNewTabBtn');
   const analysisView = document.getElementById('analysisView');
   const videoView = document.getElementById('videoView');
@@ -1501,6 +1502,7 @@ function initializeViewControls() {
   const flashcardsView = document.getElementById('flashcardsView');
   // Analytics view removed
   const transcriptView = document.getElementById('transcriptView');
+  const imitationPracticeView = document.getElementById('imitationPracticeView');
   
   // 分析視圖按鈕
   if (showAnalysisBtn) {
@@ -1518,6 +1520,7 @@ function initializeViewControls() {
       if (flashcardsView) flashcardsView.style.display = 'none';
       // Analytics view removed
       if (transcriptView) transcriptView.style.display = 'none';
+      if (imitationPracticeView) imitationPracticeView.style.display = 'none';
       
       log('Switched to analysis view');
     };
@@ -1540,6 +1543,7 @@ function initializeViewControls() {
       if (flashcardsView) flashcardsView.style.display = 'none';
       // Analytics view removed
       if (transcriptView) transcriptView.style.display = 'none';
+      if (imitationPracticeView) imitationPracticeView.style.display = 'none';
       
       // Initialize learning dashboard for video tab
       console.log('📹 Video tab clicked - Initializing learning dashboard');
@@ -1571,6 +1575,7 @@ function initializeViewControls() {
       if (flashcardsView) flashcardsView.style.display = 'none';
       // Analytics view removed
       if (transcriptView) transcriptView.style.display = 'none';
+      if (imitationPracticeView) imitationPracticeView.style.display = 'none';
       
       // Load pronunciation sites for current query
       console.log('🌐 Website tab clicked. currentQueryData:', currentQueryData);
@@ -1604,6 +1609,7 @@ function initializeViewControls() {
       if (flashcardsView) flashcardsView.style.display = 'none';
       // Analytics view removed
       if (transcriptView) transcriptView.style.display = 'none';
+      if (imitationPracticeView) imitationPracticeView.style.display = 'none';
       
       loadHistoryView();
       console.log('Switched to history view');
@@ -1674,6 +1680,29 @@ function initializeViewControls() {
       
       await loadTranscriptView();
       console.log('Switched to transcript view');
+    };
+  }
+  
+  // Imitation Practice view button
+  if (showImitationPracticeBtn) {
+    showImitationPracticeBtn.onclick = async () => {
+      // Remove active from all view buttons
+      document.querySelectorAll('.view-button').forEach(btn => btn.classList.remove('active'));
+      showImitationPracticeBtn.classList.add('active');
+      
+      // Show imitation practice view, hide all others
+      if (analysisView) analysisView.style.display = 'none';
+      if (videoView) videoView.style.display = 'none';
+      if (websitesView) websitesView.style.display = 'none';
+      if (historyView) historyView.style.display = 'none';
+      if (savedReportsView) savedReportsView.style.display = 'none';
+      if (flashcardsView) flashcardsView.style.display = 'none';
+      if (transcriptView) transcriptView.style.display = 'none';
+      // Show imitation practice view
+      if (imitationPracticeView) imitationPracticeView.style.display = 'block';
+      
+      await loadImitationPracticeView();
+      console.log('Switched to imitation practice view');
     };
   }
   
@@ -5112,6 +5141,46 @@ function showTranscriptError() {
         ">重試</button>
       </div>
     `;
+  }
+}
+
+// Load Imitation Practice View
+async function loadImitationPracticeView() {
+  try {
+    console.log('✍️ Loading imitation practice view...');
+    const container = document.getElementById('imitationPracticeMainContainer');
+    if (!container) {
+      console.error('❌ Imitation practice container not found');
+      showImitationPracticeError('容器未找到，請重新整理頁面');
+      return;
+    }
+
+    console.log('✅ Container found:', container);
+    console.log('🔍 Checking ImitationPracticeUI class:', typeof window.ImitationPracticeUI);
+
+    // Initialize imitation practice UI if not already done
+    if (!window.imitationPracticeUIInstance) {
+      if (typeof ImitationPracticeUI !== 'undefined') {
+        console.log('🚀 Creating new ImitationPracticeUI...');
+        window.imitationPracticeUIInstance = new ImitationPracticeUI(container);
+        await window.imitationPracticeUIInstance.initialize();
+        console.log('✅ ImitationPracticeUI created successfully');
+      } else {
+        console.error('❌ ImitationPracticeUI class not available');
+        showImitationPracticeError('仿寫練習組件未載入');
+        return;
+      }
+    } else {
+      console.log('♻️ Using existing ImitationPracticeUI');
+      // Refresh the UI to ensure it's up to date
+      if (window.imitationPracticeUIInstance.initialize) {
+        await window.imitationPracticeUIInstance.initialize();
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ Failed to load imitation practice view:', error);
+    showImitationPracticeError(`載入失敗: ${error.message}`);
   }
 }
 
@@ -13941,5 +14010,27 @@ window.runAIDiagnostics = async function() {
     return { success: false, error: error.message };
   }
 };
+
+// ==========================================
+// Imitation Practice Feature Integration
+// ==========================================
+
+// Show error message for imitation practice
+function showImitationPracticeError(message) {
+  const container = document.getElementById('imitationPracticeMainContainer');
+  if (container) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 40px; color: #f44336; background: white; border-radius: 8px; margin: 20px;">
+        <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+        <div style="font-size: 16px; margin-bottom: 20px; color: #333;">${message}</div>
+        <button onclick="location.reload()" style="background: #2196F3; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 14px;">
+          🔄 重新載入頁面
+        </button>
+      </div>
+    `;
+  }
+}
+
+console.log('✅ Imitation Practice integration loaded into sidepanel.js');
 
 console.log('🔧 Diagnostic tool loaded! Run window.runAIDiagnostics() to test AI services');

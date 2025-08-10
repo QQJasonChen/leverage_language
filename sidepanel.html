@@ -3869,6 +3869,7 @@
                     <button id="showSavedReportsBtn" class="view-button" data-i18n="saved_reports_view">💾 Saved Reports</button>
                     <button id="showFlashcardsBtn" class="view-button" data-i18n="flashcards_view">🃏 Flashcards</button>
                     <button id="showTranscriptBtn" class="view-button" data-i18n="transcript_view">📝 Transcript</button>
+                    <button id="showImitationPracticeBtn" class="view-button" data-i18n="imitation_practice_view">✍️ Practice</button>
                 </div>
             </div>
             
@@ -4603,6 +4604,13 @@
                 <div id="transcriptRestructurerContainer"></div>
             </div>
             
+            <!-- Imitation Practice View -->
+            <div id="imitationPracticeView" class="imitation-practice-view" style="display: none;">
+                <div id="imitationPracticeMainContainer">
+                    <!-- Imitation practice UI will be loaded here -->
+                </div>
+            </div>
+            
         </div>
     </div>
     
@@ -4615,6 +4623,8 @@
     <script src="lib/lang-detect.js"></script>
     <script src="lib/export-templates.js"></script>
     <script src="lib/flashcard-manager.js"></script>
+    <script src="lib/imitation-practice-manager.js"></script>
+    <script src="components/imitation-practice-ui.js"></script>
     <script src="lib/security-utils.js"></script>
     <script src="lib/performance-utils.js"></script>
     <script src="lib/error-handler.js"></script>
