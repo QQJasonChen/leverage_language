@@ -75,20 +75,80 @@ class ImitationPracticeUI {
     try {
       // 從歷史記錄中獲取句子
       const response = await chrome.runtime.sendMessage({ 
-        action: 'getLearningHistory',
-        filter: { hasText: true, limit: 50 }
+        action: 'getHistory'
       });
 
-      if (response && response.history) {
+      console.log('History response:', response);
+      
+      if (response && Array.isArray(response)) {
+        // Response is directly an array
+        const sentences = response.filter(item => 
+          item.text && item.text.length > 10 && item.text.split(' ').length > 3
+        );
+
+        this.populateSentenceDropdown(sentences);
+      } else if (response && response.history) {
+        // Response has history property
         const sentences = response.history.filter(item => 
           item.text && item.text.length > 10 && item.text.split(' ').length > 3
         );
 
         this.populateSentenceDropdown(sentences);
+      } else {
+        console.warn('No history data found, loading demo sentences');
+        this.loadDemoSentences();
       }
     } catch (error) {
       console.error('Failed to load sentences:', error);
-      this.showError('無法載入句子，請重試');
+      // Load demo sentences as fallback
+      this.loadDemoSentences();
+    }
+  }
+
+  /**
+   * 載入示範句子
+   */
+  loadDemoSentences() {
+    const demoSentences = [
+      {
+        text: "I would like to know if you could help me with this project.",
+        source: "demo-business",
+        language: "english",
+        translation: "我想知道你是否可以幫助我完成這個項目。"
+      },
+      {
+        text: "The more you practice, the better you become at speaking English.",
+        source: "demo-education", 
+        language: "english",
+        translation: "你練習得越多，你的英語口語就會變得越好。"
+      },
+      {
+        text: "If I had more time, I would learn another language.",
+        source: "demo-learning",
+        language: "english",
+        translation: "如果我有更多時間，我會學習另一種語言。"
+      }
+    ];
+    
+    this.populateSentenceDropdown(demoSentences);
+    
+    // Show info message
+    const practiceArea = document.getElementById('practiceArea');
+    if (practiceArea) {
+      const infoDiv = document.createElement('div');
+      infoDiv.style.cssText = 'background: #fff3cd; color: #856404; padding: 10px; margin: 10px 0; border-radius: 4px; font-size: 12px;';
+      infoDiv.textContent = '💡 提示：這些是示範句子。開始在 YouTube 或網頁上保存句子後，將會顯示您的個人句子庫。';
+      practiceArea.insertBefore(infoDiv, practiceArea.firstChild);
+    }
+  }
+
+  /**
+   * 顯示無句子提示
+   */
+  showNoSentencesMessage() {
+    const select = document.getElementById('sentenceSelect');
+    if (select) {
+      select.innerHTML = '<option value="">尚無保存的句子，請先在 YouTube 或文章中保存一些句子</option>';
     }
   }
 
@@ -97,6 +157,17 @@ class ImitationPracticeUI {
    */
   populateSentenceDropdown(sentences) {
     const select = document.getElementById('sentenceSelect');
+    
+    if (!select) {
+      console.error('Sentence select element not found');
+      return;
+    }
+    
+    if (!sentences || sentences.length === 0) {
+      this.showNoSentencesMessage();
+      return;
+    }
+    
     select.innerHTML = '<option value="">選擇一個句子開始練習...</option>';
 
     sentences.forEach((sentence, index) => {
@@ -110,7 +181,15 @@ class ImitationPracticeUI {
         : sentence.text;
       
       // 顯示來源
-      const source = sentence.source || 'unknown';
+      let source = 'unknown';
+      if (sentence.source) {
+        source = sentence.source;
+      } else if (sentence.detectionMethod) {
+        source = sentence.detectionMethod;
+      } else if (sentence.language) {
+        source = sentence.language;
+      }
+      
       option.textContent = `${displayText} (${source})`;
       
       select.appendChild(option);
@@ -411,8 +490,12 @@ class ImitationPracticeUI {
     });
 
     // 刷新句子
-    document.getElementById('refreshSentences')?.addEventListener('click', () => {
-      this.loadSavedSentences();
+    document.getElementById('refreshSentences')?.addEventListener('click', async () => {
+      const select = document.getElementById('sentenceSelect');
+      if (select) {
+        select.innerHTML = '<option value="">重新載入中...</option>';
+      }
+      await this.loadSavedSentences();
     });
   }
 
