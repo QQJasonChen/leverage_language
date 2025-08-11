@@ -608,6 +608,86 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true; // Keep message channel open for async response
   }
   
+  // Handle AI analysis requests for imitation practice
+  if (request.action === 'getAIResponse') {
+    console.log('🤖 Processing AI analysis request:', request.context?.type);
+    
+    (async () => {
+      try {
+        // Initialize AI service if needed
+        const aiService = new AIService();
+        const initResult = await aiService.initialize();
+        
+        console.log('🤖 AI Service init result:', initResult);
+        console.log('🤖 AI Service available:', aiService.isAvailable());
+        
+        if (!aiService.isAvailable()) {
+          // Get current settings for better error message
+          const settings = await chrome.storage.sync.get(['aiEnabled', 'aiProvider', 'apiKey']);
+          console.log('🤖 Current AI settings:', {
+            enabled: settings.aiEnabled,
+            provider: settings.aiProvider,
+            hasApiKey: !!settings.apiKey
+          });
+          
+          let errorMsg = 'AI service not configured. ';
+          if (settings.aiEnabled !== 'true') {
+            errorMsg += 'AI is disabled in settings. ';
+          }
+          if (!settings.apiKey) {
+            errorMsg += 'No API key configured. ';
+          }
+          errorMsg += 'Please check extension settings.';
+          
+          throw new Error(errorMsg);
+        }
+        
+        // Add timeout to prevent hanging
+        const timeoutMs = 15000; // 15 second timeout
+        
+        // Call the appropriate API method directly
+        let response;
+        if (aiService.settings.provider === 'gemini') {
+          response = await Promise.race([
+            aiService.callGeminiAPI(request.prompt, 'simple'),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('AI request timeout')), timeoutMs)
+            )
+          ]);
+        } else if (aiService.settings.provider === 'openai') {
+          response = await Promise.race([
+            aiService.callOpenAIAPI(request.prompt, 'simple'),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('AI request timeout')), timeoutMs)
+            )
+          ]);
+        } else {
+          throw new Error('Unsupported AI provider: ' + aiService.settings.provider);
+        }
+        
+        console.log('🤖 Direct API response received:', response?.content?.length || response?.text?.length);
+        
+        // AI service returns {content: "...", provider: "..."} format
+        const aiText = response?.content || response?.text || response;
+        if (response && aiText && typeof aiText === 'string') {
+          sendResponse({ success: true, text: aiText });
+        } else {
+          throw new Error(response?.error || `AI API returned invalid response: ${JSON.stringify(response).substring(0, 200)}`);
+        }
+      } catch (error) {
+        console.error('🤖 AI analysis request failed:', error);
+        sendResponse({ 
+          success: false, 
+          error: error.message || 'AI analysis failed',
+          details: error.toString(),
+          needsConfiguration: error.message.includes('not configured') || error.message.includes('API key')
+        });
+      }
+    })();
+    
+    return true; // Keep message channel open for async response
+  }
+  
   // Unknown action
   console.log('❓ Unknown action:', request.action);
   sendResponse({ success: false, error: 'Unknown action' });

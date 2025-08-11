@@ -5156,22 +5156,22 @@ async function loadImitationPracticeView() {
     }
 
     console.log('✅ Container found:', container);
-    console.log('🔍 Checking ImitationPracticeUI class:', typeof window.ImitationPracticeUI);
+    console.log('🔍 Checking CleanPracticeUI class:', typeof window.CleanPracticeUI);
 
     // Initialize imitation practice UI if not already done
     if (!window.imitationPracticeUIInstance) {
-      if (typeof ImitationPracticeUI !== 'undefined') {
-        console.log('🚀 Creating new ImitationPracticeUI...');
-        window.imitationPracticeUIInstance = new ImitationPracticeUI(container);
+      if (typeof CleanPracticeUI !== 'undefined') {
+        console.log('🚀 Creating new CleanPracticeUI...');
+        window.imitationPracticeUIInstance = new CleanPracticeUI(container);
         await window.imitationPracticeUIInstance.initialize();
-        console.log('✅ ImitationPracticeUI created successfully');
+        console.log('✅ CleanPracticeUI created successfully');
       } else {
-        console.error('❌ ImitationPracticeUI class not available');
+        console.error('❌ CleanPracticeUI class not available');
         showImitationPracticeError('仿寫練習組件未載入');
         return;
       }
     } else {
-      console.log('♻️ Using existing ImitationPracticeUI');
+      console.log('♻️ Using existing CleanPracticeUI');
       // Refresh the UI to ensure it's up to date
       if (window.imitationPracticeUIInstance.initialize) {
         await window.imitationPracticeUIInstance.initialize();
