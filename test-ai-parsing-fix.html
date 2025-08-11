@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Test AI Parsing Fix</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-case { 
+            margin: 20px 0; 
+            padding: 15px; 
+            border: 1px solid #ddd; 
+            border-radius: 5px; 
+        }
+        .success { background: #d4edda; }
+        .error { background: #f8d7da; }
+        .warning { background: #fff3cd; }
+        pre { 
+            background: #f5f5f5; 
+            padding: 10px; 
+            overflow-x: auto; 
+            font-size: 12px;
+        }
+        button { 
+            padding: 8px 16px; 
+            margin: 5px; 
+            cursor: pointer; 
+        }
+    </style>
+</head>
+<body>
+    <h1>AI Parsing Fix Test</h1>
+    <p>Testing various AI response formats to ensure proper parsing.</p>
+    
+    <button onclick="runAllTests()">Run All Tests</button>
+    <button onclick="clearResults()">Clear Results</button>
+    
+    <div id="results"></div>
+
+    <script>
+        // Import the parseAIHint logic for testing
+        function parseAIHint(aiResponse) {
+            console.log('🔍 Parsing AI hint response type:', typeof aiResponse);
+            console.log('🔍 Response length:', aiResponse ? aiResponse.length : 0);
+            console.log('🔍 First 500 chars:', aiResponse ? aiResponse.substring(0, 500) : 'null/undefined');
+            
+            try {
+                // Check if response is already an object
+                if (typeof aiResponse === 'object' && aiResponse !== null) {
+                    console.log('📦 Response is already an object:', aiResponse);
+                    return validateHintObject(aiResponse);
+                }
+                
+                // Handle string responses
+                if (typeof aiResponse !== 'string') {
+                    throw new Error(`Invalid response type: ${typeof aiResponse}`);
+                }
+                
+                // Try to parse as direct JSON first
+                let parsed;
+                
+                // Remove any markdown code blocks if present
+                const cleanedResponse = aiResponse
+                    .replace(/```json\s*/gi, '')
+                    .replace(/```\s*/gi, '')
+                    .trim();
+                
+                console.log('🧹 Cleaned response preview:', cleanedResponse.substring(0, 200));
+                
+                try {
+                    parsed = JSON.parse(cleanedResponse);
+                } catch (e) {
+                    console.log('📌 Direct JSON parse failed, trying to extract JSON...');
+                    
+                    // Try multiple JSON extraction patterns
+                    const jsonPatterns = [
+                        /\{[\s\S]*\}/,  // Standard JSON object
+                        /\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/  // Nested JSON objects
+                    ];
+                    
+                    let jsonMatch = null;
+                    for (const pattern of jsonPatterns) {
+                        jsonMatch = cleanedResponse.match(pattern);
+                        if (jsonMatch) {
+                            console.log('🎯 JSON pattern matched');
+                            break;
+                        }
+                    }
+                    
+                    if (jsonMatch) {
+                        try {
+                            parsed = JSON.parse(jsonMatch[0]);
+                        } catch (e2) {
+                            console.error('❌ JSON extraction failed:', e2);
+                            throw new Error('Found JSON but could not parse it');
+                        }
+                    } else {
+                        throw new Error('No valid JSON structure found in response');
+                    }
+                }
+                
+                console.log('✅ Successfully parsed AI hint:', parsed);
+                return validateHintObject(parsed);
+                
+            } catch (error) {
+                console.error('❌ AI hint parsing failed:', error.message);
+                
+                // Enhanced fallback
+                return {
+                    structure: '無法解析AI回應，使用基本分析',
+                    vocabularyAnalysis: [],
+                    writingStrategy: [
+                        '參考原句結構',
+                        '替換關鍵詞彙',
+                        '保持語法正確性'
+                    ],
+                    examples: [],
+                    tips: `AI解析失敗（${error.message}），建議手動分析句子結構後進行仿寫練習`
+                };
+            }
+        }
+        
+        function validateHintObject(parsed) {
+            const validated = {
+                structure: parsed.structure || '句子結構分析中...',
+                vocabularyAnalysis: Array.isArray(parsed.vocabularyAnalysis) ? parsed.vocabularyAnalysis : [],
+                writingStrategy: Array.isArray(parsed.writingStrategy) ? parsed.writingStrategy : 
+                                parsed.writingStrategies ? parsed.writingStrategies : 
+                                ['參考原句結構', '替換關鍵詞彙'],
+                examples: Array.isArray(parsed.examples) ? parsed.examples : [],
+                tips: parsed.tips || parsed.tip || '建議保持原句結構，替換關鍵詞彙來創作新句子'
+            };
+            
+            console.log('✅ Validated hint object:', validated);
+            return validated;
+        }
+        
+        // Test cases
+        const testCases = [
+            {
+                name: "Valid JSON with markdown code blocks",
+                response: `\`\`\`json
+{
+  "structure": "句子遵循 [Na] + [多少] + [名詞] + [動詞] + [名詞] 的結構",
+  "vocabularyAnalysis": [
+    {
+      "word": "Na",
+      "type": "介詞",
+      "alternatives": ["Voor", "Tijdens"],
+      "explanation": "表示時間之後"
+    }
+  ],
+  "writingStrategy": ["保持時間結構", "替換活動內容"],
+  "examples": ["Na het werk ga ik sporten", "Na de les gaan we eten"],
+  "tips": "注意動詞變位"
+}
+\`\`\``
+            },
+            {
+                name: "JSON with extra text",
+                response: `Here is the analysis:
+{
+  "structure": "基本結構 [主詞] + [動詞] + [形容詞]",
+  "vocabularyAnalysis": [],
+  "writingStrategy": ["策略1", "策略2"],
+  "examples": ["例句1"],
+  "tips": "提示內容"
+}
+Additional notes...`
+            },
+            {
+                name: "Already parsed object",
+                response: {
+                    structure: "Object structure",
+                    vocabularyAnalysis: [{word: "test", type: "noun"}],
+                    writingStrategy: ["strategy 1"],
+                    examples: ["example 1"],
+                    tips: "object tips"
+                }
+            },
+            {
+                name: "Malformed JSON",
+                response: `{
+  "structure": "句子結構",
+  "vocabularyAnalysis": [
+    // Missing closing bracket
+  "writingStrategy": ["策略"],
+}`
+            },
+            {
+                name: "Non-JSON response",
+                response: "This is just plain text without any JSON structure"
+            },
+            {
+                name: "Empty response",
+                response: ""
+            },
+            {
+                name: "Null response",
+                response: null
+            }
+        ];
+        
+        function runTest(testCase) {
+            const resultsDiv = document.getElementById('results');
+            const testDiv = document.createElement('div');
+            testDiv.className = 'test-case';
+            
+            try {
+                const result = parseAIHint(testCase.response);
+                
+                const isValid = result.structure && 
+                               Array.isArray(result.vocabularyAnalysis) &&
+                               Array.isArray(result.writingStrategy) &&
+                               Array.isArray(result.examples);
+                
+                testDiv.className += isValid ? ' success' : ' warning';
+                testDiv.innerHTML = `
+                    <h3>${testCase.name} - ${isValid ? '✅ Success' : '⚠️ Fallback'}</h3>
+                    <h4>Input:</h4>
+                    <pre>${typeof testCase.response === 'string' ? 
+                          testCase.response.substring(0, 200) + (testCase.response.length > 200 ? '...' : '') : 
+                          JSON.stringify(testCase.response, null, 2)}</pre>
+                    <h4>Output:</h4>
+                    <pre>${JSON.stringify(result, null, 2)}</pre>
+                `;
+            } catch (error) {
+                testDiv.className += ' error';
+                testDiv.innerHTML = `
+                    <h3>${testCase.name} - ❌ Error</h3>
+                    <h4>Input:</h4>
+                    <pre>${typeof testCase.response === 'string' ? 
+                          testCase.response : JSON.stringify(testCase.response)}</pre>
+                    <h4>Error:</h4>
+                    <pre>${error.toString()}</pre>
+                `;
+            }
+            
+            resultsDiv.appendChild(testDiv);
+        }
+        
+        function runAllTests() {
+            clearResults();
+            testCases.forEach(testCase => {
+                runTest(testCase);
+            });
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        // Auto-run tests on load
+        window.addEventListener('load', runAllTests);
+    </script>
+</body>
+</html>

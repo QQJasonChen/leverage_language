@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Test Class Loading</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background: #f5f5f5;
+        }
+        .status { 
+            padding: 10px; 
+            margin: 10px 0; 
+            border-radius: 4px; 
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        pre { 
+            background: #f8f9fa; 
+            padding: 10px; 
+            overflow-x: auto; 
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test CleanPracticeUI Loading</h1>
+    
+    <div id="results"></div>
+    
+    <script>
+        function log(message, type = 'info') {
+            console.log(message);
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}:</strong> ${message}`;
+            document.getElementById('results').appendChild(div);
+        }
+        
+        // Step 1: Check initial state
+        log('Testing CleanPracticeUI loading...');
+        log(`Initial typeof CleanPracticeUI: ${typeof CleanPracticeUI}`, 
+            typeof CleanPracticeUI !== 'undefined' ? 'success' : 'error');
+        
+        // Step 2: Load dependencies
+        const scripts = [
+            'lib/imitation-practice-manager.js',
+            'components/imitation-practice-ui-clean.js'
+        ];
+        
+        let loadedCount = 0;
+        
+        scripts.forEach((src, index) => {
+            const script = document.createElement('script');
+            script.src = src;
+            
+            script.onload = () => {
+                loadedCount++;
+                log(`✅ Loaded: ${src}`, 'success');
+                
+                // Check if classes are defined after loading
+                if (src.includes('imitation-practice-manager')) {
+                    log(`ImitationPracticeManager defined: ${typeof ImitationPracticeManager !== 'undefined'}`,
+                        typeof ImitationPracticeManager !== 'undefined' ? 'success' : 'error');
+                }
+                
+                if (src.includes('imitation-practice-ui-clean')) {
+                    log(`CleanPracticeUI defined: ${typeof CleanPracticeUI !== 'undefined'}`,
+                        typeof CleanPracticeUI !== 'undefined' ? 'success' : 'error');
+                    
+                    // Check window.CleanPracticeUI
+                    log(`window.CleanPracticeUI defined: ${typeof window.CleanPracticeUI !== 'undefined'}`,
+                        typeof window.CleanPracticeUI !== 'undefined' ? 'success' : 'error');
+                }
+                
+                // All loaded?
+                if (loadedCount === scripts.length) {
+                    testInstantiation();
+                }
+            };
+            
+            script.onerror = (error) => {
+                log(`❌ Failed to load: ${src} - ${error}`, 'error');
+            };
+            
+            document.head.appendChild(script);
+        });
+        
+        function testInstantiation() {
+            log('\n--- Testing Instantiation ---');
+            
+            try {
+                // Test creating ImitationPracticeManager
+                if (typeof ImitationPracticeManager !== 'undefined') {
+                    const manager = new ImitationPracticeManager();
+                    log('✅ Created ImitationPracticeManager instance', 'success');
+                } else {
+                    log('❌ ImitationPracticeManager is not defined', 'error');
+                }
+                
+                // Test creating CleanPracticeUI
+                if (typeof CleanPracticeUI !== 'undefined') {
+                    const container = document.createElement('div');
+                    const ui = new CleanPracticeUI(container);
+                    log('✅ Created CleanPracticeUI instance', 'success');
+                    
+                    // Test if it has expected methods
+                    const methods = ['initialize', 'render', 'loadSentences', 'attachListeners'];
+                    methods.forEach(method => {
+                        if (typeof ui[method] === 'function') {
+                            log(`✅ Method ${method} exists`, 'success');
+                        } else {
+                            log(`❌ Method ${method} is missing`, 'error');
+                        }
+                    });
+                } else {
+                    log('❌ CleanPracticeUI is not defined', 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Error during instantiation: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+        
+        // Also check if there are any syntax errors
+        window.addEventListener('error', (event) => {
+            log(`❌ JavaScript Error: ${event.message} at ${event.filename}:${event.lineno}:${event.colno}`, 'error');
+        });
+    </script>
+</body>
+</html>

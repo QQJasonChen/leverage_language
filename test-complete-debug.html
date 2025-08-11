@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Complete Debug Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status { 
+            padding: 10px; 
+            margin: 10px 0; 
+            border-radius: 4px; 
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        pre { 
+            background: #f8f9fa; 
+            padding: 10px; 
+            overflow-x: auto; 
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+        button { 
+            padding: 10px 20px; 
+            margin: 5px; 
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .practice-container {
+            min-height: 400px;
+            border: 2px dashed #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Complete Debug Test for AI Practice System</h1>
+        
+        <div class="test-section">
+            <h2>1. Component Loading Test</h2>
+            <button onclick="testComponentLoading()">Test Component Loading</button>
+            <div id="componentStatus"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>2. Chrome API Test</h2>
+            <button onclick="testChromeAPIs()">Test Chrome APIs</button>
+            <div id="chromeStatus"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>3. AI Service Test</h2>
+            <button onclick="testAIService()">Test AI Service</button>
+            <button onclick="checkAIConfig()">Check AI Configuration</button>
+            <div id="aiStatus"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>4. Practice UI Test</h2>
+            <button onclick="loadPracticeUI()">Load Practice UI</button>
+            <div id="practiceContainer" class="practice-container"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>5. Console Logs</h2>
+            <button onclick="clearLogs()">Clear Logs</button>
+            <pre id="consoleLogs"></pre>
+        </div>
+    </div>
+
+    <!-- Mock Chrome APIs if needed -->
+    <script>
+        // Capture console logs
+        const logs = [];
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            logs.push({type: 'log', message: args.join(' '), time: new Date().toLocaleTimeString()});
+            updateLogs();
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            logs.push({type: 'error', message: args.join(' '), time: new Date().toLocaleTimeString()});
+            updateLogs();
+        };
+        
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            logs.push({type: 'warn', message: args.join(' '), time: new Date().toLocaleTimeString()});
+            updateLogs();
+        };
+        
+        function updateLogs() {
+            const logsElement = document.getElementById('consoleLogs');
+            if (logsElement) {
+                logsElement.innerHTML = logs.map(log => 
+                    `<span style="color: ${
+                        log.type === 'error' ? 'red' : 
+                        log.type === 'warn' ? 'orange' : 'black'
+                    }">[${log.time}] ${log.type.toUpperCase()}: ${log.message}</span>`
+                ).join('\n');
+            }
+        }
+        
+        function clearLogs() {
+            logs.length = 0;
+            updateLogs();
+        }
+        
+        // Mock Chrome APIs
+        if (!window.chrome || !window.chrome.runtime) {
+            console.warn('Chrome APIs not available, creating mocks...');
+            window.chrome = window.chrome || {};
+            window.chrome.runtime = {
+                sendMessage: async function(message) {
+                    console.log('Mock sendMessage called:', message);
+                    
+                    if (message.action === 'getHistory') {
+                        return [
+                            {
+                                text: "Na een paar uur werk ben ik moe",
+                                language: "dutch",
+                                timestamp: Date.now() - 100000
+                            },
+                            {
+                                text: "Het concert was fantastisch",
+                                language: "dutch",
+                                timestamp: Date.now() - 200000
+                            }
+                        ];
+                    }
+                    
+                    if (message.action === 'getAIResponse') {
+                        // Simulate various response types for testing
+                        const testResponses = [
+                            // Good JSON response
+                            {
+                                success: true,
+                                text: JSON.stringify({
+                                    structure: "句子結構：[時間] + [主詞] + [動詞] + [形容詞]",
+                                    vocabularyAnalysis: [
+                                        {
+                                            word: "Na",
+                                            type: "介詞",
+                                            alternatives: ["Voor", "Tijdens"],
+                                            explanation: "表示時間'之後'"
+                                        }
+                                    ],
+                                    writingStrategy: [
+                                        "保持時間結構",
+                                        "替換活動內容",
+                                        "注意動詞變位"
+                                    ],
+                                    examples: [
+                                        "Na het eten ga ik wandelen",
+                                        "Na de les ben ik vrij"
+                                    ],
+                                    tips: "注意荷蘭語的時間表達通常放在句首"
+                                })
+                            },
+                            // Malformed response
+                            {
+                                success: true,
+                                text: "This is not JSON at all"
+                            },
+                            // Error response
+                            {
+                                success: false,
+                                error: "API key not configured"
+                            }
+                        ];
+                        
+                        // Rotate through test responses
+                        const responseIndex = Math.floor(Math.random() * testResponses.length);
+                        return testResponses[responseIndex];
+                    }
+                    
+                    return { success: false, error: 'Unknown action' };
+                }
+            };
+            
+            window.chrome.storage = {
+                sync: {
+                    get: async function(keys) {
+                        console.log('Mock storage.get called:', keys);
+                        return {
+                            aiEnabled: 'true',
+                            aiProvider: 'openai',
+                            apiKey: 'mock-api-key'
+                        };
+                    }
+                }
+            };
+        }
+        
+        // Test functions
+        function addStatus(containerId, message, type = 'info') {
+            const container = document.getElementById(containerId);
+            const status = document.createElement('div');
+            status.className = `status ${type}`;
+            status.textContent = message;
+            container.appendChild(status);
+        }
+        
+        function testComponentLoading() {
+            const container = document.getElementById('componentStatus');
+            container.innerHTML = '';
+            
+            // Check if CleanPracticeUI exists
+            if (typeof CleanPracticeUI !== 'undefined') {
+                addStatus('componentStatus', '✅ CleanPracticeUI is loaded', 'success');
+                
+                // Try to create an instance
+                try {
+                    const testDiv = document.createElement('div');
+                    const ui = new CleanPracticeUI(testDiv);
+                    addStatus('componentStatus', '✅ Can create CleanPracticeUI instance', 'success');
+                } catch (error) {
+                    addStatus('componentStatus', `❌ Error creating instance: ${error.message}`, 'error');
+                }
+            } else {
+                addStatus('componentStatus', '❌ CleanPracticeUI is not defined', 'error');
+                addStatus('componentStatus', 'Trying to load the component...', 'warning');
+                
+                // Try to load the script
+                const script = document.createElement('script');
+                script.src = 'components/imitation-practice-ui-clean.js';
+                script.onload = () => {
+                    addStatus('componentStatus', '✅ Script loaded, checking again...', 'success');
+                    setTimeout(() => testComponentLoading(), 100);
+                };
+                script.onerror = () => {
+                    addStatus('componentStatus', '❌ Failed to load script', 'error');
+                };
+                document.head.appendChild(script);
+            }
+            
+            // Also check for ImitationPracticeManager
+            if (typeof ImitationPracticeManager !== 'undefined') {
+                addStatus('componentStatus', '✅ ImitationPracticeManager is loaded', 'success');
+            } else {
+                addStatus('componentStatus', '⚠️ ImitationPracticeManager is not loaded', 'warning');
+            }
+        }
+        
+        function testChromeAPIs() {
+            const container = document.getElementById('chromeStatus');
+            container.innerHTML = '';
+            
+            if (window.chrome && window.chrome.runtime && window.chrome.runtime.sendMessage) {
+                addStatus('chromeStatus', '✅ chrome.runtime.sendMessage is available', 'success');
+            } else {
+                addStatus('chromeStatus', '❌ chrome.runtime.sendMessage is not available', 'error');
+            }
+            
+            if (window.chrome && window.chrome.storage && window.chrome.storage.sync) {
+                addStatus('chromeStatus', '✅ chrome.storage.sync is available', 'success');
+            } else {
+                addStatus('chromeStatus', '❌ chrome.storage.sync is not available', 'error');
+            }
+        }
+        
+        async function testAIService() {
+            const container = document.getElementById('aiStatus');
+            container.innerHTML = '';
+            
+            try {
+                addStatus('aiStatus', '🔄 Testing AI service...', 'info');
+                
+                const response = await chrome.runtime.sendMessage({
+                    action: 'getAIResponse',
+                    prompt: 'Test prompt',
+                    context: { type: 'hint_analysis' }
+                });
+                
+                console.log('AI Service Response:', response);
+                
+                if (response.success) {
+                    addStatus('aiStatus', `✅ AI service responded successfully`, 'success');
+                    addStatus('aiStatus', `Response type: ${typeof response.text}`, 'info');
+                    
+                    if (response.text) {
+                        try {
+                            const parsed = JSON.parse(response.text);
+                            addStatus('aiStatus', '✅ Response is valid JSON', 'success');
+                            addStatus('aiStatus', `Structure: ${parsed.structure ? '✓' : '✗'}`, parsed.structure ? 'success' : 'error');
+                        } catch (e) {
+                            addStatus('aiStatus', `❌ Response is not valid JSON: ${e.message}`, 'error');
+                            addStatus('aiStatus', `Raw response: ${response.text.substring(0, 100)}...`, 'warning');
+                        }
+                    }
+                } else {
+                    addStatus('aiStatus', `❌ AI service failed: ${response.error}`, 'error');
+                }
+            } catch (error) {
+                addStatus('aiStatus', `❌ Error testing AI service: ${error.message}`, 'error');
+            }
+        }
+        
+        async function checkAIConfig() {
+            const container = document.getElementById('aiStatus');
+            container.innerHTML = '';
+            
+            try {
+                const config = await chrome.storage.sync.get(['aiEnabled', 'aiProvider', 'apiKey']);
+                
+                addStatus('aiStatus', `AI Enabled: ${config.aiEnabled || 'not set'}`, 
+                         config.aiEnabled === 'true' ? 'success' : 'warning');
+                addStatus('aiStatus', `AI Provider: ${config.aiProvider || 'not set'}`, 
+                         config.aiProvider ? 'success' : 'warning');
+                addStatus('aiStatus', `API Key: ${config.apiKey ? 'configured' : 'not configured'}`, 
+                         config.apiKey ? 'success' : 'error');
+                
+                if (!config.apiKey) {
+                    addStatus('aiStatus', '⚠️ Please configure your API key in extension settings', 'warning');
+                }
+            } catch (error) {
+                addStatus('aiStatus', `❌ Error checking config: ${error.message}`, 'error');
+            }
+        }
+        
+        async function loadPracticeUI() {
+            const container = document.getElementById('practiceContainer');
+            
+            if (typeof CleanPracticeUI === 'undefined') {
+                container.innerHTML = '<div class="status error">❌ CleanPracticeUI not loaded. Click "Test Component Loading" first.</div>';
+                return;
+            }
+            
+            try {
+                container.innerHTML = '<div class="status info">🔄 Loading practice UI...</div>';
+                
+                // Load ImitationPracticeManager if needed
+                if (typeof ImitationPracticeManager === 'undefined') {
+                    window.ImitationPracticeManager = class {
+                        constructor() {
+                            this.AI_ENABLED = true;
+                        }
+                        isAIAvailable() {
+                            return this.AI_ENABLED;
+                        }
+                    };
+                }
+                
+                const practiceUI = new CleanPracticeUI(container);
+                await practiceUI.initialize();
+                
+            } catch (error) {
+                container.innerHTML = `<div class="status error">❌ Error loading UI: ${error.message}</div>`;
+                console.error('UI Loading Error:', error);
+            }
+        }
+        
+        // Auto-run basic tests on load
+        window.addEventListener('load', () => {
+            console.log('🚀 Debug page loaded');
+            testComponentLoading();
+            testChromeAPIs();
+        });
+    </script>
+    
+    <!-- Try to load the component -->
+    <script src="lib/imitation-practice-manager.js"></script>
+    <script src="components/imitation-practice-ui-clean.js"></script>
+</body>
+</html>

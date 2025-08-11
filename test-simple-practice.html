@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Practice Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .container {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .step {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 6px;
+            border-left: 4px solid #4CAF50;
+        }
+        select, input, button {
+            padding: 8px 12px;
+            margin: 5px;
+            font-size: 14px;
+        }
+        select {
+            width: 100%;
+            max-width: 400px;
+        }
+        input {
+            width: 100%;
+            max-width: 300px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .suggestions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .suggestion {
+            background: #e8f5e8;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .result {
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .success {
+            background: #d1edff;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Simple Practice Test</h1>
+    <p>This is a simple version to test the core practice functionality step by step.</p>
+
+    <div class="container">
+        <h3>Step 1: Select a Sentence</h3>
+        <select id="sentenceSelect">
+            <option value="">Select a sentence...</option>
+            <option value='{"text":"Het feestje is gezellig","language":"dutch","source":"test"}'>Het feestje is gezellig (Dutch)</option>
+            <option value='{"text":"The party is fun","language":"english","source":"test"}'>The party is fun (English)</option>
+            <option value='{"text":"私は学生です","language":"japanese","source":"test"}'>私は学生です (Japanese)</option>
+        </select>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        console.log('🧪 Simple Practice Test loaded');
+        
+        const resultsDiv = document.getElementById('results');
+        
+        document.getElementById('sentenceSelect').addEventListener('change', function(e) {
+            const value = e.target.value;
+            if (!value) {
+                resultsDiv.innerHTML = '';
+                return;
+            }
+            
+            console.log('✅ Sentence selected:', value);
+            
+            try {
+                const sentenceData = JSON.parse(value);
+                console.log('✅ Parsed sentence data:', sentenceData);
+                
+                startSimplePractice(sentenceData);
+            } catch (error) {
+                console.error('❌ Failed to parse sentence data:', error);
+                showError('Failed to parse sentence data: ' + error.message);
+            }
+        });
+        
+        function startSimplePractice(sentenceData) {
+            console.log('🎯 Starting simple practice with:', sentenceData);
+            
+            // Step 1: Show original sentence
+            resultsDiv.innerHTML = `
+                <div class="step">
+                    <h4>📝 Step 1: Original Sentence</h4>
+                    <div><strong>Text:</strong> ${sentenceData.text}</div>
+                    <div><strong>Language:</strong> ${sentenceData.language}</div>
+                    <div><strong>Source:</strong> ${sentenceData.source}</div>
+                </div>
+            `;
+            
+            // Step 2: Analyze pattern
+            setTimeout(() => {
+                console.log('🔍 Analyzing pattern...');
+                const pattern = analyzePattern(sentenceData);
+                console.log('✅ Pattern analyzed:', pattern);
+                
+                resultsDiv.innerHTML += `
+                    <div class="step">
+                        <h4>🎯 Step 2: Pattern Analysis</h4>
+                        <div><strong>Template:</strong> ${pattern.template}</div>
+                        <div><strong>Complexity:</strong> ${pattern.complexity}</div>
+                        <div><strong>Grammar Points:</strong></div>
+                        <ul>${pattern.grammarPoints.map(point => `<li>${point}</li>`).join('')}</ul>
+                    </div>
+                `;
+                
+                // Step 3: Generate suggestions
+                setTimeout(() => {
+                    console.log('💡 Generating suggestions...');
+                    const suggestions = generateSuggestions(sentenceData);
+                    console.log('✅ Suggestions generated:', suggestions);
+                    
+                    resultsDiv.innerHTML += `
+                        <div class="step">
+                            <h4>📚 Step 3: Word Suggestions</h4>
+                            <div class="suggestions">
+                                ${suggestions.map(s => `
+                                    <div class="suggestion">
+                                        <strong>${s.original}</strong> (${s.type})<br>
+                                        → ${s.alternatives.join(', ')}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Step 4: Practice interface
+                    setTimeout(() => {
+                        console.log('✏️ Showing practice interface...');
+                        
+                        resultsDiv.innerHTML += `
+                            <div class="step">
+                                <h4>✏️ Step 4: Create Your Sentence</h4>
+                                <p>Use the template: <strong>${pattern.template}</strong></p>
+                                <input type="text" id="userInput" placeholder="Type your sentence here..." />
+                                <button onclick="evaluateAnswer('${sentenceData.text}', '${pattern.template}')">Check Answer</button>
+                                <div id="evaluation"></div>
+                            </div>
+                        `;
+                    }, 500);
+                }, 500);
+            }, 500);
+        }
+        
+        function analyzePattern(sentenceData) {
+            const text = sentenceData.text.toLowerCase();
+            
+            if (text.includes('het') && text.includes('feestje') && text.includes('is') && text.includes('gezellig')) {
+                return {
+                    template: '[het/de] [名詞] [is/zijn] [形容詞]',
+                    complexity: 'beginner',
+                    grammarPoints: [
+                        'Dutch basic sentence: article + noun + verb + adjective',
+                        'het = neuter article for neutral nouns',
+                        'is = third person singular verb',
+                        'adjective at the end as predicate'
+                    ]
+                };
+            }
+            
+            if (sentenceData.language === 'english') {
+                return {
+                    template: '[Subject] [Verb] [Object/Complement]',
+                    complexity: 'beginner',
+                    grammarPoints: [
+                        'English SVO structure',
+                        'Simple present tense',
+                        'Adjective as complement'
+                    ]
+                };
+            }
+            
+            return {
+                template: '[Word1] [Word2] [Word3]',
+                complexity: 'intermediate',
+                grammarPoints: ['Basic sentence structure']
+            };
+        }
+        
+        function generateSuggestions(sentenceData) {
+            const text = sentenceData.text.toLowerCase();
+            
+            if (text.includes('het feestje is gezellig')) {
+                return [
+                    {
+                        original: 'Het',
+                        type: 'article',
+                        alternatives: ['De', 'Een']
+                    },
+                    {
+                        original: 'feestje',
+                        type: 'noun',
+                        alternatives: ['vergadering', 'concert', 'evenement']
+                    },
+                    {
+                        original: 'is',
+                        type: 'verb',
+                        alternatives: ['was', 'wordt', 'blijft']
+                    },
+                    {
+                        original: 'gezellig',
+                        type: 'adjective',
+                        alternatives: ['leuk', 'interessant', 'saai']
+                    }
+                ];
+            }
+            
+            const words = sentenceData.text.split(' ');
+            return words.map(word => ({
+                original: word,
+                type: 'word',
+                alternatives: ['option1', 'option2']
+            }));
+        }
+        
+        function evaluateAnswer(originalText, template) {
+            const userInput = document.getElementById('userInput').value.trim();
+            const evaluationDiv = document.getElementById('evaluation');
+            
+            if (!userInput) {
+                evaluationDiv.innerHTML = '<div class="result error">Please enter a sentence first!</div>';
+                return;
+            }
+            
+            console.log('🧐 Evaluating answer:', userInput);
+            console.log('📋 Original:', originalText);
+            console.log('📐 Template:', template);
+            
+            const wordCount = userInput.split(' ').length;
+            const originalWordCount = originalText.split(' ').length;
+            
+            let score = 50; // Base score
+            let feedback = [];
+            
+            if (wordCount === originalWordCount) {
+                score += 20;
+                feedback.push('✅ Correct word count');
+            } else {
+                feedback.push('⚠️ Word count differs from original');
+            }
+            
+            if (userInput.length > 5) {
+                score += 20;
+                feedback.push('✅ Reasonable length');
+            }
+            
+            if (userInput !== originalText) {
+                score += 10;
+                feedback.push('✅ You created a different sentence');
+            } else {
+                feedback.push('ℹ️ You used the exact same sentence');
+            }
+            
+            evaluationDiv.innerHTML = `
+                <div class="result ${score >= 70 ? 'success' : ''}">
+                    <h5>📊 Evaluation Results</h5>
+                    <div><strong>Score:</strong> ${score}/100</div>
+                    <div><strong>Your answer:</strong> "${userInput}"</div>
+                    <div><strong>Feedback:</strong></div>
+                    <ul>${feedback.map(f => `<li>${f}</li>`).join('')}</ul>
+                </div>
+            `;
+        }
+        
+        function showError(message) {
+            resultsDiv.innerHTML = `<div class="result error">❌ Error: ${message}</div>`;
+        }
+    </script>
+</body>
+</html>

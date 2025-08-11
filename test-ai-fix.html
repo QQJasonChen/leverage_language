@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Test AI Fix</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #cce7ff; color: #004085; }
+        .warning { background: #fff3cd; color: #856404; }
+        button { padding: 8px 16px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Test AI Service Fix</h1>
+    <p>Testing the fixed AI service response handling.</p>
+    
+    <button onclick="testAIEvaluation()">Test AI Evaluation</button>
+    <button onclick="testAIHint()">Test AI Hint</button>
+    <button onclick="checkAISettings()">Check AI Settings</button>
+    
+    <div id="results"></div>
+
+    <script>
+        // Mock chrome runtime for testing
+        if (!window.chrome) {
+            window.chrome = {
+                runtime: {
+                    sendMessage: async (message) => {
+                        console.log('Mock AI call:', message.action, message.context?.type);
+                        
+                        // Simulate the fixed response format
+                        if (message.action === 'getAIResponse') {
+                            await new Promise(r => setTimeout(r, 1000)); // Simulate delay
+                            
+                            if (message.context?.type === 'practice_evaluation') {
+                                return {
+                                    success: true,
+                                    text: JSON.stringify({
+                                        score: 45,
+                                        hasErrors: true,
+                                        correctedVersion: "Mijn dokter is aardig",
+                                        errors: [
+                                            "拼寫錯誤：'doctored' 應該是 'dokter'",
+                                            "語言混用：'good' 是英語，應該用 'aardig' 或 'goed'"
+                                        ],
+                                        suggestions: [
+                                            "檢查拼寫：荷蘭語醫生是 'dokter'",
+                                            "保持語言一致性，使用荷蘭語形容詞"
+                                        ]
+                                    })
+                                };
+                            } else if (message.context?.type === 'hint_analysis') {
+                                return {
+                                    success: true,
+                                    text: JSON.stringify({
+                                        structure: "基本句型：[Het/De] + [名詞] + [is/zijn] + [形容詞]",
+                                        vocabularyAnalysis: [
+                                            {
+                                                word: "dokter",
+                                                type: "名詞",
+                                                alternatives: ["arts", "medicus"],
+                                                explanation: "醫生的正確拼寫"
+                                            },
+                                            {
+                                                word: "aardig",
+                                                type: "形容詞",
+                                                alternatives: ["vriendelijk", "lief", "goed"],
+                                                explanation: "友善的意思"
+                                            }
+                                        ],
+                                        examples: [
+                                            "Het concert is fantastisch.",
+                                            "De vergadering is interessant.",
+                                            "Een gesprek is leuk."
+                                        ]
+                                    })
+                                };
+                            }
+                        }
+                        
+                        return { success: false, error: 'Unknown message type' };
+                    }
+                },
+                storage: {
+                    sync: {
+                        get: async (keys) => {
+                            // Mock settings - you can modify these for testing
+                            return {
+                                aiEnabled: 'true',
+                                aiProvider: 'openai',
+                                apiKey: 'mock-api-key-for-testing',
+                                openaiModel: 'gpt-4o-mini'
+                            };
+                        }
+                    }
+                }
+            };
+        }
+        
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}:</strong> ${message}`;
+            results.appendChild(div);
+        }
+        
+        async function testAIEvaluation() {
+            try {
+                addResult('Testing AI evaluation with "Mijn doctored is good"...', 'info');
+                
+                const response = await chrome.runtime.sendMessage({
+                    action: 'getAIResponse',
+                    prompt: 'Test evaluation prompt for "Mijn doctored is good"',
+                    context: { type: 'practice_evaluation' }
+                });
+                
+                if (response.success && response.text) {
+                    const evaluation = JSON.parse(response.text);
+                    addResult(`✅ AI Evaluation Success! Score: ${evaluation.score}, Has Errors: ${evaluation.hasErrors}`, 'success');
+                    addResult(`Correction: ${evaluation.correctedVersion}`, 'info');
+                    addResult(`Errors: ${evaluation.errors.join('; ')}`, 'warning');
+                } else {
+                    addResult(`❌ AI Evaluation Failed: ${response.error}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Test Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testAIHint() {
+            try {
+                addResult('Testing AI hint system...', 'info');
+                
+                const response = await chrome.runtime.sendMessage({
+                    action: 'getAIResponse',
+                    prompt: 'Test hint prompt for Dutch sentence analysis',
+                    context: { type: 'hint_analysis' }
+                });
+                
+                if (response.success && response.text) {
+                    const hint = JSON.parse(response.text);
+                    addResult(`✅ AI Hint Success! Structure: ${hint.structure}`, 'success');
+                    addResult(`Vocabulary items: ${hint.vocabularyAnalysis.length}`, 'info');
+                    addResult(`Examples: ${hint.examples.join('; ')}`, 'info');
+                } else {
+                    addResult(`❌ AI Hint Failed: ${response.error}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Test Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function checkAISettings() {
+            try {
+                addResult('Checking AI settings...', 'info');
+                
+                const settings = await chrome.storage.sync.get(['aiEnabled', 'aiProvider', 'apiKey', 'openaiModel']);
+                
+                addResult(`AI Enabled: ${settings.aiEnabled}`, settings.aiEnabled === 'true' ? 'success' : 'warning');
+                addResult(`AI Provider: ${settings.aiProvider}`, 'info');
+                addResult(`Has API Key: ${settings.apiKey ? 'Yes' : 'No'}`, settings.apiKey ? 'success' : 'error');
+                addResult(`OpenAI Model: ${settings.openaiModel || 'default'}`, 'info');
+                
+                if (!settings.aiEnabled || settings.aiEnabled !== 'true') {
+                    addResult('⚠️ AI is not enabled. Go to extension options to enable it.', 'warning');
+                }
+                if (!settings.apiKey) {
+                    addResult('⚠️ No API key configured. Go to extension options to set your API key.', 'warning');
+                }
+            } catch (error) {
+                addResult(`❌ Settings Check Error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Auto-run settings check
+        setTimeout(checkAISettings, 500);
+    </script>
+</body>
+</html>

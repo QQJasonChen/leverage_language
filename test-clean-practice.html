@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Clean Practice UI</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-results {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .error { color: #dc3545; }
+        .success { color: #28a745; }
+        .info { color: #17a2b8; }
+    </style>
+</head>
+<body>
+    <div class="test-container" id="practiceContainer"></div>
+    
+    <div class="test-results">
+        <h3>測試結果</h3>
+        <div id="testResults"></div>
+        
+        <h4>測試步驟</h4>
+        <ol>
+            <li>檢查組件是否正常載入</li>
+            <li>測試AI評估功能（使用錯誤句子："Mijn doctored is good"）</li>
+            <li>測試提示功能</li>
+            <li>驗證降級功能（當AI不可用時）</li>
+        </ol>
+        
+        <button onclick="runTests()">執行測試</button>
+    </div>
+
+    <!-- Mock Chrome Extension APIs -->
+    <script>
+        // Mock Chrome Extension APIs for testing
+        window.chrome = {
+            runtime: {
+                sendMessage: async (message) => {
+                    console.log('Mock chrome.runtime.sendMessage called with:', message);
+                    
+                    // Mock responses for different actions
+                    if (message.action === 'getHistory') {
+                        return [
+                            {
+                                text: "Mijn dokter is aardig",
+                                language: "dutch",
+                                timestamp: Date.now() - 100000
+                            },
+                            {
+                                text: "Het boek is interessant",
+                                language: "dutch", 
+                                timestamp: Date.now() - 200000
+                            },
+                            {
+                                text: "I would like to visit the museum",
+                                language: "english",
+                                timestamp: Date.now() - 300000
+                            }
+                        ];
+                    }
+                    
+                    // Mock AI evaluation response - updated to match the fixed format
+                    if (message.action === 'getAIResponse' && message.context?.type === 'practice_evaluation') {
+                        console.log('Mock AI evaluation called for:', message.prompt.substring(0, 100));
+                        
+                        // Simulate AI detecting error in "Mijn doctored is good"
+                        if (message.prompt.includes('doctored')) {
+                            await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
+                            return {
+                                success: true,
+                                text: JSON.stringify({
+                                    score: 40,
+                                    hasErrors: true,
+                                    correctedVersion: "Mijn dokter is goed",
+                                    errors: [
+                                        "拼寫錯誤：'doctored' 應該是 'dokter'",
+                                        "語言混合：'good' 是英語，荷蘭語應該用 'goed' 或 'aardig'"
+                                    ],
+                                    suggestions: [
+                                        "檢查拼寫：荷蘭語中醫生是 'dokter'",
+                                        "保持語言一致性：使用荷蘭語形容詞 'goed' 或 'aardig'"
+                                    ]
+                                })
+                            };
+                        }
+                        
+                        // Normal response for correct sentences
+                        await new Promise(resolve => setTimeout(resolve, 800));
+                        return {
+                            success: true,
+                            text: JSON.stringify({
+                                score: 85,
+                                hasErrors: false,
+                                correctedVersion: null,
+                                errors: [],
+                                suggestions: ["很好的句子結構！"]
+                            })
+                        };
+                    }
+                    
+                    // Mock AI hint response - updated to match the fixed format
+                    if (message.action === 'getAIResponse' && message.context?.type === 'hint_analysis') {
+                        console.log('Mock AI hint called');
+                        
+                        // Simulate AI service error sometimes
+                        if (Math.random() < 0.3) { // 30% chance of failure to test fallback
+                            throw new Error('AI服務暫時不可用');
+                        }
+                        
+                        await new Promise(resolve => setTimeout(resolve, 1200));
+                        return {
+                            success: true,
+                            text: JSON.stringify({
+                                structure: "荷蘭語基本句型：[主詞] + [動詞] + [形容詞]",
+                                vocabularyAnalysis: [
+                                    { word: "dokter", type: "名詞", alternatives: ["arts", "medicus"] },
+                                    { word: "aardig", type: "形容詞", alternatives: ["vriendelijk", "lief", "goed"] }
+                                ],
+                                examples: [
+                                    "Het concert is fantastisch",
+                                    "De vergadering is interessant" 
+                                ],
+                                tips: "注意荷蘭語的形容詞位置和動詞變化"
+                            })
+                        };
+                    }
+                    
+                    return { success: false, error: 'Unknown action' };
+                }
+            }
+        };
+
+        // Mock ImitationPracticeManager
+        class ImitationPracticeManager {
+            constructor() {
+                this.AI_ENABLED = true;
+            }
+            
+            isAIAvailable() {
+                return this.AI_ENABLED;
+            }
+            
+            // Add other methods as needed...
+        }
+        
+        window.ImitationPracticeManager = ImitationPracticeManager;
+    </script>
+
+    <!-- Load the actual component -->
+    <script src="components/imitation-practice-ui-clean.js"></script>
+
+    <script>
+        let practiceUI;
+        let testResults = [];
+        
+        function logTest(message, type = 'info') {
+            const resultsDiv = document.getElementById('testResults');
+            const p = document.createElement('p');
+            p.className = type;
+            p.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            resultsDiv.appendChild(p);
+            testResults.push({ message, type, timestamp: Date.now() });
+            console.log(`[TEST ${type.toUpperCase()}]`, message);
+        }
+        
+        async function initializeComponent() {
+            try {
+                const container = document.getElementById('practiceContainer');
+                practiceUI = new CleanPracticeUI(container);
+                await practiceUI.initialize();
+                logTest('組件初始化成功', 'success');
+                return true;
+            } catch (error) {
+                logTest(`組件初始化失敗: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        async function testAIEvaluation() {
+            try {
+                logTest('開始測試AI評估功能...');
+                
+                // Set a test sentence
+                practiceUI.currentSentence = {
+                    text: "Mijn dokter is aardig",
+                    language: "dutch"
+                };
+                
+                // Test with incorrect input
+                const result = await practiceUI.getAIEvaluation("Mijn doctored is good");
+                
+                if (result && result.score !== undefined) {
+                    logTest(`AI評估成功: 得分 ${result.score}`, 'success');
+                    if (result.hasErrors) {
+                        logTest(`檢測到錯誤: ${result.errors.join(', ')}`, 'info');
+                        if (result.correctedVersion) {
+                            logTest(`建議修正: ${result.correctedVersion}`, 'info');
+                        }
+                    }
+                    return true;
+                } else {
+                    logTest('AI評估返回無效結果', 'error');
+                    return false;
+                }
+            } catch (error) {
+                logTest(`AI評估測試失敗: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        async function testHintSystem() {
+            try {
+                logTest('開始測試提示系統...');
+                
+                practiceUI.currentSentence = {
+                    text: "Mijn dokter is aardig",
+                    language: "dutch"
+                };
+                
+                const hint = await practiceUI.getAIHint();
+                
+                if (hint && hint.content) {
+                    logTest('提示系統正常運作', 'success');
+                    logTest(`提示內容長度: ${hint.content.length} 字符`, 'info');
+                    if (hint.type === 'ai') {
+                        logTest('使用AI生成提示', 'info');
+                    } else if (hint.type === 'basic') {
+                        logTest('使用基本降級提示', 'info');
+                    }
+                    return true;
+                } else {
+                    logTest('提示系統返回空結果', 'error');
+                    return false;
+                }
+            } catch (error) {
+                logTest(`提示系統測試失敗: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        async function runTests() {
+            logTest('=== 開始運行測試套件 ===');
+            const resultsDiv = document.getElementById('testResults');
+            resultsDiv.innerHTML = '';
+            
+            let passedTests = 0;
+            let totalTests = 3;
+            
+            // Test 1: Component initialization
+            if (await initializeComponent()) {
+                passedTests++;
+            }
+            
+            // Wait a bit for component to fully load
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Test 2: AI evaluation
+            if (await testAIEvaluation()) {
+                passedTests++;
+            }
+            
+            // Test 3: Hint system
+            if (await testHintSystem()) {
+                passedTests++;
+            }
+            
+            // Summary
+            logTest(`=== 測試完成: ${passedTests}/${totalTests} 通過 ===`, 
+                    passedTests === totalTests ? 'success' : 'error');
+            
+            if (passedTests === totalTests) {
+                logTest('🎉 所有測試通過！系統運行正常', 'success');
+            } else {
+                logTest(`⚠️ ${totalTests - passedTests} 個測試失敗，需要修復`, 'error');
+            }
+        }
+        
+        // Auto-run tests when page loads
+        window.addEventListener('load', () => {
+            setTimeout(runTests, 1000);
+        });
+    </script>
+</body>
+</html>
