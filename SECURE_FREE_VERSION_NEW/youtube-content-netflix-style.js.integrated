@@ -1,0 +1,615 @@
+// YouTube Content Script - Netflix-Style Caption Collection
+// Mimics the Netflix collection approach that works perfectly
+
+(function() {
+  'use strict';
+
+  console.log('🎬 YouTube Netflix-style caption collection loaded');
+
+  let contextInvalidated = false;
+  let lastKnownVideoId = null;
+  let lastKnownTitle = null;
+  let currentVideoInfo = null;
+
+  // YouTube video ID extraction
+  function extractYouTubeVideoId() {
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+      /youtube\.com\/v\/([^&\n?#]+)/
+    ];
+    
+    for (const pattern of patterns) {
+      const match = window.location.href.match(pattern);
+      if (match) return match[1];
+    }
+    return null;
+  }
+
+  function extractVideoTitle() {
+    // Try multiple selectors for YouTube title
+    const titleSelectors = [
+      'h1.ytd-video-primary-info-renderer',
+      'h1.title.style-scope.ytd-video-primary-info-renderer',
+      '.ytd-video-primary-info-renderer h1',
+      '#title h1',
+      'h1[class*="title"]',
+      '.watch-main-col h1',
+      'h1'
+    ];
+
+    for (const selector of titleSelectors) {
+      const element = document.querySelector(selector);
+      if (element && element.textContent.trim()) {
+        return element.textContent.trim();
+      }
+    }
+
+    // Fallback to document title
+    const title = document.title;
+    if (title && title !== 'YouTube') {
+      return title.replace(' - YouTube', '').trim();
+    }
+
+    return 'YouTube Video';
+  }
+
+  function getCurrentTimestamp() {
+    try {
+      // YouTube video player selectors
+      const playerSelectors = [
+        'video.html5-main-video',
+        'video.video-stream',
+        '#movie_player video',
+        '.html5-video-player video',
+        'video'
+      ];
+
+      for (const selector of playerSelectors) {
+        const video = document.querySelector(selector);
+        if (video && video.currentTime !== undefined) {
+          return Math.floor(video.currentTime);
+        }
+      }
+
+      return 0;
+    } catch (error) {
+      console.log('⚠️ Could not get YouTube timestamp:', error);
+      return 0;
+    }
+  }
+
+  function createTimestampedUrl(timestamp = null) {
+    const videoId = extractYouTubeVideoId();
+    if (!videoId) return window.location.href;
+
+    const currentTimestamp = timestamp || getCurrentTimestamp();
+    return `https://www.youtube.com/watch?v=${videoId}&t=${currentTimestamp}s`;
+  }
+
+  // ========== YOUTUBE CAPTION CAPTURE (Netflix-style) ==========
+  
+  // Capture current YouTube caption text - EXACTLY like Netflix
+  function captureCurrentYouTubeCaption() {
+    try {
+      console.log('🔍 Looking for YouTube captions...');
+      
+      // YouTube caption selectors (comprehensive list)
+      const captionSelectors = [
+        // Standard YouTube caption containers
+        '.caption-window .captions-text',
+        '.caption-window',
+        '.ytp-caption-window-container .captions-text',
+        '.ytp-caption-window-container',
+        
+        // Auto-generated captions
+        '.ytp-caption-segment',
+        '.html5-captions-text',
+        '.html5-captions-container .captions-text',
+        
+        // Alternative selectors
+        '[class*="caption"] [class*="text"]',
+        '[class*="subtitle"] [class*="text"]',
+        '.captions-text',
+        '.subtitle-text',
+        
+        // Modern YouTube selectors
+        '.ytp-caption-window-bottom .captions-text',
+        '.ytp-caption-window-rollup .captions-text',
+        
+        // Generic caption containers
+        '[class*="caption"]',
+        '[class*="subtitle"]',
+        '[class*="captions"]'
+      ];
+
+      for (const selector of captionSelectors) {
+        const captionElement = document.querySelector(selector);
+        if (captionElement && captionElement.textContent.trim()) {
+          const text = captionElement.textContent.trim();
+          console.log('🎬 Captured YouTube caption with selector:', selector, '→', text);
+          return text;
+        }
+      }
+
+      // Also try to find any visible text elements that might be captions (Netflix approach)
+      console.log('🔍 Searching for caption-like elements...');
+      const allTextElements = document.querySelectorAll('div, span, p');
+      for (const element of allTextElements) {
+        if (element.textContent && element.textContent.trim()) {
+          const text = element.textContent.trim();
+          const rect = element.getBoundingClientRect();
+          
+          // Check if element is positioned like a caption (bottom of screen)
+          const isBottomPositioned = rect.bottom > window.innerHeight * 0.6;
+          const isReasonableLength = text.length > 5 && text.length < 300;
+          const isVisible = rect.width > 0 && rect.height > 0;
+          const hasOpacity = window.getComputedStyle(element).opacity > 0;
+          
+          // Additional check: element should be in video area
+          const videoPlayer = document.querySelector('#movie_player, .html5-video-player');
+          const isInVideoArea = videoPlayer ? videoPlayer.contains(element) : true;
+          
+          if (isBottomPositioned && isReasonableLength && isVisible && hasOpacity && isInVideoArea) {
+            console.log('🎬 Found potential YouTube caption:', text);
+            return text;
+          }
+        }
+      }
+
+      console.log('⚠️ No YouTube caption text found');
+      return null;
+    } catch (error) {
+      console.log('⚠️ Error capturing YouTube caption:', error);
+      return null;
+    }
+  }
+
+  // Message handling - exactly like Netflix
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (contextInvalidated) {
+      sendResponse({ error: 'Context invalidated' });
+      return;
+    }
+
+    console.log('📥 YouTube message received:', request);
+
+    try {
+      switch (request.action) {
+        case 'ping':
+          console.log('🏓 YouTube ping received');          
+          sendResponse({ 
+            pong: true, 
+            platform: 'youtube',
+            videoId: extractYouTubeVideoId(),
+            title: extractVideoTitle(),
+            timestamp: getCurrentTimestamp()
+          });
+          break;
+
+        case 'captureCurrentSubtitle':
+          console.log('🎬 Manual YouTube caption capture requested');
+          const capturedText = captureCurrentYouTubeCaption();
+          if (capturedText) {
+            sendResponse({ 
+              success: true, 
+              text: capturedText,
+              timestamp: getCurrentTimestamp(),
+              videoInfo: {
+                videoId: extractYouTubeVideoId(),
+                title: extractVideoTitle(),
+                url: createTimestampedUrl(),
+                platform: 'youtube'
+              }
+            });
+          } else {
+            sendResponse({ 
+              success: false, 
+              error: 'No caption text found. Make sure captions are enabled and visible.' 
+            });
+          }
+          break;
+
+        case 'getCurrentVideoTime':
+          sendResponse({
+            success: true,
+            timestamp: getCurrentTimestamp(),
+            videoId: extractYouTubeVideoId()
+          });
+          break;
+
+        case 'getVideoInfo':
+          sendResponse({
+            success: true,
+            videoInfo: {
+              videoId: extractYouTubeVideoId(),
+              title: extractVideoTitle(),
+              timestamp: getCurrentTimestamp(),
+              url: createTimestampedUrl(),
+              platform: 'youtube'
+            }
+          });
+          break;
+
+        default:
+          console.log('❓ Unknown action:', request.action);
+          sendResponse({ error: 'Unknown action' });
+      }
+    } catch (error) {
+      console.error('❌ Error handling message:', error);
+      sendResponse({ error: error.message });
+    }
+
+    return true; // Keep message channel open
+  });
+
+  // ========== FLOATING OVERLAY (Netflix-style) ==========
+  
+  let floatingOverlay = null;
+  let lastDisplayedCaption = '';
+  let captionCheckInterval = null;
+  let overlayVisible = false;
+  
+  // Create floating capture overlay - EXACTLY like Netflix
+  function createFloatingCaptureOverlay() {
+    if (floatingOverlay) return;
+    
+    floatingOverlay = document.createElement('div');
+    floatingOverlay.id = 'youtube-learning-overlay';
+    floatingOverlay.innerHTML = `
+      <div class="overlay-content">
+        <div class="caption-display">
+          <div class="caption-text" id="overlay-caption-text">Waiting for captions...</div>
+        </div>
+        <div class="capture-controls">
+          <button class="capture-btn" id="overlay-capture-btn" title="Capture this caption (Cmd+Opt+Ctrl+C)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M8 21h8"/>
+              <path d="M12 17v4"/>
+              <path d="M5.5 17h13a2 2 0 0 0 1.8-2.9L14.6 3.1a2 2 0 0 0-3.2 0L5.7 14.1A2 2 0 0 0 7.5 17z"/>
+            </svg>
+            Capture
+          </button>
+          <button class="close-btn" id="overlay-close-btn" title="Close overlay">✕</button>
+        </div>
+      </div>
+    `;
+    
+    // Add styles - matching Netflix overlay
+    floatingOverlay.innerHTML += `
+      <style>
+      #youtube-learning-overlay {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        width: 320px;
+        background: rgba(0, 0, 0, 0.9);
+        backdrop-filter: blur(10px);
+        border-radius: 12px;
+        padding: 16px;
+        color: white;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        z-index: 999999;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: all 0.3s ease;
+      }
+      
+      #youtube-learning-overlay .overlay-content {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      
+      #youtube-learning-overlay .caption-display {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 12px;
+        min-height: 60px;
+        display: flex;
+        align-items: center;
+      }
+      
+      #youtube-learning-overlay .caption-text {
+        font-size: 16px;
+        line-height: 1.5;
+        text-align: center;
+        width: 100%;
+        font-weight: 500;
+      }
+      
+      #youtube-learning-overlay .caption-text.empty {
+        opacity: 0.6;
+        font-style: italic;
+      }
+      
+      #youtube-learning-overlay .capture-controls {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      
+      #youtube-learning-overlay button {
+        border: none;
+        border-radius: 6px;
+        padding: 8px 12px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+      }
+      
+      #youtube-learning-overlay .capture-btn {
+        background: #ff4444;
+        color: white;
+        flex: 1;
+      }
+      
+      #youtube-learning-overlay .capture-btn:hover:not(:disabled) {
+        background: #ff6666;
+        transform: translateY(-1px);
+      }
+      
+      #youtube-learning-overlay .capture-btn:disabled {
+        background: #666;
+        cursor: not-allowed;
+        opacity: 0.5;
+      }
+      
+      #youtube-learning-overlay .close-btn {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        justify-content: center;
+      }
+      
+      #youtube-learning-overlay .close-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+      </style>
+    `;
+    
+    document.body.appendChild(floatingOverlay);
+    
+    // Add event listeners
+    const captureBtn = document.getElementById('overlay-capture-btn');
+    const closeBtn = document.getElementById('overlay-close-btn');
+    
+    if (captureBtn) {
+      captureBtn.addEventListener('click', handleOverlayCapture);
+    }
+    
+    if (closeBtn) {
+      closeBtn.addEventListener('click', hideOverlay);
+    }
+    
+    // Add keyboard shortcuts
+    document.addEventListener('keydown', handleOverlayHotkeys);
+  }
+  
+  // Handle overlay hotkeys
+  function handleOverlayHotkeys(event) {
+    // Cmd+Opt+Ctrl+C: Capture caption (Mac-friendly)
+    if (event.metaKey && event.altKey && event.ctrlKey && event.code === 'KeyC') {
+      event.preventDefault();
+      handleOverlayCapture();
+    }
+  }
+  
+  // Handle overlay capture - EXACTLY like Netflix
+  async function handleOverlayCapture() {
+    console.log('🎯 === OVERLAY CAPTURE STARTED ===');
+    const captureBtn = document.getElementById('overlay-capture-btn');
+    const captionText = document.getElementById('overlay-caption-text');
+    
+    if (!captureBtn || !captionText) {
+      console.error('❌ Missing UI elements');
+      return;
+    }
+    
+    const currentText = lastDisplayedCaption.trim();
+    console.log('📝 Current text to capture:', currentText);
+    
+    if (!currentText || currentText === 'Waiting for captions...' || currentText === 'No captions visible') {
+      console.error('❌ No valid caption text');
+      showCaptureError('No caption text to capture');
+      return;
+    }
+    
+    // Visual feedback - capturing state
+    captureBtn.disabled = true;
+    captureBtn.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
+        <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" fill="none"/>
+      </svg>
+      Capturing...
+    `;
+    
+    try {
+      // Send to extension for analysis - EXACTLY like Netflix
+      const response = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({
+          action: 'analyzeTextFromCapture',
+          text: currentText,
+          source: 'youtube-overlay',
+          videoInfo: {
+            videoId: extractYouTubeVideoId(),
+            title: extractVideoTitle(),
+            timestamp: getCurrentTimestamp(),
+            url: createTimestampedUrl(),
+            platform: 'youtube'
+          }
+        }, resolve);
+      });
+      
+      if (response && response.success) {
+        showCaptureSuccess();
+      } else {
+        showCaptureError(response?.error || 'Analysis failed');
+      }
+      
+    } catch (error) {
+      console.error('❌ Capture failed:', error);
+      showCaptureError('Capture failed');
+    }
+    
+    // Reset button
+    setTimeout(() => {
+      if (captureBtn) {
+        captureBtn.disabled = false;
+        captureBtn.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 21h8"/>
+            <path d="M12 17v4"/>
+            <path d="M5.5 17h13a2 2 0 0 0 1.8-2.9L14.6 3.1a2 2 0 0 0-3.2 0L5.7 14.1A2 2 0 0 0 7.5 17z"/>
+          </svg>
+          Capture
+        `;
+      }
+    }, 2000);
+  }
+  
+  function showCaptureSuccess() {
+    const captionText = document.getElementById('overlay-caption-text');
+    if (captionText) {
+      const originalText = captionText.textContent;
+      captionText.textContent = '✅ Captured for analysis!';
+      captionText.style.color = '#4CAF50';
+      setTimeout(() => {
+        captionText.textContent = originalText;
+        captionText.style.color = '';
+      }, 2000);
+    }
+  }
+  
+  function showCaptureError(message) {
+    const captionText = document.getElementById('overlay-caption-text');
+    if (captionText) {
+      const originalText = captionText.textContent;
+      captionText.textContent = `❌ ${message}`;
+      captionText.style.color = '#f44336';
+      setTimeout(() => {
+        captionText.textContent = originalText;
+        captionText.style.color = '';
+      }, 3000);
+    }
+  }
+  
+  // Show/hide overlay
+  function showOverlay() {
+    if (!floatingOverlay) {
+      createFloatingCaptureOverlay();
+    }
+    floatingOverlay.style.display = 'block';
+    overlayVisible = true;
+    startCaptionMonitoring();
+  }
+  
+  function hideOverlay() {
+    if (floatingOverlay) {
+      floatingOverlay.style.display = 'none';
+    }
+    overlayVisible = false;
+    stopCaptionMonitoring();
+  }
+  
+  // Start monitoring captions for overlay - EXACTLY like Netflix
+  function startCaptionMonitoring() {
+    if (captionCheckInterval) return;
+    
+    captionCheckInterval = setInterval(() => {
+      if (!overlayVisible) return;
+      
+      const currentCaption = captureCurrentYouTubeCaption();
+      const captionElement = document.getElementById('overlay-caption-text');
+      const captureBtn = document.getElementById('overlay-capture-btn');
+      
+      if (captionElement) {
+        if (currentCaption && currentCaption !== lastDisplayedCaption) {
+          lastDisplayedCaption = currentCaption;
+          captionElement.textContent = currentCaption;
+          captionElement.classList.remove('empty');
+          
+          if (captureBtn) {
+            captureBtn.disabled = false;
+          }
+        } else if (!currentCaption && lastDisplayedCaption !== 'No captions visible') {
+          lastDisplayedCaption = 'No captions visible';
+          captionElement.textContent = 'No captions visible';
+          captionElement.classList.add('empty');
+          
+          if (captureBtn) {
+            captureBtn.disabled = true;
+          }
+        }
+      }
+    }, 500); // Check every 500ms - same as Netflix
+    
+    console.log('👂 Started caption monitoring for overlay');
+  }
+  
+  // Stop monitoring captions
+  function stopCaptionMonitoring() {
+    if (captionCheckInterval) {
+      clearInterval(captionCheckInterval);
+      captionCheckInterval = null;
+      console.log('🛑 Stopped caption monitoring');
+    }
+  }
+  
+  // Auto-show overlay when on YouTube watch page
+  function autoShowOverlayOnYouTube() {
+    if (window.location.href.includes('/watch')) {
+      console.log('🎬 Auto-showing YouTube learning overlay');
+      setTimeout(() => showOverlay(), 2000); // Delay for page load
+    }
+  }
+  
+  // Initialize
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      autoShowOverlayOnYouTube();
+    });
+  } else {
+    autoShowOverlayOnYouTube();
+    
+    // Add debug function to window for testing
+    window.debugYouTubeCapture = function() {
+      console.log('🔧 === DEBUG YOUTUBE CAPTURE ===');
+      console.log('Current caption:', lastDisplayedCaption);
+      console.log('Video ID:', extractYouTubeVideoId());
+      console.log('Title:', extractVideoTitle());
+      console.log('Timestamp:', getCurrentTimestamp());
+      console.log('Overlay visible:', overlayVisible);
+      console.log('Chrome runtime available:', !!chrome?.runtime);
+      
+      // Test direct capture with current caption
+      if (lastDisplayedCaption && lastDisplayedCaption !== 'Waiting for captions...' && lastDisplayedCaption !== 'No captions visible') {
+        console.log('🧪 Testing capture with:', lastDisplayedCaption);
+        handleOverlayCapture();
+      } else {
+        console.log('❌ No valid caption to test with');
+      }
+    };
+    
+    console.log('🔧 Debug function added: window.debugYouTubeCapture()');
+  }
+
+  // Context invalidation handler
+  chrome.runtime.onConnect.addListener((port) => {
+    port.onDisconnect.addListener(() => {
+      if (chrome.runtime.lastError) {
+        contextInvalidated = true;
+        console.log('🔄 Context invalidated, will reload on next action');
+      }
+    });
+  });
+
+  console.log('✅ YouTube Netflix-style content script ready');
+
+})();

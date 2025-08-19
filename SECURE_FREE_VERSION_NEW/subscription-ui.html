@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LeverageLanguage - Subscription Plans</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .subscription-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 16px;
+        }
+
+        .header p {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+
+        .usage-banner {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 16px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .usage-banner.warning {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+
+        .plans-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+            padding: 40px;
+        }
+
+        .plan-card {
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 32px;
+            text-align: center;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .plan-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+        }
+
+        .plan-card.current {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea10 0%, #764ba210 100%);
+        }
+
+        .plan-card.recommended {
+            border-color: #10b981;
+            background: linear-gradient(135deg, #10b98110 0%, #059f6910 100%);
+        }
+
+        .plan-badge {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #10b981;
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .plan-badge.current {
+            background: #667eea;
+        }
+
+        .plan-name {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #2d3748;
+        }
+
+        .plan-price {
+            font-size: 36px;
+            font-weight: 800;
+            color: #1a202c;
+            margin-bottom: 4px;
+        }
+
+        .plan-interval {
+            color: #718096;
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+
+        .plan-features {
+            list-style: none;
+            text-align: left;
+            margin-bottom: 32px;
+        }
+
+        .plan-features li {
+            padding: 8px 0;
+            color: #4a5568;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .plan-features li::before {
+            content: '✅';
+            font-size: 16px;
+        }
+
+        .plan-features li.unavailable {
+            color: #a0aec0;
+        }
+
+        .plan-features li.unavailable::before {
+            content: '❌';
+        }
+
+        .plan-button {
+            width: 100%;
+            padding: 16px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .plan-button.primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .plan-button.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .plan-button.secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .plan-button.secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .plan-button.current {
+            background: #e2e8f0;
+            color: #718096;
+            cursor: not-allowed;
+        }
+
+        .plan-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .billing-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background: #e2e8f0;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: #667eea;
+        }
+
+        .toggle-switch::before {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        .toggle-switch.active::before {
+            transform: translateX(30px);
+        }
+
+        .toggle-label {
+            font-weight: 500;
+            color: #4a5568;
+        }
+
+        .toggle-label.active {
+            color: #667eea;
+        }
+
+        .savings-badge {
+            background: #10b981;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .faq-section {
+            background: #f7fafc;
+            padding: 40px;
+        }
+
+        .faq-title {
+            text-align: center;
+            font-size: 24px;
+            margin-bottom: 32px;
+            color: #2d3748;
+        }
+
+        .faq-item {
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .faq-question {
+            padding: 20px;
+            background: white;
+            border: none;
+            width: 100%;
+            text-align: left;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .faq-question:hover {
+            background: #f7fafc;
+        }
+
+        .faq-answer {
+            padding: 0 20px 20px;
+            color: #4a5568;
+            line-height: 1.6;
+            display: none;
+        }
+
+        .faq-answer.show {
+            display: block;
+        }
+
+        .close-button {
+            position: absolute;
+            top: 16px;
+            right: 16px;  
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close-button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid transparent;
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .plans-container {
+                grid-template-columns: 1fr;
+                padding: 20px;
+            }
+            
+            .header {
+                padding: 24px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="subscription-container">
+        <div class="header">
+            <button class="close-button" onclick="window.close()">&times;</button>
+            <h1>🚀 Choose Your Plan</h1>
+            <p>Unlock the full power of AI-powered language learning</p>
+        </div>
+
+        <div id="usageBanner" class="usage-banner" style="display: none;">
+            <span id="usageMessage"></span>
+        </div>
+
+        <div style="padding: 40px 40px 0;">
+            <div class="billing-toggle">
+                <span class="toggle-label active" id="monthlyLabel">Monthly</span>
+                <div class="toggle-switch" id="billingToggle">
+                </div>
+                <span class="toggle-label" id="yearlyLabel">
+                    Yearly <span class="savings-badge">Save 17%</span>
+                </span>
+            </div>
+        </div>
+
+        <div class="plans-container" id="plansContainer">
+            <!-- Plans will be generated by JavaScript -->
+        </div>
+
+        <div class="faq-section">
+            <h2 class="faq-title">Frequently Asked Questions</h2>
+            
+            <div class="faq-item">
+                <button class="faq-question" onclick="toggleFAQ(this)">
+                    What happens to my data if I cancel?
+                    <span>+</span>
+                </button>
+                <div class="faq-answer">
+                    Your data remains accessible for 30 days after cancellation. You can export all your reports and analytics during this period. After 30 days, data is permanently deleted for security.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question" onclick="toggleFAQ(this)">
+                    Can I change plans anytime?
+                    <span>+</span>
+                </button>
+                <div class="faq-answer">
+                    Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately, and we'll prorate the billing accordingly.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question" onclick="toggleFAQ(this)">
+                    Is there a free trial?
+                    <span>+</span>
+                </button>
+                <div class="faq-answer">
+                    The Free plan gives you 50 AI analyses per month to try our service. No credit card required! Upgrade anytime to unlock unlimited features.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question" onclick="toggleFAQ(this)">
+                    What payment methods do you accept?
+                    <span>+</span>
+                </button>
+                <div class="faq-answer">
+                    We accept all major credit cards, debit cards, and digital wallets through Stripe. All payments are processed securely with industry-standard encryption.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="lib/supabase-client.js"></script>
+    <!-- Stripe client removed for Manifest V3 compliance -->
+    <!-- <script src="lib/stripe-client.js"></script> -->
+    <script>
+        class SubscriptionUI {
+            constructor() {
+                this.currentUser = null;
+                this.currentPlan = 'free';
+                this.usageStats = null;
+                this.isYearly = false;
+                
+                this.plans = {
+                    free: {
+                        name: 'Free',
+                        monthlyPrice: 0,
+                        yearlyPrice: 0,
+                        features: [
+                            '50 AI analyses per month',
+                            '30 days history retention',
+                            'Basic export features',
+                            'Error detection & corrections',
+                            'Multi-language support'
+                        ],
+                        unavailable: [
+                            'Cloud sync across devices',
+                            'Advanced analytics dashboard',
+                            'Unlimited history',
+                            'Priority customer support'
+                        ]
+                    },
+                    pro: {
+                        name: 'Pro',
+                        monthlyPrice: 9.99,
+                        yearlyPrice: 99.99,
+                        stripePriceMonthly: 'price_pro_monthly',
+                        stripePriceYearly: 'price_pro_yearly',
+                        features: [
+                            'Unlimited AI analyses',
+                            'Unlimited history retention',
+                            'Advanced export options',
+                            'Cloud sync across devices',
+                            'Advanced analytics dashboard',
+                            'Learning progress insights',
+                            'Priority customer support',
+                            'Early access to new features'
+                        ]
+                    },
+                    enterprise: {
+                        name: 'Enterprise',
+                        monthlyPrice: 29.99,
+                        yearlyPrice: 299.99,
+                        stripePriceMonthly: 'price_enterprise_monthly',
+                        stripePriceYearly: 'price_enterprise_yearly',
+                        features: [
+                            'All Pro features',
+                            'Classroom management tools',
+                            'Student progress tracking',
+                            'Bulk user management',
+                            'Custom branding options',
+                            'API access',
+                            'Dedicated account manager',
+                            'Custom integrations'
+                        ]
+                    }
+                };
+
+                this.init();
+            }
+
+            async init() {
+                await this.loadUserData();
+                this.setupEventListeners();
+                this.renderPlans();
+            }
+
+            async loadUserData() {
+                // Check if user is authenticated
+                if (window.supabaseClient?.isAuthenticated()) {
+                    this.currentUser = window.supabaseClient.getUser();
+                    
+                    // Get current subscription
+                    const profile = await window.supabaseClient.getProfile();
+                    if (profile) {
+                        this.currentPlan = profile.subscription_tier || 'free';
+                    }
+
+                    // Get usage stats
+                    this.usageStats = await window.supabaseClient.getUsageStats();
+                    this.showUsageBanner();
+                }
+            }
+
+            setupEventListeners() {
+                // Billing toggle
+                document.getElementById('billingToggle').addEventListener('click', () => {
+                    this.toggleBilling();
+                });
+
+                // Close button
+                document.querySelector('.close-button').addEventListener('click', () => {
+                    window.close();
+                });
+            }
+
+            toggleBilling() {
+                this.isYearly = !this.isYearly;
+                
+                const toggle = document.getElementById('billingToggle');
+                const monthlyLabel = document.getElementById('monthlyLabel');
+                const yearlyLabel = document.getElementById('yearlyLabel');
+
+                if (this.isYearly) {
+                    toggle.classList.add('active');
+                    monthlyLabel.classList.remove('active');
+                    yearlyLabel.classList.add('active');
+                } else {
+                    toggle.classList.remove('active');
+                    monthlyLabel.classList.add('active');
+                    yearlyLabel.classList.remove('active');
+                }
+
+                this.renderPlans();
+            }
+
+            showUsageBanner() {
+                if (!this.usageStats || this.currentPlan !== 'free') return;
+
+                const banner = document.getElementById('usageBanner');
+                const message = document.getElementById('usageMessage');
+                
+                const aiUsage = this.usageStats.ai_analyses_used || 0;
+                const aiLimit = 50;
+                const percentage = (aiUsage / aiLimit) * 100;
+
+                if (percentage > 80) {
+                    banner.classList.add('warning');
+                    message.textContent = `⚠️ You've used ${aiUsage}/${aiLimit} AI analyses this month (${Math.round(percentage)}%). Consider upgrading to Pro for unlimited access.`;
+                } else if (percentage > 50) {
+                    message.textContent = `📊 You've used ${aiUsage}/${aiLimit} AI analyses this month. Upgrade to Pro for unlimited access.`;
+                } else {
+                    return; // Don't show banner if usage is low
+                }
+
+                banner.style.display = 'block';
+            }
+
+            renderPlans() {
+                const container = document.getElementById('plansContainer');
+                container.innerHTML = '';
+
+                Object.entries(this.plans).forEach(([planId, plan]) => {
+                    const planCard = this.createPlanCard(planId, plan);
+                    container.appendChild(planCard);
+                });
+            }
+
+            createPlanCard(planId, plan) {
+                const div = document.createElement('div');
+                div.className = 'plan-card';
+                
+                if (planId === this.currentPlan) {
+                    div.classList.add('current');
+                } else if (planId === 'pro') {
+                    div.classList.add('recommended');
+                }
+
+                const price = this.isYearly ? plan.yearlyPrice : plan.monthlyPrice;
+                const interval = this.isYearly ? 'year' : 'month';
+                const savings = this.isYearly && planId !== 'free' ? 
+                    Math.round((1 - (plan.yearlyPrice / (plan.monthlyPrice * 12))) * 100) : 0;
+
+                div.innerHTML = `
+                    ${planId === 'pro' ? '<div class="plan-badge">Recommended</div>' : ''}
+                    ${planId === this.currentPlan ? '<div class="plan-badge current">Current Plan</div>' : ''}
+                    
+                    <div class="plan-name">${plan.name}</div>
+                    <div class="plan-price">$${price.toFixed(2)}</div>
+                    <div class="plan-interval">
+                        per ${interval}
+                        ${savings > 0 ? `<span class="savings-badge">Save ${savings}%</span>` : ''}
+                    </div>
+                    
+                    <ul class="plan-features">
+                        ${plan.features.map(feature => `<li>${feature}</li>`).join('')}
+                        ${plan.unavailable ? plan.unavailable.map(feature => `<li class="unavailable">${feature}</li>`).join('') : ''}
+                    </ul>
+                    
+                    <button class="plan-button ${this.getButtonClass(planId)}" 
+                            onclick="subscriptionUI.handlePlanSelection('${planId}')"
+                            ${planId === this.currentPlan ? 'disabled' : ''}>
+                        ${this.getButtonText(planId)}
+                    </button>
+                `;
+
+                return div;
+            }
+
+            getButtonClass(planId) {
+                if (planId === this.currentPlan) return 'current';
+                if (planId === 'free') return 'secondary';
+                return 'primary';
+            }
+
+            getButtonText(planId) {
+                if (planId === this.currentPlan) return 'Current Plan';
+                if (planId === 'free') return 'Downgrade to Free';
+                return `Upgrade to ${this.plans[planId].name}`;
+            }
+
+            async handlePlanSelection(planId) {
+                if (planId === this.currentPlan) return;
+
+                if (!this.currentUser) {
+                    alert('Please sign in first to change your subscription.');
+                    window.close();
+                    return;
+                }
+
+                if (planId === 'free') {
+                    await this.handleDowngrade();
+                    return;
+                }
+
+                await this.handleUpgrade(planId);
+            }
+
+            async handleUpgrade(planId) {
+                const plan = this.plans[planId];
+                const priceId = this.isYearly ? plan.stripePriceYearly : plan.stripePriceMonthly;
+
+                try {
+                    // Show loading state
+                    const button = event.target;
+                    const originalText = button.textContent;
+                    button.innerHTML = '<span class="loading"></span>Processing...';
+                    button.disabled = true;
+
+                    // Stripe integration removed for Manifest V3 compliance
+                    // TODO: Implement alternative payment method
+                    /*
+                    const result = await window.stripeClient.createCheckoutSession(priceId);
+                    
+                    if (result.success) {
+                        // Stripe will redirect to checkout
+                    } else {
+                        throw new Error(result.error);
+                    }
+                    */
+                    throw new Error('Payment functionality temporarily disabled');
+                } catch (error) {
+                    console.error('Upgrade error:', error);
+                    alert('Failed to start checkout process. Please try again.');
+                    
+                    // Reset button
+                    button.textContent = originalText;
+                    button.disabled = false;
+                }
+            }
+
+            async handleDowngrade() {
+                const confirmed = confirm(
+                    'Are you sure you want to downgrade to the Free plan? ' +
+                    'You will lose access to premium features at the end of your current billing period.'
+                );
+                
+                if (confirmed) {
+                    // Open customer portal to cancel subscription
+                    const profile = await window.supabaseClient.getProfile();
+                    if (profile?.stripe_customer_id) {
+                        // Stripe integration removed for Manifest V3 compliance
+                        // await window.stripeClient.createPortalSession(profile.stripe_customer_id);
+                        alert('Downgrade functionality temporarily disabled');
+                    }
+                }
+            }
+
+            formatPrice(price) {
+                return new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: 'USD'
+                }).format(price);
+            }
+        }
+
+        // FAQ functionality
+        function toggleFAQ(button) {
+            const answer = button.nextElementSibling;
+            const icon = button.querySelector('span');
+            
+            if (answer.classList.contains('show')) {
+                answer.classList.remove('show');
+                icon.textContent = '+';
+            } else {
+                // Close other FAQs
+                document.querySelectorAll('.faq-answer.show').forEach(el => {
+                    el.classList.remove('show');
+                    el.previousElementSibling.querySelector('span').textContent = '+';
+                });
+                
+                answer.classList.add('show');
+                icon.textContent = '−';
+            }
+        }
+
+        // Initialize when page loads
+        let subscriptionUI;
+        document.addEventListener('DOMContentLoaded', () => {
+            subscriptionUI = new SubscriptionUI();
+        });
+    </script>
+</body>
+</html>

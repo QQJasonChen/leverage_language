@@ -1,0 +1,593 @@
+// Production-safe logging
+const log = (...args) => {
+  if (typeof PerformanceUtils !== "undefined") {
+    PerformanceUtils.log(...args);
+  } else if (!chrome.runtime.getManifest().name.includes("Dev")) {
+    return;
+  } else {
+    log(...args);
+  }
+};
+// Gamification Manager for User Engagement and Retention
+// Handles streaks, achievements, progress tracking, and social features
+
+class GamificationManager {
+  constructor() {
+    this.authManager = null;
+    this.storageManager = null;
+    this.isInitialized = false;
+    
+    // Achievement system
+    this.achievements = {
+      first_analysis: {
+        id: 'first_analysis',
+        name: 'First Steps',
+        description: 'Complete your first AI analysis',
+        icon: '🌟',
+        points: 10,
+        type: 'milestone'
+      },
+      week_warrior: {
+        id: 'week_warrior', 
+        name: 'Week Warrior',
+        description: 'Maintain a 7-day learning streak',
+        icon: '🔥',
+        points: 50,
+        type: 'streak'
+      },
+      error_detective: {
+        id: 'error_detective',
+        name: 'Error Detective',
+        description: 'Find and fix your first error',
+        icon: '🕵️',
+        points: 25,
+        type: 'skill'
+      },
+      perfectionist: {
+        id: 'perfectionist',
+        name: 'Perfectionist',
+        description: 'Have 10 consecutive correct analyses',
+        icon: '✨',
+        points: 100,
+        type: 'skill'
+      },
+      multilingual: {
+        id: 'multilingual',
+        name: 'Multilingual Master',
+        description: 'Practice 3 different languages',
+        icon: '🌍',
+        points: 75,
+        type: 'variety'
+      },
+      century_club: {
+        id: 'century_club',
+        name: 'Century Club',
+        description: 'Complete 100 AI analyses',
+        icon: '💯',
+        points: 200,
+        type: 'milestone'
+      },
+      early_bird: {
+        id: 'early_bird',
+        name: 'Early Bird',
+        description: 'Practice before 9 AM for 5 days',
+        icon: '🌅',
+        points: 40,
+        type: 'habit'
+      },
+      night_owl: {
+        id: 'night_owl',
+        name: 'Night Owl', 
+        description: 'Practice after 10 PM for 5 days',
+        icon: '🦉',
+        points: 40,
+        type: 'habit'
+      }
+    };
+
+    // Streak system
+    this.streakConfig = {
+      dailyGoal: 5, // analyses per day
+      maxStreakFreeze: 2, // days user can miss per month
+      streakRewards: {
+        3: { points: 15, message: 'Great start! 🔥' },
+        7: { points: 50, message: 'One week strong! 💪' },
+        14: { points: 100, message: 'Two weeks unstoppable! 🚀' },
+        30: { points: 300, message: 'Monthly master! 👑' },
+        100: { points: 1000, message: 'Legendary learner! 🏆' }
+      }
+    };
+
+    this.init();
+  }
+
+  async init() {
+    log('🎮 GamificationManager initializing...');
+    
+    // Wait for dependencies
+    await this.waitForDependencies();
+    
+    this.isInitialized = true;
+    log('🎮 GamificationManager initialized');
+  }
+
+  async waitForDependencies() {
+    let attempts = 0;
+    const maxAttempts = 50;
+    
+    while (attempts < maxAttempts) {
+      if (window.authManager && window.storageManager) {
+        this.authManager = window.authManager;
+        this.storageManager = window.storageManager;
+        break;
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+      attempts++;
+    }
+  }
+
+  // Main method called after each user action
+  async processUserAction(action, data = {}) {
+    if (!this.authManager?.isUserAuthenticated()) return;
+
+    try {
+      const results = {
+        achievements: [],
+        streakUpdate: null,
+        pointsEarned: 0,
+        levelUp: false
+      };
+
+      // Update streak
+      results.streakUpdate = await this.updateStreak(action);
+      
+      // Check for new achievements
+      results.achievements = await this.checkAchievements(action, data);
+      
+      // Calculate points
+      results.pointsEarned = this.calculatePointsEarned(results);
+      
+      // Check for level up
+      results.levelUp = await this.checkLevelUp(results.pointsEarned);
+      
+      // Show notifications
+      if (results.achievements.length > 0 || results.streakUpdate?.milestone || results.levelUp) {
+        this.showGamificationNotifications(results);
+      }
+
+      return results;
+    } catch (error) {
+      console.error('❌ Gamification processing error:', error);
+      return null;
+    }
+  }
+
+  // Streak management
+  async updateStreak(action) {
+    if (action !== 'ai_analysis_completed') return null;
+
+    try {
+      const today = new Date().toDateString();
+      const userData = await this.getUserGameData();
+      
+      // Check if user already met daily goal today
+      if (userData.lastActivityDate === today && userData.dailyAnalyses >= this.streakConfig.dailyGoal) {
+        return null; // No streak update needed
+      }
+
+      // Update daily progress
+      if (userData.lastActivityDate === today) {
+        userData.dailyAnalyses++;
+      } else {
+        // New day
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        
+        if (userData.lastActivityDate === yesterday.toDateString()) {
+          // Consecutive day
+          if (userData.dailyAnalyses >= this.streakConfig.dailyGoal) {
+            userData.currentStreak++;
+          } else {
+            // Missed daily goal yesterday
+            userData.currentStreak = 1;
+          }
+        } else {
+          // Streak broken
+          userData.longestStreak = Math.max(userData.longestStreak, userData.currentStreak);
+          userData.currentStreak = 1;
+        }
+        
+        userData.dailyAnalyses = 1;
+        userData.lastActivityDate = today;
+      }
+
+      // Check for streak milestones
+      let milestone = null;
+      if (userData.dailyAnalyses === this.streakConfig.dailyGoal) {
+        const reward = this.streakConfig.streakRewards[userData.currentStreak];
+        if (reward) {
+          milestone = {
+            streak: userData.currentStreak,
+            ...reward
+          };
+          userData.totalPoints += reward.points;
+        }
+      }
+
+      // Save updated data
+      await this.saveUserGameData(userData);
+
+      return {
+        currentStreak: userData.currentStreak,
+        dailyProgress: userData.dailyAnalyses,
+        dailyGoal: this.streakConfig.dailyGoal,
+        milestone
+      };
+
+    } catch (error) {
+      console.error('❌ Streak update error:', error);
+      return null;
+    }
+  }
+
+  // Achievement checking
+  async checkAchievements(action, data) {
+    try {
+      const userData = await this.getUserGameData();
+      const userReports = await this.storageManager.getAIReports();
+      const newAchievements = [];
+
+      // Check each achievement
+      for (const [achievementId, achievement] of Object.entries(this.achievements)) {
+        // Skip if already unlocked
+        if (userData.achievements.includes(achievementId)) continue;
+
+        let unlocked = false;
+
+        switch (achievementId) {
+          case 'first_analysis':
+            unlocked = userReports.length >= 1;
+            break;
+            
+          case 'week_warrior':
+            unlocked = userData.currentStreak >= 7;
+            break;
+            
+          case 'error_detective':
+            unlocked = userReports.some(report => report.hasErrors);
+            break;
+            
+          case 'perfectionist':
+            const recentCorrect = userReports.slice(0, 10);
+            unlocked = recentCorrect.length >= 10 && recentCorrect.every(report => report.isCorrect);
+            break;
+            
+          case 'multilingual':
+            const languages = new Set(userReports.map(report => report.language));
+            unlocked = languages.size >= 3;
+            break;
+            
+          case 'century_club':
+            unlocked = userReports.length >= 100;
+            break;
+            
+          case 'early_bird':
+            unlocked = await this.checkTimeBasedAchievement('early_bird', userReports);
+            break;
+            
+          case 'night_owl':
+            unlocked = await this.checkTimeBasedAchievement('night_owl', userReports);
+            break;
+        }
+
+        if (unlocked) {
+          newAchievements.push(achievement);
+          userData.achievements.push(achievementId);
+          userData.totalPoints += achievement.points;
+        }
+      }
+
+      if (newAchievements.length > 0) {
+        await this.saveUserGameData(userData);
+      }
+
+      return newAchievements;
+    } catch (error) {
+      console.error('❌ Achievement checking error:', error);
+      return [];
+    }
+  }
+
+  async checkTimeBasedAchievement(type, reports) {
+    const recentReports = reports.filter(report => {
+      const reportDate = new Date(report.timestamp);
+      const daysAgo = (Date.now() - reportDate.getTime()) / (1000 * 60 * 60 * 24);
+      return daysAgo <= 30; // Check last 30 days
+    });
+
+    const timeGroups = {};
+    recentReports.forEach(report => {
+      const date = new Date(report.timestamp).toDateString();
+      const hour = new Date(report.timestamp).getHours();
+      
+      if (!timeGroups[date]) timeGroups[date] = [];
+      timeGroups[date].push(hour);
+    });
+
+    let qualifyingDays = 0;
+    for (const [date, hours] of Object.entries(timeGroups)) {
+      const hasTargetTime = type === 'early_bird' ? 
+        hours.some(h => h < 9) : 
+        hours.some(h => h >= 22);
+      
+      if (hasTargetTime) qualifyingDays++;
+    }
+
+    return qualifyingDays >= 5;
+  }
+
+  // Level system
+  async checkLevelUp(pointsEarned) {
+    if (pointsEarned === 0) return false;
+
+    try {
+      const userData = await this.getUserGameData();
+      const oldLevel = this.calculateLevel(userData.totalPoints - pointsEarned);
+      const newLevel = this.calculateLevel(userData.totalPoints);
+      
+      if (newLevel > oldLevel) {
+        userData.level = newLevel;
+        await this.saveUserGameData(userData);
+        return { oldLevel, newLevel };
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('❌ Level check error:', error);
+      return false;
+    }
+  }
+
+  calculateLevel(points) {
+    // Level formula: Level = floor(sqrt(points / 100))
+    return Math.floor(Math.sqrt(points / 100)) + 1;
+  }
+
+  calculatePointsEarned(results) {
+    let total = 0;
+    
+    // Achievement points
+    results.achievements.forEach(achievement => {
+      total += achievement.points;
+    });
+    
+    // Streak milestone points
+    if (results.streakUpdate?.milestone) {
+      total += results.streakUpdate.milestone.points;
+    }
+    
+    return total;
+  }
+
+  // User data management
+  async getUserGameData() {
+    try {
+      const result = await chrome.storage.local.get(['userGameData']);
+      
+      return result.userGameData || {
+        totalPoints: 0,
+        level: 1,
+        currentStreak: 0,
+        longestStreak: 0,
+        dailyAnalyses: 0,
+        lastActivityDate: null,
+        achievements: [],
+        streakFreezes: 0,
+        weeklyGoals: {},
+        monthlyStats: {}
+      };
+    } catch (error) {
+      console.error('❌ Get game data error:', error);
+      return {};
+    }
+  }
+
+  async saveUserGameData(userData) {
+    try {
+      await chrome.storage.local.set({ userGameData: userData });
+    } catch (error) {
+      console.error('❌ Save game data error:', error);
+    }
+  }
+
+  // UI Integration
+  showGamificationNotifications(results) {
+    const notifications = [];
+    
+    // Achievement notifications
+    results.achievements.forEach(achievement => {
+      notifications.push({
+        type: 'achievement',
+        title: `🏆 Achievement Unlocked!`,
+        message: `${achievement.icon} ${achievement.name}`,
+        description: achievement.description,
+        points: achievement.points,
+        duration: 5000
+      });
+    });
+    
+    // Streak milestone notifications
+    if (results.streakUpdate?.milestone) {
+      const milestone = results.streakUpdate.milestone;
+      notifications.push({
+        type: 'streak',
+        title: `🔥 ${milestone.streak} Day Streak!`,
+        message: milestone.message,
+        points: milestone.points,
+        duration: 4000
+      });
+    }
+    
+    // Level up notifications
+    if (results.levelUp) {
+      notifications.push({
+        type: 'levelup',
+        title: `⬆️ Level Up!`,
+        message: `You reached Level ${results.levelUp.newLevel}!`,
+        duration: 4000
+      });
+    }
+    
+    // Display notifications
+    notifications.forEach((notification, index) => {
+      setTimeout(() => {
+        this.displayNotification(notification);
+      }, index * 1000); // Stagger notifications
+    });
+  }
+
+  displayNotification(notification) {
+    // Create notification element
+    const notificationEl = document.createElement('div');
+    notificationEl.className = `gamification-notification ${notification.type}`;
+    notificationEl.innerHTML = `
+      <div class="notification-header">
+        <span class="notification-title">${notification.title}</span>
+        <button class="notification-close">&times;</button>
+      </div>
+      <div class="notification-content">
+        <div class="notification-message">${notification.message}</div>
+        ${notification.description ? `<div class="notification-description">${notification.description}</div>` : ''}
+        ${notification.points ? `<div class="notification-points">+${notification.points} points</div>` : ''}
+      </div>
+    `;
+    
+    // Add styles
+    notificationEl.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      z-index: 10000;
+      min-width: 300px;
+      max-width: 400px;
+      animation: slideInRight 0.5s ease-out;
+    `;
+    
+    // Add close functionality
+    const closeBtn = notificationEl.querySelector('.notification-close');
+    closeBtn.addEventListener('click', () => {
+      notificationEl.remove();
+    });
+    
+    // Add to page
+    document.body.appendChild(notificationEl);
+    
+    // Auto-remove
+    setTimeout(() => {
+      if (notificationEl.parentNode) {
+        notificationEl.style.animation = 'slideOutRight 0.5s ease-out';
+        setTimeout(() => notificationEl.remove(), 500);
+      }
+    }, notification.duration || 3000);
+  }
+
+  // Progress tracking
+  async getProgressStats() {
+    try {
+      const userData = await this.getUserGameData();
+      const reports = await this.storageManager.getAIReports();
+      
+      return {
+        level: userData.level,
+        totalPoints: userData.totalPoints,
+        pointsToNextLevel: this.getPointsToNextLevel(userData.totalPoints),
+        currentStreak: userData.currentStreak,
+        longestStreak: userData.longestStreak,
+        dailyProgress: {
+          completed: userData.dailyAnalyses,
+          goal: this.streakConfig.dailyGoal,
+          percentage: Math.min((userData.dailyAnalyses / this.streakConfig.dailyGoal) * 100, 100)
+        },
+        achievements: {
+          unlocked: userData.achievements.length,
+          total: Object.keys(this.achievements).length,
+          recent: userData.achievements.slice(-3).map(id => this.achievements[id])
+        },
+        weeklyStats: this.calculateWeeklyStats(reports),
+        monthlyStats: this.calculateMonthlyStats(reports)
+      };
+    } catch (error) {
+      console.error('❌ Progress stats error:', error);
+      return null;
+    }
+  }
+
+  getPointsToNextLevel(currentPoints) {
+    const currentLevel = this.calculateLevel(currentPoints);
+    const nextLevelPoints = Math.pow(currentLevel, 2) * 100;
+    return nextLevelPoints - currentPoints;
+  }
+
+  calculateWeeklyStats(reports) {
+    const oneWeekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    const weeklyReports = reports.filter(r => r.timestamp >= oneWeekAgo);
+    
+    return {
+      totalAnalyses: weeklyReports.length,
+      correctPercentage: weeklyReports.length > 0 ? 
+        Math.round((weeklyReports.filter(r => r.isCorrect).length / weeklyReports.length) * 100) : 0,
+      languagesPracticed: new Set(weeklyReports.map(r => r.language)).size,
+      errorsFound: weeklyReports.filter(r => r.hasErrors).length
+    };
+  }
+
+  calculateMonthlyStats(reports) {
+    const oneMonthAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+    const monthlyReports = reports.filter(r => r.timestamp >= oneMonthAgo);
+    
+    return {
+      totalAnalyses: monthlyReports.length,
+      averagePerDay: Math.round(monthlyReports.length / 30),
+      improvementTrend: this.calculateImprovementTrend(monthlyReports),
+      mostActiveLanguage: this.getMostActiveLanguage(monthlyReports)
+    };
+  }
+
+  calculateImprovementTrend(reports) {
+    if (reports.length < 10) return 'insufficient_data';
+    
+    const firstHalf = reports.slice(0, Math.floor(reports.length / 2));
+    const secondHalf = reports.slice(Math.floor(reports.length / 2));
+    
+    const firstAccuracy = firstHalf.filter(r => r.isCorrect).length / firstHalf.length;
+    const secondAccuracy = secondHalf.filter(r => r.isCorrect).length / secondHalf.length;
+    
+    if (secondAccuracy > firstAccuracy + 0.1) return 'improving';
+    if (secondAccuracy < firstAccuracy - 0.1) return 'declining';
+    return 'stable';
+  }
+
+  getMostActiveLanguage(reports) {
+    const languageCounts = {};
+    reports.forEach(report => {
+      languageCounts[report.language] = (languageCounts[report.language] || 0) + 1;
+    });
+    
+    return Object.entries(languageCounts)
+      .sort(([,a], [,b]) => b - a)[0]?.[0] || null;
+  }
+}
+
+// Create global instance
+window.gamificationManager = new GamificationManager();
+
+// Export for use in other scripts
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = GamificationManager;
+}

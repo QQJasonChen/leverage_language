@@ -1,0 +1,181 @@
+name: Version Release and Backup
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on version tags like v2.4.0, v2.4.1, etc.
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Extract version from tag
+      id: version
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "version_number=${VERSION#v}" >> $GITHUB_OUTPUT
+
+    - name: Validate manifest version
+      run: |
+        MANIFEST_VERSION=$(grep '"version"' manifest.json | sed 's/.*"version": "*\([^"]*\)".*/\1/')
+        TAG_VERSION="${{ steps.version.outputs.version_number }}"
+        
+        echo "Manifest version: $MANIFEST_VERSION"
+        echo "Tag version: $TAG_VERSION"
+        
+        if [ "$MANIFEST_VERSION" != "$TAG_VERSION" ]; then
+          echo "❌ Version mismatch! Manifest: $MANIFEST_VERSION, Tag: $TAG_VERSION"
+          exit 1
+        else
+          echo "✅ Version match confirmed"
+        fi
+
+    - name: Create extension package
+      run: |
+        echo "Creating extension package..."
+        
+        # Create a clean package directory
+        mkdir -p release-package/youglish-extension
+        
+        # Copy essential files
+        cp manifest.json release-package/youglish-extension/
+        cp background.js release-package/youglish-extension/
+        cp content.js release-package/youglish-extension/
+        cp sidepanel.html release-package/youglish-extension/
+        cp sidepanel.js release-package/youglish-extension/
+        cp options.html release-package/youglish-extension/
+        cp options.js release-package/youglish-extension/
+        cp proxy.html release-package/youglish-extension/
+        cp -r lib/ release-package/youglish-extension/
+        cp -r _locales/ release-package/youglish-extension/
+        cp -r icons/ release-package/youglish-extension/
+        
+        # Copy documentation
+        cp README.md release-package/youglish-extension/
+        
+        # Create installation guide
+        cat > release-package/INSTALLATION.md << 'EOF'
+        # YouGlish Extension Installation Guide
+        
+        ## Chrome Installation
+        1. Download and extract the extension files
+        2. Open Chrome and go to `chrome://extensions/`
+        3. Enable "Developer mode" in the top right
+        4. Click "Load unpacked" and select the `youglish-extension` folder
+        5. The extension will appear in your browser toolbar
+        
+        ## Configuration
+        - Right-click the extension icon and select "Options" to configure
+        - Set your preferred language and opening mode
+        - Customize keyboard shortcuts at `chrome://extensions/shortcuts`
+        
+        ## Features
+        - Multi-language support (English, Japanese, Korean, Dutch)
+        - AI-powered language analysis
+        - Vocabulary management and export
+        - History tracking and statistics
+        EOF
+
+    - name: Generate changelog
+      run: |
+        echo "# Changelog for ${{ steps.version.outputs.version }}" > CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        echo "## What's New" >> CHANGELOG.md
+        
+        # Get commits since last tag
+        LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+        if [ -n "$LAST_TAG" ]; then
+          echo "### Changes since $LAST_TAG" >> CHANGELOG.md
+          git log --pretty=format:"- %s" $LAST_TAG..HEAD >> CHANGELOG.md
+        else
+          echo "### Initial Release" >> CHANGELOG.md
+          echo "- Complete YouGlish Chrome Extension with all features" >> CHANGELOG.md
+        fi
+        
+        echo "" >> CHANGELOG.md
+        echo "## Features" >> CHANGELOG.md
+        echo "- 🤖 AI language analysis with OpenAI integration" >> CHANGELOG.md
+        echo "- 💾 Comprehensive vocabulary management system" >> CHANGELOG.md
+        echo "- 📊 Multi-format export (Markdown, Heptabase, Obsidian, Notion)" >> CHANGELOG.md
+        echo "- 🌍 Multi-language interface support" >> CHANGELOG.md
+        echo "- 📚 Search history tracking and statistics" >> CHANGELOG.md
+
+    - name: Create ZIP packages
+      run: |
+        cd release-package
+        
+        # Create main extension package
+        zip -r "../youglish-extension-${{ steps.version.outputs.version }}.zip" youglish-extension/
+        
+        # Create source code package
+        cd ..
+        zip -r "youglish-extension-source-${{ steps.version.outputs.version }}.zip" . -x "*.git*" "release-package/*" "test-*.html" "*.log"
+
+    - name: Calculate checksums
+      run: |
+        echo "Calculating checksums..."
+        sha256sum *.zip > checksums.txt
+        cat checksums.txt
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: YouGlish Extension ${{ steps.version.outputs.version }}
+        body: |
+          # YouGlish Chrome Extension ${{ steps.version.outputs.version }}
+          
+          Enhance your language learning experience with AI-powered analysis and comprehensive vocabulary management.
+          
+          ## 📦 Installation
+          1. Download `youglish-extension-${{ steps.version.outputs.version }}.zip`
+          2. Extract the files
+          3. Load unpacked extension in Chrome (`chrome://extensions/`)
+          4. See `INSTALLATION.md` for detailed instructions
+          
+          ## ✨ Key Features
+          - 🤖 **AI Language Analysis** - Detailed word explanations with OpenAI
+          - 💾 **Smart Vocabulary Management** - Save, tag, and organize words
+          - 📊 **Multiple Export Formats** - Markdown, Heptabase, Obsidian, Notion
+          - 🌍 **Multi-language Interface** - Chinese, English, Japanese, Korean, Dutch
+          - 📚 **History Tracking** - Complete search history with statistics
+          - 🏷️ **Custom Tags** - Organize vocabulary with personalized tags
+          
+          ## 📋 Files Included
+          - `youglish-extension-${{ steps.version.outputs.version }}.zip` - Ready-to-install extension
+          - `youglish-extension-source-${{ steps.version.outputs.version }}.zip` - Complete source code
+          - `checksums.txt` - SHA256 checksums for verification
+          
+          ## 🔗 Repository
+          Full source code: https://github.com/${{ github.repository }}
+          
+          ---
+          
+          **Version:** ${{ steps.version.outputs.version }}  
+          **Release Date:** ${{ github.event.head_commit.timestamp }}  
+          **Commit:** ${{ github.sha }}
+        files: |
+          youglish-extension-${{ steps.version.outputs.version }}.zip
+          youglish-extension-source-${{ steps.version.outputs.version }}.zip
+          checksums.txt
+          CHANGELOG.md
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: release-artifacts-${{ steps.version.outputs.version }}
+        path: |
+          *.zip
+          checksums.txt
+          CHANGELOG.md
+        retention-days: 90

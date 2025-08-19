@@ -1,0 +1,153 @@
+{
+  "manifest_version": 3,
+  "name": "__MSG_extensionName__",
+  "version": "1.0.0",
+  "version_name": "1.0.0-alpha (Early Test Version)",
+  "description": "__MSG_extensionDescription__",
+  "author": "QQJasonChen",
+  "default_locale": "en",
+  
+  "permissions": [
+    "activeTab",
+    "contextMenus",
+    "storage",
+    "sidePanel",
+    "commands",
+    "tabs",
+    "identity",
+    "notifications"
+  ],
+  
+  "host_permissions": [
+    "https://*.youtube.com/*",
+    "https://*.netflix.com/*",
+    "https://*.udemy.com/*",
+    "https://*.coursera.org/*"
+  ],
+  
+  "background": {
+    "service_worker": "background.js"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": [
+        "https://youglish.com/*",
+        "https://*.youtube.com/*", 
+        "https://www.immersionkit.com/*",
+        "https://api.notion.com/*"
+      ],
+      "js": ["content.js"]
+    },
+    {
+      "matches": ["https://*.youtube.com/*"],
+      "js": ["youtube-content.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://*.youtube.com/*"],
+      "js": ["youtube-transcript-content.js"],
+      "run_at": "document_end"
+    },
+    {
+      "matches": ["https://*.netflix.com/*"],
+      "js": ["netflix-content.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://*.netflix.com/*"],
+      "js": ["netflix-subtitle-extractor.js"],
+      "run_at": "document_end"
+    },
+    {
+      "matches": ["https://*.udemy.com/*"],
+      "js": ["udemy-simple.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://*.coursera.org/*"],
+      "js": ["coursera-content.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "exclude_matches": [
+        "https://*.youtube.com/*",
+        "https://*.netflix.com/*",
+        "https://*.udemy.com/*",
+        "https://*.coursera.org/*",
+        "https://youglish.com/*"
+      ],
+      "js": ["article-collector.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  
+  "commands": {
+    "search-youglish": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y",
+        "mac": "Command+Shift+Y"
+      },
+      "description": "__MSG_search_shortcut__"
+    },
+    "quick-capture": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+C",
+        "mac": "Command+Shift+C"
+      },
+      "description": "Quick capture current subtitle (YouTube/Netflix/Udemy)"
+    },
+    "open-extension": {
+      "suggested_key": {
+        "default": "Alt+L",
+        "mac": "Alt+L"
+      },
+      "description": "Open Language Learning Extension"
+    },
+    "quick-analyze": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+A",
+        "mac": "Command+Shift+A"
+      },
+      "description": "Quick analyze last captured content"
+    }
+  },
+  
+  
+  "action": {
+    "default_title": "__MSG_extensionName__",
+    "default_icon": {
+      "16": "icons/icons/icon16_blackwhite.png",
+      "48": "icons/icons/icon48_blackwhite.png",
+      "128": "icons/icons/icon128_blackwhite.png"
+    }
+  },
+  
+  "icons": {
+    "16": "icons/icons/icon16_blackwhite.png",
+    "48": "icons/icons/icon48_blackwhite.png",
+    "128": "icons/icons/icon128_blackwhite.png"
+  },
+  
+  "options_page": "options.html",
+  
+  "web_accessible_resources": [
+    {
+      "resources": ["proxy.html", "language-selector.html", "language-selector.js", "auth-ui.html", "audio-permission.html"],
+      "matches": ["<all_urls>"]
+    },
+    {
+      "resources": ["youtube-page-script.js"],
+      "matches": ["https://*.youtube.com/*"]
+    },
+    {
+      "resources": ["netflix-page-script.js"],
+      "matches": ["https://*.netflix.com/*"]
+    }
+  ]
+}

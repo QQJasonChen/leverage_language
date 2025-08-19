@@ -1,0 +1,82 @@
+# LeverageLanguage - Git Ignore File
+# Prevents sensitive files from being uploaded to GitHub
+
+# Environment variables and secrets
+.env
+.env.local
+.env.production
+.env.test
+*.env
+
+# Business strategy and sensitive documents
+BUSINESS-STRATEGY.md
+BUSINESS-ASSESSMENT.md
+SETUP-PRODUCTION.md
+
+# API keys and configuration
+config/
+secrets/
+*.key
+*.pem
+
+# User data and analytics
+user-data/
+analytics/
+reports/
+*.db
+*.sqlite
+
+# Logs and debugging
+logs/
+*.log
+debug/
+*.debug
+
+# Node modules (if using any)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Chrome extension specific
+*.crx
+*.pem
+dist/
+build/
+release/
+
+# Backup files
+*.backup
+*.bak
+*.tmp
+
+# Personal notes
+NOTES.md
+TODO.md
+PRIVATE-*
+
+# Customer data
+customers/
+subscriptions/
+billing/
+
+# Marketing materials (if sensitive)
+marketing-plan/
+competitor-analysis/
+pricing-strategy/
