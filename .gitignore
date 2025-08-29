@@ -1,0 +1,10 @@
+*.zip
+backup_*.zip
+Language-Learning-Assistant-*.zip
+YouGlish-Extension-*.zip
+webstore-release-v1.1.2/
+dev-build/
+youglish-api*/
+SECURE_FREE_VERSION_NEW/
+.git-rewrite/
+supabase/.temp/
