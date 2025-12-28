@@ -1,4 +1,9 @@
 // AI 服務整合模組 - 支援 Gemini 和 OpenAI
+// Import production logger
+if (typeof logger === 'undefined' && typeof importScripts !== 'undefined') {
+  importScripts('./production-logger.js');
+}
+
 // Import AI prompt templates for multilingual support
 if (typeof AIPromptTemplates === 'undefined') {
   // Try to load the templates if not already loaded
@@ -7,7 +12,7 @@ if (typeof AIPromptTemplates === 'undefined') {
       importScripts('./ai-prompt-templates.js');
     }
   } catch (e) {
-    console.warn('Could not load AI prompt templates:', e);
+    (typeof logger !== 'undefined' ? logger.warn : console.warn)('Could not load AI prompt templates:', e);
   }
 }
 

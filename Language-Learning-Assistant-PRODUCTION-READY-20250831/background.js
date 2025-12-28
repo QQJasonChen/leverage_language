@@ -1,6 +1,7 @@
 // 導入語言偵測功能、歷史管理和 AI 服務
 // Production log gate (must be first to silence logs in production builds)
 importScripts('lib/perf-log-gate.js');
+importScripts('lib/production-logger.js');
 importScripts('lib/lang-detect.js');
 importScripts('lib/history-manager.js');
 importScripts('lib/ai-service.js');
@@ -23,7 +24,7 @@ chrome.runtime.onInstalled.addListener(() => {
 
 // Handle global keyboard shortcuts
 chrome.commands.onCommand.addListener(async (command, tab) => {
-  console.log('⌨️ Global shortcut triggered:', command);
+  (typeof logger !== 'undefined' ? logger.info : console.log)('⌨️ Global shortcut triggered:', command);
   
   switch (command) {
     case 'quick-capture':
@@ -34,9 +35,9 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
                         tab.url.includes('udemy.com') ? 'Udemy' : 'Coursera';
         try {
           await chrome.tabs.sendMessage(tab.id, { action: 'captureCurrentSubtitle' });
-          console.log(`⌨️ Quick capture executed on ${platform}`);
+          (typeof logger !== 'undefined' ? logger.info : console.log)(`⌨️ Quick capture executed on ${platform}`);
         } catch (error) {
-          console.log(`⌨️ Quick capture failed on ${platform}:`, error);
+          (typeof logger !== 'undefined' ? logger.warn : console.log)(`⌨️ Quick capture failed on ${platform}:`, error);
         }
       }
       break;
@@ -45,9 +46,9 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
       // Quick analyze last captured content
       try {
         await chrome.tabs.sendMessage(tab.id, { action: 'quickAnalyzeLastCapture' });
-        console.log('⌨️ Quick analyze triggered');
+        (typeof logger !== 'undefined' ? logger.info : console.log)('⌨️ Quick analyze triggered');
       } catch (error) {
-        console.log('⌨️ Quick analyze failed:', error);
+        (typeof logger !== 'undefined' ? logger.warn : console.log)('⌨️ Quick analyze failed:', error);
       }
       break;
       
