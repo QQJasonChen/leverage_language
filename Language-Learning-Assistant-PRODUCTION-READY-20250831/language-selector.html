@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html data-i18n-title="language_uncertain">
+<head>
+    <meta charset="utf-8">
+    <title data-i18n="language_uncertain">選擇語言 - YouGlish擴充功能</title>
+    <style>
+        body {
+            width: 300px;
+            padding: 20px;
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .message {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+        .text-preview {
+            background: #f8f8f8;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #555;
+            border-left: 3px solid #ddd;
+            max-height: 60px;
+            overflow: hidden;
+        }
+        .language-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .lang-btn {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .lang-btn:hover {
+            border-color: #007cba;
+            background: #f0f8ff;
+        }
+        .lang-btn.selected {
+            border-color: #007cba;
+            background: #007cba;
+            color: white;
+        }
+        .remember-choice {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            font-size: 12px;
+            color: #666;
+        }
+        .remember-choice input {
+            margin-right: 8px;
+        }
+        .actions {
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+        .btn-primary {
+            background: #007cba;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #005a87;
+        }
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #666;
+        }
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="title" data-i18n="language_uncertain">無法確定語言</div>
+        <div class="message" data-i18n="language_select_prompt">系統無法確定以下文本的語言，請選擇正確的語言：</div>
+        
+        <div class="text-preview" id="textPreview"></div>
+        
+        <div class="language-buttons">
+            <button class="lang-btn" data-lang="english" data-i18n="language_option_english">English</button>
+            <button class="lang-btn" data-lang="japanese" data-i18n="language_option_japanese">日本語</button>
+            <button class="lang-btn" data-lang="korean" data-i18n="language_option_korean">한국어</button>
+            <button class="lang-btn" data-lang="dutch" data-i18n="language_option_dutch">Nederlands</button>
+        </div>
+        
+        <div class="remember-choice">
+            <input type="checkbox" id="rememberChoice">
+            <label for="rememberChoice" data-i18n="remember_choice">記住我的選擇（適用於類似文本）</label>
+        </div>
+        
+        <div class="actions">
+            <button class="btn btn-secondary" id="cancelBtn" data-i18n="cancel">取消</button>
+            <button class="btn btn-primary" id="confirmBtn" disabled data-i18n="confirm">確認</button>
+        </div>
+    </div>
+
+    <script src="lib/i18n-helper.js"></script>
+    <script src="language-selector.js"></script>
+</body>
+</html>

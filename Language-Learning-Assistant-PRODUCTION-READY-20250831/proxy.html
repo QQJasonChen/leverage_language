@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouGlish Proxy</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background-color: #f5f5f5;
+        }
+        
+        .proxy-container {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+            background: white;
+        }
+        
+        .proxy-header {
+            background: #1a73e8;
+            color: white;
+            padding: 8px 16px;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .proxy-url {
+            font-family: monospace;
+            font-size: 11px;
+            opacity: 0.9;
+        }
+        
+        .proxy-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .proxy-button {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 10px;
+        }
+        
+        .proxy-button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .proxy-iframe {
+            width: 100%;
+            height: calc(100vh - 32px);
+            border: none;
+            background: white;
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 32px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            z-index: 1000;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #1a73e8;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        
+        .loading-subtext {
+            color: #999;
+            font-size: 12px;
+            max-width: 300px;
+            text-align: center;
+            line-height: 1.4;
+        }
+        
+        .error-message {
+            color: #d32f2f;
+            background: #ffebee;
+            border: 1px solid #ffcdd2;
+            padding: 12px;
+            border-radius: 4px;
+            margin: 16px;
+            font-size: 13px;
+        }
+        
+        .error-actions {
+            margin-top: 12px;
+        }
+        
+        .error-button {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-right: 8px;
+        }
+        
+        .error-button:hover {
+            background: #1557b0;
+        }
+    </style>
+</head>
+<body>
+    <div class="proxy-container">
+        <div class="proxy-header">
+            <div>
+                <span>YouGlish</span>
+                <span class="proxy-url" id="proxyUrl">載入中...</span>
+            </div>
+            <div class="proxy-actions">
+                <button class="proxy-button" id="refreshBtn">🔄 重新載入</button>
+                <button class="proxy-button" id="newTabBtn">🔗 新分頁</button>
+            </div>
+        </div>
+        
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">正在載入 YouGlish...</div>
+            <div class="loading-subtext">嘗試在側邊欄中顯示完整網站</div>
+        </div>
+        
+        <iframe id="proxyIframe" class="proxy-iframe" style="display: none;"></iframe>
+        
+        <div class="error-message" id="errorMessage" style="display: none;">
+            <div>❌ 無法載入 YouGlish 網站</div>
+            <div style="margin-top: 8px; font-size: 12px;">
+                YouGlish 網站阻止了在側邊欄中顯示。這是網站的安全設定。
+            </div>
+            <div class="error-actions">
+                <button class="error-button" id="openNewTabBtn">在新分頁中開啟</button>
+                <button class="error-button" id="retryBtn">重試</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentUrl = '';
+        
+        // 從 URL 參數獲取要載入的網址
+        function getUrlFromParams() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('url');
+        }
+        
+        // 載入 YouGlish 網站
+        function loadYouGlish() {
+            const url = getUrlFromParams();
+            if (!url) {
+                showError('缺少網址參數');
+                return;
+            }
+            
+            currentUrl = url;
+            document.getElementById('proxyUrl').textContent = url;
+            
+            const iframe = document.getElementById('proxyIframe');
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const errorMessage = document.getElementById('errorMessage');
+            
+            // 隱藏錯誤訊息
+            errorMessage.style.display = 'none';
+            
+            // 顯示載入狀態
+            loadingOverlay.style.display = 'flex';
+            iframe.style.display = 'none';
+            
+            // 設定 iframe 
+            iframe.src = url;
+            
+            // 設定載入超時
+            const timeoutId = setTimeout(() => {
+                showError('YouGlish 網站阻止了嵌入載入');
+            }, 5000); // 5秒超時
+            
+            // 載入完成
+            iframe.onload = function() {
+                clearTimeout(timeoutId);
+                
+                // 檢查 iframe 是否真的載入了內容
+                setTimeout(() => {
+                    try {
+                        // 嘗試訪問 iframe 內容以確認載入成功
+                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                        
+                        if (iframeDoc && iframeDoc.body && iframeDoc.body.innerHTML.trim()) {
+                            // 檢查是否載入了實際內容而不是錯誤頁面
+                            const bodyText = iframeDoc.body.innerText || iframeDoc.body.textContent || '';
+                            
+                            if (bodyText.includes('refused to connect') || 
+                                bodyText.includes('cannot be displayed') || 
+                                bodyText.includes('X-Frame-Options') ||
+                                bodyText.length < 100) {
+                                throw new Error('Content blocked or insufficient');
+                            }
+                            
+                            // 載入成功
+                            loadingOverlay.style.display = 'none';
+                            iframe.style.display = 'block';
+                        } else {
+                            throw new Error('Cannot access iframe content');
+                        }
+                    } catch (e) {
+                        showError('YouGlish 網站阻止了嵌入顯示');
+                    }
+                }, 1000); // 給內容一些時間載入
+            };
+            
+            // 載入錯誤
+            iframe.onerror = function() {
+                clearTimeout(timeoutId);
+                showError('載入失敗');
+            };
+        }
+        
+        // 顯示錯誤訊息
+        function showError(message) {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const errorMessage = document.getElementById('errorMessage');
+            const iframe = document.getElementById('proxyIframe');
+            
+            loadingOverlay.style.display = 'none';
+            iframe.style.display = 'none';
+            errorMessage.style.display = 'block';
+            
+            errorMessage.querySelector('div').textContent = `❌ ${message}`;
+        }
+        
+        // 在新分頁中開啟
+        function openInNewTab() {
+            if (currentUrl) {
+                // 向父窗口發送消息來開啟新分頁
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'openNewTab',
+                        url: currentUrl
+                    }, '*');
+                } else {
+                    // 如果無法向父窗口發送消息，嘗試直接開啟
+                    window.open(currentUrl, '_blank');
+                }
+            }
+        }
+        
+        // 重新載入
+        function refresh() {
+            loadYouGlish();
+        }
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadYouGlish();
+            
+            // 綁定按鈕事件
+            document.getElementById('refreshBtn').addEventListener('click', refresh);
+            document.getElementById('newTabBtn').addEventListener('click', openInNewTab);
+            document.getElementById('openNewTabBtn').addEventListener('click', openInNewTab);
+            document.getElementById('retryBtn').addEventListener('click', refresh);
+        });
+    </script>
+</body>
+</html>

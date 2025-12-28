@@ -1,0 +1,519 @@
+/* Subtle UI Improvements - Fix Colors, Contrast, Spacing, Typography */
+
+/* Import better font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+/* Improve base typography */
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+    line-height: 1.5 !important;
+}
+
+/* Fix colors - make them more readable and professional */
+.header {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; /* Professional blue gradient */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Improve button contrast and spacing */
+.view-button {
+    padding: 10px 14px !important; /* Better spacing */
+    margin: 0 2px !important;
+    font-weight: 500 !important;
+    border-radius: 6px 6px 0 0 !important;
+}
+
+.view-button:hover {
+    background: rgba(37, 99, 235, 0.08) !important;
+    color: #2563eb !important;
+}
+
+.view-button.active {
+    background: #ffffff !important;
+    color: #2563eb !important;
+    border-bottom: 2px solid #2563eb !important;
+    font-weight: 600 !important;
+}
+
+/* Improve action buttons contrast */
+.action-button.primary,
+.ai-button.primary,
+.audio-button.primary {
+    background: #2563eb !important; /* Professional blue */
+    padding: 8px 16px !important; /* Better spacing */
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+    color: white !important;
+    border: none !important;
+}
+
+.action-button.primary:hover,
+.ai-button.primary:hover,
+.audio-button.primary:hover {
+    background: #1d4ed8 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
+}
+
+.action-button.secondary,
+.ai-button.secondary,
+.audio-button.secondary {
+    background: #f5f5f5 !important;
+    color: #424242 !important;
+    border: 1px solid #e0e0e0 !important;
+    padding: 8px 16px !important;
+    border-radius: 6px !important;
+}
+
+.action-button.secondary:hover,
+.ai-button.secondary:hover,
+.audio-button.secondary:hover {
+    background: #f3f4f6 !important;
+    border-color: #2563eb !important;
+    color: #2563eb !important;
+}
+
+/* Improve search input */
+#manualSearchInput {
+    padding: 10px 12px !important;
+    border: 2px solid #e0e0e0 !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+}
+
+#manualSearchInput:focus {
+    border-color: #2563eb !important;
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
+}
+
+#manualSearchBtn {
+    background: #2563eb !important;
+    padding: 10px 20px !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+    color: white !important;
+    border: none !important;
+}
+
+#manualSearchBtn:hover {
+    background: #1d4ed8 !important;
+    transform: translateY(-1px) !important;
+}
+
+/* Fix filter button contrast */
+.filter-btn {
+    padding: 6px 12px !important;
+    border-radius: 5px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    background: #f5f5f5 !important;
+    color: #616161 !important;
+    border: 1px solid #e0e0e0 !important;
+    margin: 0 4px 4px 0 !important;
+}
+
+.filter-btn:hover {
+    background: #f3f4f6 !important;
+    color: #2563eb !important;
+    border-color: #2563eb !important;
+}
+
+.filter-btn.active {
+    background: #2563eb !important;
+    color: white !important;
+    border-color: #2563eb !important;
+}
+
+/* Improve cards spacing and readability */
+.result-card,
+.learning-section {
+    padding: 16px !important;
+    margin-bottom: 12px !important;
+    border-radius: 8px !important;
+    border: 1px solid #e0e0e0 !important;
+    background: #ffffff !important;
+}
+
+/* Better text contrast */
+h1, h2, h3, h4 {
+    color: #212121 !important;
+    font-weight: 600 !important;
+}
+
+p {
+    color: #424242 !important;
+    line-height: 1.6 !important;
+}
+
+/* Improve status badges */
+.correct-badge {
+    background: #e8f5e8 !important;
+    color: #2e7d32 !important;
+    padding: 4px 8px !important;
+    border-radius: 4px !important;
+    font-weight: 500 !important;
+    font-size: 12px !important;
+}
+
+.error-badge {
+    background: #ffebee !important;
+    color: #c62828 !important;
+    padding: 4px 8px !important;
+    border-radius: 4px !important;
+    font-weight: 500 !important;
+    font-size: 12px !important;
+}
+
+/* Better content area spacing */
+.content-area {
+    padding: 20px !important;
+    margin: 12px !important;
+}
+
+/* Improve audio controls */
+.audio-action-btn {
+    padding: 6px 12px !important;
+    margin: 0 4px !important;
+    border-radius: 5px !important;
+    background: #f5f5f5 !important;
+    border: 1px solid #e0e0e0 !important;
+    color: #424242 !important;
+    font-size: 13px !important;
+}
+
+.audio-action-btn:hover {
+    background: #1976d2 !important;
+    color: white !important;
+    border-color: #1976d2 !important;
+}
+
+/* Better loading state */
+.loading {
+    color: #616161 !important;
+    font-size: 14px !important;
+}
+
+/* Improve scrollbar */
+::-webkit-scrollbar {
+    width: 8px !important;
+}
+
+::-webkit-scrollbar-track {
+    background: #f5f5f5 !important;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #bdbdbd !important;
+    border-radius: 4px !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #9e9e9e !important;
+}
+
+/* Fix terrible background colors */
+.content-area {
+    background: #ffffff !important;
+}
+
+body {
+    background: #fafafa !important;
+}
+
+/* Better focus states */
+button:focus,
+input:focus {
+    outline: 2px solid #1976d2 !important;
+    outline-offset: 2px !important;
+}
+
+/* ============================
+   TRANSCRIPT READER OPTIMIZATION
+   ============================ */
+
+/* Main transcript viewer container */
+.transcript-viewer {
+    background: #ffffff !important;
+    border-radius: 12px !important;
+    border: 1px solid #e5e7eb !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+    overflow: hidden !important;
+}
+
+/* Header section with title and controls */
+.transcript-header {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
+    padding: 16px 20px !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+}
+
+.transcript-header h3 {
+    margin: 0 !important;
+    font-size: 18px !important;
+    font-weight: 600 !important;
+    color: #1f2937 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+/* Action buttons container */
+.transcript-actions {
+    display: flex !important;
+    gap: 8px !important;
+    flex-wrap: wrap !important;
+}
+
+/* Individual action buttons */
+.edit-mode-btn,
+.export-highlights-btn,
+.bulk-export-btn,
+.multi-capture-btn {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 8px 12px !important;
+    background: #ffffff !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 8px !important;
+    color: #374151 !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+
+.edit-mode-btn:hover,
+.export-highlights-btn:hover,
+.bulk-export-btn:hover,
+.multi-capture-btn:hover {
+    background: #f9fafb !important;
+    border-color: #2563eb !important;
+    color: #2563eb !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15) !important;
+}
+
+.edit-mode-btn.active,
+.bulk-export-btn.active,
+.multi-capture-btn.active {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    border-color: #2563eb !important;
+}
+
+/* Statistics section */
+.transcript-stats {
+    background: #fafbfc !important;
+    padding: 12px 20px !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    font-size: 14px !important;
+    color: #6b7280 !important;
+}
+
+.transcript-stats > span {
+    display: flex !important;
+    align-items: center !important;
+    font-weight: 500 !important;
+    padding: 4px 10px !important;
+    background: #ffffff !important;
+    border-radius: 6px !important;
+    border: 1px solid #e5e7eb !important;
+}
+
+/* Highlight different stat types */
+.segment-count {
+    color: #2563eb !important;
+    border-color: #dbeafe !important;
+    background: #eff6ff !important;
+}
+
+.highlight-count {
+    color: #059669 !important;
+    border-color: #d1fae5 !important;
+    background: #ecfdf5 !important;
+}
+
+.duration {
+    color: #dc2626 !important;
+    border-color: #fecaca !important;
+    background: #fef2f2 !important;
+}
+
+/* Controls sections */
+.bulk-export-controls,
+.multi-capture-controls {
+    background: #f8fafc !important;
+    padding: 16px 20px !important;
+    border-bottom: 1px solid #e5e7eb !important;
+}
+
+.export-header,
+.capture-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 16px !important;
+}
+
+.select-controls {
+    display: flex !important;
+    gap: 8px !important;
+    align-items: center !important;
+}
+
+.select-all-btn,
+.select-none-btn,
+.select-all-capture-btn,
+.select-none-capture-btn {
+    padding: 6px 12px !important;
+    background: #ffffff !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 6px !important;
+    color: #374151 !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+
+.select-all-btn:hover,
+.select-none-btn:hover,
+.select-all-capture-btn:hover,
+.select-none-capture-btn:hover {
+    background: #f9fafb !important;
+    border-color: #2563eb !important;
+    color: #2563eb !important;
+}
+
+.selected-count,
+.capture-selected-count {
+    font-size: 12px !important;
+    color: #6b7280 !important;
+    font-weight: 500 !important;
+    background: #ffffff !important;
+    padding: 4px 8px !important;
+    border-radius: 4px !important;
+    border: 1px solid #e5e7eb !important;
+}
+
+/* Export/Capture action buttons */
+.export-actions,
+.capture-actions {
+    display: flex !important;
+    gap: 8px !important;
+}
+
+.export-selected-btn,
+.capture-selected-btn {
+    padding: 8px 16px !important;
+    background: #2563eb !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+
+.export-selected-btn:hover,
+.capture-selected-btn:hover {
+    background: #1d4ed8 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25) !important;
+}
+
+.export-selected-btn:disabled,
+.capture-selected-btn:disabled {
+    background: #d1d5db !important;
+    color: #9ca3af !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.cancel-bulk-export-btn,
+.cancel-multi-capture-btn {
+    padding: 8px 16px !important;
+    background: #ffffff !important;
+    color: #374151 !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+
+.cancel-bulk-export-btn:hover,
+.cancel-multi-capture-btn:hover {
+    background: #f9fafb !important;
+    border-color: #dc2626 !important;
+    color: #dc2626 !important;
+}
+
+/* Transcript content area */
+.transcript-content {
+    padding: 16px 20px !important;
+    max-height: 400px !important;
+    overflow-y: auto !important;
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+    .transcript-header {
+        flex-direction: column !important;
+        gap: 12px !important;
+        align-items: flex-start !important;
+    }
+    
+    .transcript-actions {
+        width: 100% !important;
+        justify-content: flex-start !important;
+    }
+    
+    .transcript-stats {
+        flex-direction: column !important;
+        gap: 8px !important;
+        align-items: flex-start !important;
+    }
+    
+    .export-header,
+    .capture-header {
+        flex-direction: column !important;
+        gap: 12px !important;
+        align-items: flex-start !important;
+    }
+    
+    .select-controls,
+    .export-actions,
+    .capture-actions {
+        width: 100% !important;
+        justify-content: flex-start !important;
+    }
+}
+
+/* Animation for showing/hiding controls */
+.bulk-export-controls,
+.multi-capture-controls {
+    animation: slideDown 0.3s ease !important;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

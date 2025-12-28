@@ -1,0 +1,540 @@
+{
+  "extensionName": {
+    "message": "Language Learning クイック検索",
+    "description": "Extension name"
+  },
+  "extensionDescription": {
+    "message": "包括的な語学学習拡張機能：発音、辞書、文脈例、翻訳、コミュニティQ&Aをワンストップで提供",
+    "description": "Extension description"
+  },
+  "searchOnYouglish": {
+    "message": "Language Learningで「%s」を検索",
+    "description": "Context menu item text"
+  },
+  
+  "header_title": {
+    "message": "Language Learning Quick Search",
+    "description": "Header title"
+  },
+  
+  "welcome_title": {
+    "message": "🎯 Language Learning クイック検索",
+    "description": "Welcome section title"
+  },
+  "welcome_description": {
+    "message": "ウェブページ上のテキストを選択して：",
+    "description": "Welcome description"
+  },
+  "welcome_step1": {
+    "message": "• 右クリックで「Language Learningで検索」を選択",
+    "description": "Welcome step 1"
+  },
+  "welcome_step2": {
+    "message": "• またはキーボードショートカットを使用",
+    "description": "Welcome step 2"
+  },
+  "welcome_step3": {
+    "message": "• または拡張機能アイコンをクリックしてパネルを開く",
+    "description": "Welcome step 3"
+  },
+  "welcome_languages": {
+    "message": "英語、日本語、韓国語、オランダ語に対応",
+    "description": "Supported languages"
+  },
+  "welcome_shortcut_note": {
+    "message": "ショートカットは chrome://extensions/shortcuts でカスタマイズできます",
+    "description": "Shortcut customization note"
+  },
+  
+  "manual_search_placeholder": {
+    "message": "検索するテキストを入力...",
+    "description": "Manual search input placeholder"
+  },
+  "search_button": {
+    "message": "検索",
+    "description": "Search button text"
+  },
+  
+  "analysis_view": {
+    "message": "📊 分析",
+    "description": "Analysis view button"
+  },
+  "video_view": {
+    "message": "🎥 動画",
+    "description": "Video view button"
+  },
+  "history_view": {
+    "message": "📚 履歴",
+    "description": "History view button"
+  },
+  "new_tab": {
+    "message": "🔗 新しいタブ",
+    "description": "New tab button"
+  },
+  
+  "search_results_title": {
+    "message": "📺 Language Learning 検索結果",
+    "description": "Search results title"
+  },
+  "search_again": {
+    "message": "🔍 他のコンテンツを検索",
+    "description": "Search again button"
+  },
+  
+  "search_term_label": {
+    "message": "検索語：",
+    "description": "Search term label"
+  },
+  "language_label": {
+    "message": "言語：",
+    "description": "Language label"
+  },
+  "url_label": {
+    "message": "URL：",
+    "description": "URL label"
+  },
+  "click_to_open": {
+    "message": "クリックして開く",
+    "description": "Click to open link text"
+  },
+  
+  "language_english": {
+    "message": "英語",
+    "description": "English language name"
+  },
+  "language_japanese": {
+    "message": "日本語",
+    "description": "Japanese language name"
+  },
+  "language_korean": {
+    "message": "韓国語",
+    "description": "Korean language name"
+  },
+  "language_dutch": {
+    "message": "オランダ語",
+    "description": "Dutch language name"
+  },
+  
+  "options_title": {
+    "message": "Language Learning 拡張機能設定",
+    "description": "Options page title"
+  },
+  "basic_settings": {
+    "message": "基本設定",
+    "description": "Basic settings section"
+  },
+  "default_language": {
+    "message": "デフォルト言語",
+    "description": "Default language setting"
+  },
+  "smart_detection": {
+    "message": "スマート検出（推奨）",
+    "description": "Smart detection option"
+  },
+  "fixed_english": {
+    "message": "英語固定",
+    "description": "Fixed English option"
+  },
+  "fixed_japanese": {
+    "message": "日本語固定",
+    "description": "Fixed Japanese option"
+  },
+  "fixed_korean": {
+    "message": "韓国語固定",
+    "description": "Fixed Korean option"
+  },
+  "fixed_dutch": {
+    "message": "オランダ語固定",
+    "description": "Fixed Dutch option"
+  },
+  "default_language_desc": {
+    "message": "「スマート検出」を選択すると自動的に言語を検出します。固定言語を選択すると自動検出を無効にします。",
+    "description": "Default language description"
+  },
+  
+  "preferred_language": {
+    "message": "優先言語",
+    "description": "Preferred language setting"
+  },
+  "no_preference": {
+    "message": "設定なし",
+    "description": "No preference option"
+  },
+  "preferred_language_desc": {
+    "message": "スマート検出の結果が曖昧な場合、システムはこの言語を優先します。よく使用する言語の検出精度を向上させることができます。",
+    "description": "Preferred language description"
+  },
+  
+  "uncertainty_handling": {
+    "message": "言語不確定時の処理方法",
+    "description": "Uncertainty handling setting"
+  },
+  "ask_user": {
+    "message": "ユーザーに確認（推奨）",
+    "description": "Ask user option"
+  },
+  "default_to_english": {
+    "message": "英語をデフォルト",
+    "description": "Default to English option"
+  },
+  "default_to_dutch": {
+    "message": "オランダ語をデフォルト",
+    "description": "Default to Dutch option"
+  },
+  "use_preferred": {
+    "message": "優先言語を使用",
+    "description": "Use preferred language option"
+  },
+  "uncertainty_handling_desc": {
+    "message": "システムがテキストが英語かオランダ語かを判定できない場合の処理方法。「ユーザーに確認」は選択ダイアログを表示します。",
+    "description": "Uncertainty handling description"
+  },
+  
+  "open_method": {
+    "message": "開き方",
+    "description": "Open method setting"
+  },
+  "sidepanel_newtab": {
+    "message": "サイドパネル + 新しいタブ",
+    "description": "Sidepanel + new tab option"
+  },
+  "newtab_only": {
+    "message": "新しいタブのみ",
+    "description": "New tab only option"
+  },
+  "open_method_desc": {
+    "message": "「サイドパネル + 新しいタブ」：検索分析と埋め込みLanguage Learning動画視聴を提供するサイドパネルを開きます。「新しいタブのみ」：Language Learningを新しいタブで直接開きます。",
+    "description": "Open method description"
+  },
+  
+  "ai_pronunciation_features": {
+    "message": "AI発音・解説機能",
+    "description": "AI pronunciation and explanation features"
+  },
+  "enable_ai_analysis": {
+    "message": "AI分析を有効にする",
+    "description": "Enable AI analysis"
+  },
+  "disabled": {
+    "message": "無効",
+    "description": "Disabled option"
+  },
+  "enabled": {
+    "message": "有効 ✅",
+    "description": "Enabled option"
+  },
+  "enable_ai_desc": {
+    "message": "まず「有効 ✅」を選択してAPIキー入力欄と他の設定オプションを表示してください。",
+    "description": "Enable AI description"
+  },
+  "ai_enable_note": {
+    "message": "有効にすると、検索結果でAI発音ガイダンスと語彙解説を提供します。",
+    "description": "AI enable note"
+  },
+  
+  "ai_provider": {
+    "message": "AIサービスプロバイダー",
+    "description": "AI service provider"
+  },
+  "google_gemini": {
+    "message": "Google Gemini",
+    "description": "Google Gemini option"
+  },
+  "openai_gpt": {
+    "message": "OpenAI GPT",
+    "description": "OpenAI GPT option"
+  },
+  "ai_provider_desc": {
+    "message": "お好みのAIサービスプロバイダーを選択してください。",
+    "description": "AI provider description"
+  },
+  
+  "api_key": {
+    "message": "APIキー",
+    "description": "API key setting"
+  },
+  "api_key_placeholder": {
+    "message": "APIキーを入力してください",
+    "description": "API key placeholder"
+  },
+  "api_key_desc": {
+    "message": "APIキーはローカルに安全に保存され、第三者に送信されることはありません。",
+    "description": "API key description"
+  },
+  "gemini_link_text": {
+    "message": "Google AI Studioで無料APIキーを取得",
+    "description": "Gemini link text"
+  },
+  "openai_link_text": {
+    "message": "OpenAI PlatformでAPIキーを取得",
+    "description": "OpenAI link text"
+  },
+  
+  "ai_features": {
+    "message": "AI機能オプション",
+    "description": "AI features setting"
+  },
+  "pronunciation_guide": {
+    "message": "発音ガイド（IPA、発音のコツ）",
+    "description": "Pronunciation guide option"
+  },
+  "word_explanation": {
+    "message": "語彙解説（意味、用法、例文）",
+    "description": "Word explanation option"
+  },
+  "grammar_analysis": {
+    "message": "文法分析（文構造、文法ポイント）",
+    "description": "Grammar analysis option"
+  },
+  "cultural_context": {
+    "message": "文化的背景（慣用句、文化的意味）",
+    "description": "Cultural context option"
+  },
+  "audio_pronunciation": {
+    "message": "🔊 AI音声発音（OpenAI API必要）",
+    "description": "Audio pronunciation option"
+  },
+  "ai_features_desc": {
+    "message": "AIに提供してもらいたい分析タイプを選択してください。多くのオプションを選択するとAPI使用量が増加します。",
+    "description": "AI features description"
+  },
+  
+  "voice_settings": {
+    "message": "音声設定",
+    "description": "Voice settings"
+  },
+  "voice_selection": {
+    "message": "音声選択：",
+    "description": "Voice selection label"
+  },
+  "voice_alloy": {
+    "message": "Alloy（バランス、自然）",
+    "description": "Alloy voice option"
+  },
+  "voice_echo": {
+    "message": "Echo（男性、深い）",
+    "description": "Echo voice option"
+  },
+  "voice_fable": {
+    "message": "Fable（イギリス風、上品）",
+    "description": "Fable voice option"
+  },
+  "voice_onyx": {
+    "message": "Onyx（深い、権威的）",
+    "description": "Onyx voice option"
+  },
+  "voice_nova": {
+    "message": "Nova（女性、活発）",
+    "description": "Nova voice option"
+  },
+  "voice_shimmer": {
+    "message": "Shimmer（女性、穏やか）",
+    "description": "Shimmer voice option"
+  },
+  "speech_speed": {
+    "message": "音声速度：",
+    "description": "Speech speed label"
+  },
+  "speed_slow": {
+    "message": "ゆっくり（0.7x）",
+    "description": "Slow speed option"
+  },
+  "speed_somewhat_slow": {
+    "message": "やや遅め（0.85x）",
+    "description": "Somewhat slow speed option"
+  },
+  "speed_normal": {
+    "message": "標準（1.0x）",
+    "description": "Normal speed option"
+  },
+  "speed_somewhat_fast": {
+    "message": "やや速め（1.15x）",
+    "description": "Somewhat fast speed option"
+  },
+  "speed_fast": {
+    "message": "速い（1.3x）",
+    "description": "Fast speed option"
+  },
+  "auto_play_audio": {
+    "message": "生成された音声を自動再生",
+    "description": "Auto play audio option"
+  },
+  "voice_settings_desc": {
+    "message": "AI音声機能はOpenAI TTS APIを使用します。対象言語に適した音声と適切な再生速度を選択することをお勧めします。",
+    "description": "Voice settings description"
+  },
+  
+  "save_settings": {
+    "message": "設定を保存",
+    "description": "Save settings button"
+  },
+  "saving": {
+    "message": "保存中...",
+    "description": "Saving status"
+  },
+  "settings_saved": {
+    "message": "設定が保存されました",
+    "description": "Settings saved message"
+  },
+  
+  "keyboard_shortcuts": {
+    "message": "キーボードショートカット",
+    "description": "Keyboard shortcuts section"
+  },
+  "search_shortcut": {
+    "message": "選択したテキストをLanguage Learningで検索",
+    "description": "Search shortcut description"
+  },
+  "current_shortcut": {
+    "message": "現在のショートカット：",
+    "description": "Current shortcut label"
+  },
+  "customize_shortcuts": {
+    "message": "ショートカットをカスタマイズ",
+    "description": "Customize shortcuts button"
+  },
+  "shortcuts_note": {
+    "message": "上のボタンをクリックしてChromeのショートカット設定ページを開き、ショートカットをカスタマイズできます。",
+    "description": "Shortcuts note"
+  },
+  
+  "ai_analysis_title": {
+    "message": "🤖 AI言語分析",
+    "description": "AI analysis title"
+  },
+  "generate_analysis": {
+    "message": "✨ 分析を生成",
+    "description": "Generate analysis button"
+  },
+  "regenerate_analysis": {
+    "message": "🔄 再生成",
+    "description": "Regenerate analysis button"
+  },
+  "ai_analysis_placeholder": {
+    "message": "「分析を生成」をクリックすると、AIが以下を提供します：",
+    "description": "AI analysis placeholder"
+  },
+  "ai_feature_pronunciation": {
+    "message": "📢 発音ガイダンスとIPA",
+    "description": "AI pronunciation feature"
+  },
+  "ai_feature_explanation": {
+    "message": "📖 語彙解説と用法",
+    "description": "AI explanation feature"
+  },
+  "ai_feature_grammar": {
+    "message": "📝 文法分析と文構造",
+    "description": "AI grammar feature"
+  },
+  "ai_feature_culture": {
+    "message": "🌍 文化的背景と使用シナリオ",
+    "description": "AI culture feature"
+  },
+  "ai_config_note": {
+    "message": "設定でAI APIキーを設定してください",
+    "description": "AI config note"
+  },
+  "ai_analyzing": {
+    "message": "AI分析中です。お待ちください...",
+    "description": "AI analyzing message"
+  },
+  "ai_analysis_failed": {
+    "message": "AI分析に失敗しました",
+    "description": "AI analysis failed message"
+  },
+  "retry": {
+    "message": "再試行",
+    "description": "Retry button"
+  },
+  
+  "ai_audio_title": {
+    "message": "🔊 AI音声発音",
+    "description": "AI audio title"
+  },
+  "generate_audio": {
+    "message": "🎵 音声を生成",
+    "description": "Generate audio button"
+  },
+  "regenerate_audio": {
+    "message": "🔄 再生成",
+    "description": "Regenerate audio button"
+  },
+  "test_audio": {
+    "message": "🧪 テスト",
+    "description": "Test audio button"
+  },
+  "audio_placeholder": {
+    "message": "「音声を生成」をクリックしてAI音声発音を取得",
+    "description": "Audio placeholder message"
+  },
+  "audio_tech_note": {
+    "message": "OpenAI TTS技術を使用して自然な音声を生成",
+    "description": "Audio technology note"
+  },
+  "generating_audio": {
+    "message": "音声を生成中です。お待ちください...",
+    "description": "Generating audio message"
+  },
+  "play_audio": {
+    "message": "▶️ 再生",
+    "description": "Play audio button"
+  },
+  "download_audio": {
+    "message": "💾 ダウンロード",
+    "description": "Download audio button"
+  },
+  "repeat_audio": {
+    "message": "🔄 リピート",
+    "description": "Repeat audio button"
+  },
+  "repeat_on": {
+    "message": "🔁 リピート中",
+    "description": "Repeat on status"
+  },
+  "audio_generation_failed": {
+    "message": "音声生成に失敗しました",
+    "description": "Audio generation failed message"
+  },
+  
+  "language_uncertain": {
+    "message": "言語不明",
+    "description": "Language uncertain title"
+  },
+  "language_select_prompt": {
+    "message": "システムは以下のテキストの言語を判定できません。正しい言語を選択してください：",
+    "description": "Language selection prompt"
+  },
+  "language_option_english": {
+    "message": "English",
+    "description": "English option in language selector"
+  },
+  "language_option_dutch": {
+    "message": "Nederlands",
+    "description": "Dutch option in language selector"
+  },
+  "remember_choice": {
+    "message": "選択を記憶する（類似テキスト用）",
+    "description": "Remember choice option"
+  },
+  "cancel": {
+    "message": "キャンセル",
+    "description": "Cancel button"
+  },
+  "confirm": {
+    "message": "確認",
+    "description": "Confirm button"
+  },
+  
+  "audio_not_supported": {
+    "message": "ブラウザがオーディオ再生をサポートしていません",
+    "description": "Audio not supported message"
+  },
+  "pronunciation_sites_description": {
+    "message": "最適な発音ウェブサイトを選択してください：",
+    "description": "Pronunciation sites description"
+  },
+  "site_descriptions_title": {
+    "message": "📖 ウェブサイト説明",
+    "description": "Site descriptions title"
+  }
+}
