@@ -1,6 +1,11 @@
 // IndexedDB Manager for YouGlish Extension
 // Handles large data storage (audio files, videos) with unlimited capacity
 
+// Import production logger
+if (typeof logger === 'undefined' && typeof importScripts !== 'undefined') {
+  importScripts('./production-logger.js');
+}
+
 class IndexedDBManager {
   constructor() {
     this.dbName = 'YouGlishExtensionDB';
@@ -26,13 +31,21 @@ class IndexedDBManager {
         const request = indexedDB.open(this.dbName, this.dbVersion);
         
         request.onerror = () => {
-          console.error('IndexedDB initialization failed:', request.error);
+          if (typeof logger !== 'undefined') {
+            logger.error('IndexedDB initialization failed:', request.error);
+          } else {
+            console.error('IndexedDB initialization failed:', request.error);
+          }
           reject(request.error);
         };
         
         request.onsuccess = () => {
           this.db = request.result;
-          console.log('✅ IndexedDB initialized successfully');
+          if (typeof logger !== 'undefined') {
+            logger.info('✅ IndexedDB initialized successfully');
+          } else {
+            console.log('✅ IndexedDB initialized successfully');
+          }
           resolve(this.db);
         };
         
