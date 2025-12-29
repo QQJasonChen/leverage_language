@@ -89,7 +89,6 @@ class ModularSidepanel {
     const moduleMap = {
       'dashboard': 'modules/sidepanel/sidepanel-dashboard.js',
       'auth': 'modules/sidepanel/sidepanel-auth.js',
-      'analytics': 'modules/sidepanel/sidepanel-analytics.js',
       'platforms': 'modules/sidepanel/sidepanel-platforms.js'
     };
 
@@ -99,6 +98,32 @@ class ModularSidepanel {
       return true;
     }
     return false;
+  }
+
+  // Load all feature modules
+  async loadAllModules() {
+    try {
+      console.log('📦 Loading all feature modules...');
+      
+      const featureModules = [
+        'dashboard',
+        'auth', 
+        'platforms'
+      ];
+
+      // Load all feature modules
+      for (const moduleName of featureModules) {
+        await this.loadOnDemandModule(moduleName);
+      }
+
+      console.log('✅ All feature modules loaded');
+      
+      // Dispatch all modules loaded event
+      document.dispatchEvent(new CustomEvent('allModulesLoaded'));
+      
+    } catch (error) {
+      console.error('❌ Failed to load all modules:', error);
+    }
   }
 
   // Get module load status
@@ -117,6 +142,11 @@ const modularSidepanel = new ModularSidepanel();
 // Auto-initialize when script loads
 modularSidepanel.initializeModules().then(() => {
   console.log('🎉 Modular sidepanel is ready!');
+  
+  // Load all feature modules after core initialization
+  return modularSidepanel.loadAllModules();
+}).then(() => {
+  console.log('🚀 All modules fully loaded and ready!');
 }).catch(error => {
   console.error('💥 Modular sidepanel initialization failed:', error);
 });
