@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extension Test Runner</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+        }
+        
+        .test-controls {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+            text-align: center;
+        }
+        
+        .test-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 0 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .test-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+        }
+        
+        .test-btn.secondary {
+            background: #2196F3;
+        }
+        
+        .test-btn.tertiary {
+            background: #FF9800;
+        }
+        
+        .test-output {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        
+        .status-bar {
+            background: #f8f9fa;
+            padding: 10px 20px;
+            border-top: 1px solid #eee;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ccc;
+            margin-right: 8px;
+        }
+        
+        .status-indicator.running {
+            background: #FF9800;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .status-indicator.success {
+            background: #4CAF50;
+        }
+        
+        .status-indicator.error {
+            background: #f44336;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .test-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
+        }
+        
+        .test-section {
+            border: 1px solid #eee;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        
+        .test-section-header {
+            background: #f8f9fa;
+            padding: 15px;
+            font-weight: 600;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .test-section-content {
+            padding: 15px;
+            min-height: 200px;
+            font-family: monospace;
+            font-size: 12px;
+            background: #fafafa;
+        }
+        
+        .clear-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .progress-bar {
+            height: 4px;
+            background: #e0e0e0;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #2196F3);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧪 Extension Test Runner</h1>
+            <p>Quality assurance tools for modular extension architecture</p>
+        </div>
+        
+        <div class="test-controls">
+            <button class="test-btn" onclick="runUnitTests()">🔬 Unit Tests</button>
+            <button class="test-btn secondary" onclick="runIntegrationTests()">🔧 Integration Tests</button>
+            <button class="test-btn tertiary" onclick="runQualityCheck()">📊 Quality Check</button>
+            <button class="clear-btn" onclick="clearOutput()">🗑️ Clear</button>
+        </div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        
+        <div class="test-grid">
+            <div class="test-section">
+                <div class="test-section-header">
+                    📝 Test Output
+                </div>
+                <div class="test-section-content" id="testOutput">
+                    Ready to run tests...
+                </div>
+            </div>
+            
+            <div class="test-section">
+                <div class="test-section-header">
+                    📊 Results Summary
+                </div>
+                <div class="test-section-content" id="resultsSummary">
+                    No tests run yet...
+                </div>
+            </div>
+        </div>
+        
+        <div class="status-bar">
+            <div>
+                <span class="status-indicator" id="statusIndicator"></span>
+                <span id="statusText">Ready</span>
+            </div>
+            <div id="testStats">
+                Tests: 0/0 | Time: 0ms
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTestType = null;
+        
+        // UI Helper Functions
+        function updateStatus(status, text) {
+            const indicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            
+            indicator.className = `status-indicator ${status}`;
+            statusText.textContent = text;
+        }
+        
+        function updateProgress(percentage) {
+            const progressFill = document.getElementById('progressFill');
+            progressFill.style.width = percentage + '%';
+        }
+        
+        function appendOutput(message) {
+            const output = document.getElementById('testOutput');
+            output.textContent += message + '\n';
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function updateSummary(summary) {
+            const summaryElement = document.getElementById('resultsSummary');
+            summaryElement.textContent = summary;
+        }
+        
+        function clearOutput() {
+            document.getElementById('testOutput').textContent = '';
+            document.getElementById('resultsSummary').textContent = 'No tests run yet...';
+            updateStatus('', 'Ready');
+            updateProgress(0);
+            document.getElementById('testStats').textContent = 'Tests: 0/0 | Time: 0ms';
+        }
+        
+        // Override console to capture output
+        function captureConsoleOutput() {
+            const originalLog = console.log;
+            const originalError = console.error;
+            const originalWarn = console.warn;
+            
+            console.log = (...args) => {
+                appendOutput(args.join(' '));
+                originalLog.apply(console, args);
+            };
+            
+            console.error = (...args) => {
+                appendOutput('❌ ' + args.join(' '));
+                originalError.apply(console, args);
+            };
+            
+            console.warn = (...args) => {
+                appendOutput('⚠️ ' + args.join(' '));
+                originalWarn.apply(console, args);
+            };
+        }
+        
+        // Test Runners
+        async function runUnitTests() {
+            currentTestType = 'unit';
+            updateStatus('running', 'Running unit tests...');
+            updateProgress(10);
+            
+            try {
+                captureConsoleOutput();
+                
+                // Load unit test runner
+                const script = document.createElement('script');
+                script.src = chrome.runtime.getURL('tests/unit/test-runner.js');
+                
+                script.onload = () => {
+                    updateProgress(50);
+                    
+                    // Wait for tests to complete
+                    setTimeout(() => {
+                        updateProgress(100);
+                        updateStatus('success', 'Unit tests completed');
+                        
+                        if (window.ExtensionTestRunner) {
+                            const results = window.ExtensionTestRunner.results;
+                            updateSummary(`Unit Tests Summary:
+Total: ${results.total}
+Passed: ${results.passed}
+Failed: ${results.failed}
+Success Rate: ${((results.passed / results.total) * 100).toFixed(1)}%`);
+                            
+                            document.getElementById('testStats').textContent = 
+                                `Tests: ${results.passed}/${results.total} | Time: ${results.details.reduce((sum, t) => sum + t.duration, 0).toFixed(1)}ms`;
+                        }
+                    }, 3000);
+                };
+                
+                script.onerror = () => {
+                    updateStatus('error', 'Failed to load unit tests');
+                    updateProgress(0);
+                };
+                
+                document.head.appendChild(script);
+                
+            } catch (error) {
+                updateStatus('error', 'Unit test error: ' + error.message);
+                updateProgress(0);
+            }
+        }
+        
+        async function runIntegrationTests() {
+            currentTestType = 'integration';
+            updateStatus('running', 'Running integration tests...');
+            updateProgress(10);
+            
+            try {
+                captureConsoleOutput();
+                
+                // Load integration test suite
+                const script = document.createElement('script');
+                script.src = chrome.runtime.getURL('tests/integration/integration-tests.js');
+                
+                script.onload = async () => {
+                    updateProgress(30);
+                    
+                    if (window.IntegrationTestSuite) {
+                        const testSuite = new window.IntegrationTestSuite();
+                        
+                        updateProgress(50);
+                        const results = await testSuite.runIntegrationTests();
+                        updateProgress(100);
+                        
+                        const passedTests = results.filter(t => t.passed).length;
+                        const totalTests = results.length;
+                        
+                        updateStatus('success', 'Integration tests completed');
+                        updateSummary(`Integration Tests Summary:
+Total: ${totalTests}
+Passed: ${passedTests}
+Failed: ${totalTests - passedTests}
+Success Rate: ${((passedTests / totalTests) * 100).toFixed(1)}%
+Setup Time: ${testSuite.setupTime.toFixed(1)}ms`);
+                        
+                        document.getElementById('testStats').textContent = 
+                            `Tests: ${passedTests}/${totalTests} | Time: ${testSuite.setupTime.toFixed(1)}ms`;
+                    }
+                };
+                
+                script.onerror = () => {
+                    updateStatus('error', 'Failed to load integration tests');
+                    updateProgress(0);
+                };
+                
+                document.head.appendChild(script);
+                
+            } catch (error) {
+                updateStatus('error', 'Integration test error: ' + error.message);
+                updateProgress(0);
+            }
+        }
+        
+        async function runQualityCheck() {
+            currentTestType = 'quality';
+            updateStatus('running', 'Running quality checks...');
+            updateProgress(10);
+            
+            try {
+                captureConsoleOutput();
+                
+                // Load module validator
+                const script = document.createElement('script');
+                script.src = chrome.runtime.getURL('tools/quality-check/module-validator.js');
+                
+                script.onload = async () => {
+                    updateProgress(30);
+                    
+                    if (window.ModuleValidator) {
+                        const validator = new window.ModuleValidator();
+                        
+                        updateProgress(50);
+                        const results = await validator.validateExtension();
+                        updateProgress(100);
+                        
+                        updateStatus('success', 'Quality check completed');
+                        updateSummary(`Quality Check Summary:
+Total Modules: ${results.summary.total}
+Passed: ${results.summary.passed}
+Failed: ${results.summary.failed}
+Warnings: ${results.summary.warnings}
+Overall: ${results.summary.failed === 0 ? '✅ PASS' : '❌ FAIL'}`);
+                        
+                        document.getElementById('testStats').textContent = 
+                            `Modules: ${results.summary.passed}/${results.summary.total} | Warnings: ${results.summary.warnings}`;
+                    }
+                };
+                
+                script.onerror = () => {
+                    updateStatus('error', 'Failed to load quality checker');
+                    updateProgress(0);
+                };
+                
+                document.head.appendChild(script);
+                
+            } catch (error) {
+                updateStatus('error', 'Quality check error: ' + error.message);
+                updateProgress(0);
+            }
+        }
+        
+        // Initialize
+        updateStatus('', 'Ready to run tests');
+        
+        // Show initial instructions
+        appendOutput('🧪 Extension Test Runner Ready!');
+        appendOutput('');
+        appendOutput('Available Tests:');
+        appendOutput('• Unit Tests: Test individual module functionality');
+        appendOutput('• Integration Tests: Test module interactions');
+        appendOutput('• Quality Check: Validate code quality and architecture');
+        appendOutput('');
+        appendOutput('Click a button above to start testing...');
+    </script>
+</body>
+</html>
