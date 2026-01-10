@@ -1,7 +1,7 @@
-*.zip
+# Ignore zip files in root but allow backups folder
+/*.zip
 backup_*.zip
-Language-Learning-Assistant-*.zip
-YouGlish-Extension-*.zip
+!backups/*.zip
 webstore-release-v1.1.2/
 dev-build/
 youglish-api*/
