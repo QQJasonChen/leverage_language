@@ -26,10 +26,18 @@ export interface SavedReport {
 }
 
 /**
+ * Type guard to check if a value is a valid timestamp number
+ * Centralizes the repeated null/undefined/NaN checks
+ */
+export function isValidTimestamp(value: unknown): value is number {
+  return value !== null && value !== undefined && typeof value === 'number' && !isNaN(value);
+}
+
+/**
  * Format seconds to MM:SS or H:MM:SS format
  */
 export function formatVideoTimestamp(seconds: number | null | undefined): string {
-  if (seconds === null || seconds === undefined || isNaN(seconds)) {
+  if (!isValidTimestamp(seconds)) {
     return '';
   }
   
@@ -63,8 +71,7 @@ export function formatDateTime(timestamp: number): string {
  * Get button text based on video timestamp availability
  */
 export function getVideoButtonText(videoTimestamp: number | null | undefined): string {
-  const hasTimestamp = videoTimestamp !== null && videoTimestamp !== undefined && !isNaN(videoTimestamp);
-  return hasTimestamp ? '⏰ 返回片段' : '📹 返回影片';
+  return isValidTimestamp(videoTimestamp) ? '⏰ 返回片段' : '📹 返回影片';
 }
 
 /**
@@ -77,9 +84,9 @@ export function debugTimestamp(params: any, result?: any): void {
   if (params) {
     const timestamp = params.timestamp || params.videoTimestamp;
     const videoSource = params.videoSource;
-    
+
     console.log('🔍 Timestamp Debug - Analysis:', {
-      hasTimestamp: timestamp !== null && timestamp !== undefined && !isNaN(timestamp),
+      hasTimestamp: isValidTimestamp(timestamp),
       timestampValue: timestamp,
       timestampType: typeof timestamp,
       hasVideoSource: !!videoSource,
@@ -90,11 +97,10 @@ export function debugTimestamp(params: any, result?: any): void {
   
   if (result) {
     console.log('🔍 Timestamp Debug - Result:', result);
-    
+
     if (result.videoSource) {
       console.log('🔍 Timestamp Debug - Result VideoSource:', {
-        hasVideoTimestamp: result.videoSource.videoTimestamp !== null && 
-                          result.videoSource.videoTimestamp !== undefined,
+        hasVideoTimestamp: isValidTimestamp(result.videoSource.videoTimestamp),
         videoTimestampValue: result.videoSource.videoTimestamp,
         formatted: formatVideoTimestamp(result.videoSource.videoTimestamp),
         buttonText: getVideoButtonText(result.videoSource.videoTimestamp)
@@ -108,16 +114,12 @@ export function debugTimestamp(params: any, result?: any): void {
  */
 export function validateVideoSource(videoSource: any): boolean {
   if (!videoSource) return false;
-  
-  const hasValidTimestamp = videoSource.videoTimestamp !== null && 
-                           videoSource.videoTimestamp !== undefined && 
-                           !isNaN(videoSource.videoTimestamp);
-  
-  if (!hasValidTimestamp) {
+
+  if (!isValidTimestamp(videoSource.videoTimestamp)) {
     console.warn('⚠️ Video source missing valid videoTimestamp:', videoSource);
     return false;
   }
-  
+
   return true;
 }
 
