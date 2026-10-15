@@ -176,6 +176,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
+## 👥 Contributors
+
+This project is made possible by contributors from around the world. Thank you to everyone who has helped improve LeverageLanguage!
+
+---
+
 **Made with ❤️ for language learners worldwide**
 
 [Website](https://leveragelanguage.com) • [Chrome Store](https://chrome.google.com/webstore) • [Twitter](https://twitter.com/leveragelang) • [Blog](https://blog.leveragelanguage.com)
